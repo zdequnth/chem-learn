@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: path.resolve(__dirname),
-  },
+  // Turbopack root is auto-detected from lockfile; no manual override needed on Vercel
 };
 
 export default nextConfig;
