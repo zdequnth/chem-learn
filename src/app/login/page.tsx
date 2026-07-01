@@ -15,6 +15,7 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [role, setRole] = useState('student')
+  const [inviteCode, setInviteCode] = useState('')
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -35,6 +36,11 @@ function LoginForm() {
     setBusy(true)
 
     if (isSignup) {
+      if (role === 'teacher' && inviteCode !== process.env.NEXT_PUBLIC_TEACHER_CODE) {
+        setError('教师邀请码不正确')
+        setBusy(false)
+        return
+      }
       const result = await supabase.auth.signUp({
         email, password,
         options: { data: { display_name: name, role } },
@@ -99,6 +105,10 @@ function LoginForm() {
                     我是老师
                   </button>
                 </div>
+                {role === 'teacher' && (
+                  <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)}
+                    placeholder="教师邀请码（向管理员索取）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                )}
               </>
             )}
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
