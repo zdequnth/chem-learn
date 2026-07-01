@@ -9,6 +9,12 @@ export async function POST(request: Request) {
 
   const { lessonId } = await request.json()
 
+  // Ensure profile exists
+  await supabaseAdmin('profiles', {
+    method: 'POST',
+    body: { id: user.id, role: (user.user_metadata as any)?.role || 'student', display_name: (user.user_metadata as any)?.display_name || user.email || '用户' },
+  }).catch(() => {})
+
   // Get progress status
   const progressResult = await supabaseAdmin('student_progress', {
     query: `?student_id=eq.${user.id}&lesson_id=eq.${lessonId}&select=status`,

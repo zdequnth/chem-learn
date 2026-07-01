@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setProfile(localProfile)
 
-    // Try to get real profile from DB; if missing, upsert to fix foreign keys after DB reset
+    // Try to get real profile from DB; if missing, call server API to create it
     try {
       const { data } = await supabase
         .from('profiles')
@@ -53,12 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         setProfile(data as Profile)
       } else {
-        // Profile missing in DB — upsert it so foreign keys work
-        await supabase.from('profiles').upsert({
-          id: userId,
-          role: userMeta?.role || 'student',
-          display_name: userMeta?.display_name || userEmail || '用户',
-        }, { onConflict: 'id' })
+        // Profile missing — call server-side API (uses admin key, bypasses RLS)
+        fetch('/api/profile/ensure', { method: 'POST' }).catch(() => {})
       }
     } catch (e) {
       // DB not available — local profile is fine

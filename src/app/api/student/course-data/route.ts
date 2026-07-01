@@ -7,6 +7,12 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
+  // Ensure profile exists (may have been deleted by DB reset)
+  await supabaseAdmin('profiles', {
+    method: 'POST',
+    body: { id: user.id, role: (user.user_metadata as any)?.role || 'student', display_name: (user.user_metadata as any)?.display_name || user.email || '用户' },
+  }).catch(() => {})
+
   const { searchParams } = new URL(request.url)
   const courseId = searchParams.get('courseId')
 

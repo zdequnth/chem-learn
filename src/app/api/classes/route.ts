@@ -47,6 +47,12 @@ export async function PUT(request: Request) {
   const { invite_code } = body
   if (!invite_code) return NextResponse.json({ error: '缺少邀请码' }, { status: 400 })
 
+  // Ensure profile exists (may have been deleted by DB reset)
+  await supabaseAdmin('profiles', {
+    method: 'POST',
+    body: { id: user.id, role: (user.user_metadata as any)?.role || 'student', display_name: (user.user_metadata as any)?.display_name || user.email || '用户' },
+  }).catch(() => {})
+
   // Find class by invite code
   const { data: classes } = await supabaseAdmin('classes', {
     query: `?invite_code=eq.${invite_code}&select=id`,
