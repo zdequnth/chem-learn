@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
   const [myProgress, setMyProgress] = useState({ passed: 0, total: 0, percent: 0 })
+  const [selectedClass, setSelectedClass] = useState<any>(null)
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -151,11 +152,29 @@ export default function DashboardPage() {
               {myClasses.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {myClasses.map((c: any) => (
-                    <span key={c.id} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-full">
+                    <button key={c.id} onClick={() => setSelectedClass(c)}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-full hover:bg-blue-100 cursor-pointer">
                       📚 {c.name}
-                      {c.message && <span className="text-xs text-blue-500" title={c.message}>📢</span>}
-                    </span>
+                      {c.message && <span className="text-xs text-blue-500">📢</span>}
+                    </button>
                   ))}
+                </div>
+              )}
+
+              {/* Class message popup */}
+              {selectedClass && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setSelectedClass(null)}>
+                  <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                    <h3 className="font-semibold mb-2">📚 {selectedClass.name}</h3>
+                    {selectedClass.message ? (
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedClass.message}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">暂无留言</p>
+                    )}
+                    <button onClick={() => setSelectedClass(null)} className="mt-4 px-4 py-2 bg-gray-100 rounded-lg text-sm">
+                      关闭
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
