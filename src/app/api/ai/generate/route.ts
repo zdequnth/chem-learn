@@ -13,11 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '仅教师可用' }, { status: 403 })
   }
 
-  const { lessonId, questionType, count, difficultyMin, difficultyMax, topic, language } = await request.json()
-
-  const difficulty = difficultyMin && difficultyMax
-    ? `${difficultyMin}-${difficultyMax}`
-    : (difficultyMin || difficultyMax || 3)
+  const { lessonId, questionType, count, topic } = await request.json()
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 })
@@ -28,21 +24,15 @@ export async function POST(request: Request) {
     gate_test: 'gate test questions',
     boss_test: 'chapter boss test questions',
   }
+  const chemistryRules = `化学式规则：所有化学式必须用 \\ce{...} 包裹。离子电荷用 ^ 上标，如 \\ce{Cu^2+}（不要写成 Cu^{2+} 或 Cu^{2}+）。同位素如 \\ce{^235_92U}。水合离子如 \\ce{[Cu(H2O)6]^2+}。化学方程式如 \\ce{2H2 + O2 -> 2H2O}。不要在选项内容前加"A. "等字母前缀。`
 
-  const lang = language === 'chinese' ? '中文' : 'English'
-  const chemistryRules = language === 'chinese'
-    ? `化学式规则：所有化学式必须用 \\ce{...} 包裹。离子电荷用 ^ 上标，如 \\ce{Cu^2+}（不要写成 Cu^{2+} 或 Cu^{2}+）。同位素如 \\ce{^235_92U}。水合离子如 \\ce{[Cu(H2O)6]^2+}。化学方程式如 \\ce{2H2 + O2 -> 2H2O}。不要在选项内容前加"A. "等字母前缀。`
-    : `Chemistry notation rules: ALWAYS wrap ALL chemical formulas in \\ce{...}. Use ^ for superscript charges: \\ce{Cu^2+} (NOT Cu^{2+} or Cu^{2}+). Isotopes: \\ce{^235_92U}. Hydrated ions: \\ce{[Cu(H2O)6]^2+}. Equations: \\ce{2H2 + O2 -> 2H2O}. Do NOT add "A. " prefixes in option content.`
-
-  const basePrompt = language === 'chinese'
-    ? `你是一位经验丰富的国际学校化学教师。请用中文生成 ${count} 道${typeLabels[questionType] || '题目'}。${topic ? '课程主题：' + topic : ''}难度范围：${difficulty}/5，题型：单选题（4个选项）。${chemistryRules}每题配详细解析，选项有干扰性。解析必须以"正确答案：X"开头，然后才是详细解释。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"正确答案：B。详细解析...","difficulty":3}]}`
-    : `You are an experienced international school chemistry teacher. Generate ${count} ${typeLabels[questionType] || 'questions'}.${topic ? ' Topic: ' + topic : ''} Difficulty range: ${difficulty}/5. Type: multiple choice (4 options). ${chemistryRules}Each question must have a detailed explanation. Explanation MUST start with "Answer: X" followed by detailed reasoning. Output ONLY valid JSON: {"questions":[{"stem":"Question text","options":[{"content":"Option text","isCorrect":false}...],"explanation":"Answer: B. Detailed explanation...","difficulty":3}]}`
+  const basePrompt = `你是一位经验丰富的国际学校化学教师。请用中文生成 ${count} 道${typeLabels[questionType] || '题目'}。${topic ? '课程主题：' + topic : ''}难度：中等偏上（国际学校化学课程水平），题型：单选题（4个选项）。${chemistryRules}每题配详细解析，选项有干扰性。解析必须以"正确答案：X"开头，然后才是详细解释。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"正确答案：B。详细解析...","difficulty":3}]}`
 
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-chat',
       messages: [
-        { role: 'system', content: lang === 'English' ? 'You are a chemistry teacher. Output raw JSON only, no markdown.' : '你是化学教师。输出纯JSON，不要markdown代码块。' },
+        { role: 'system', content: '你是化学教师。输出纯JSON，不要markdown代码块。' },
         { role: 'user', content: basePrompt },
       ],
       temperature: 0.8,

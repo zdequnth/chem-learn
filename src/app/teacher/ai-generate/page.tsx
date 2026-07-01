@@ -30,9 +30,6 @@ function AIGenerateForm() {
   const [topic, setTopic] = useState('')
   const [questionType, setQuestionType] = useState('gate_test')
   const [count, setCount] = useState(30)
-  const [difficultyMin, setDifficultyMin] = useState(2)
-  const [difficultyMax, setDifficultyMax] = useState(4)
-  const [language, setLanguage] = useState('english')
   const [generating, setGenerating] = useState(false)
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([])
   const [saved, setSaved] = useState(false)
@@ -82,8 +79,7 @@ function AIGenerateForm() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        lessonId: selectedLesson, questionType, count, difficultyMin, difficultyMax,
-        topic, language,
+        lessonId: selectedLesson, questionType, count, topic,
       }),
     })
     const data = await res.json()
@@ -180,26 +176,8 @@ function AIGenerateForm() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">语言</label>
-              <select value={language} onChange={e => setLanguage(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="english">English</option>
-                <option value="chinese">中文</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-sm font-medium mb-1">题目数量</label>
               <input type="number" min={1} max={30} value={count} onChange={e => setCount(Number(e.target.value))}
-                className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">难度下限 (1-5)</label>
-              <input type="number" min={1} max={5} value={difficultyMin} onChange={e => setDifficultyMin(Number(e.target.value))}
-                className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">难度上限 (1-5)</label>
-              <input type="number" min={1} max={5} value={difficultyMax} onChange={e => setDifficultyMax(Number(e.target.value))}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
           </div>
