@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
@@ -127,24 +128,25 @@ export default function TeacherClassesPage() {
         ) : (
           <div className="space-y-4">
             {classes.map(cls => (
-              <div key={cls.id} className="bg-card rounded-xl border p-5">
+              <Link key={cls.id} href={`/teacher/classes/${cls.id}`}
+                className="bg-card rounded-xl border p-5 block hover:shadow-md hover:border-emerald-200 transition-all">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-lg">{cls.name}</h3>
                     <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {cls.student_count} 名学生</span>
-                      <button onClick={() => copyInviteCode(cls.invite_code)}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
+                      <span onClick={e => { e.preventDefault(); copyInviteCode(cls.invite_code) }}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 cursor-pointer">
                         <Copy className="w-3.5 h-3.5" /> 邀请码: {cls.invite_code}
-                      </button>
+                      </span>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(cls.id)}
+                  <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
                     className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

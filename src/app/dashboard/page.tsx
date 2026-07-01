@@ -20,6 +20,8 @@ export default function DashboardPage() {
   const [joinCode, setJoinCode] = useState('')
   const [joinMsg, setJoinMsg] = useState('')
   const [joinBusy, setJoinBusy] = useState(false)
+  const [myClasses, setMyClasses] = useState<any[]>([])
+  const [myProgress, setMyProgress] = useState({ passed: 0, total: 0, percent: 0 })
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -81,6 +83,17 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearTimeout(timeout) }
   }, [user, isTeacher])
 
+  // Fetch student's classes and progress
+  useEffect(() => {
+    if (!user || isTeacher) return
+    fetch('/api/student/dashboard').then(r => r.json()).then(json => {
+      if (!json.error) {
+        setMyClasses(json.classes || [])
+        setMyProgress(json.progress || { passed: 0, total: 0, percent: 0 })
+      }
+    }).catch(() => {})
+  }, [user, isTeacher])
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -106,18 +119,45 @@ export default function DashboardPage() {
             {isTeacher ? '管理课程、题库和班级' : '继续你的化学闯关之旅'}
           </p>
 
-          {/* Join class for students */}
+          {/* Join class + progress for students */}
           {!isTeacher && (
-            <div className="mt-4 flex items-center gap-2">
-              <input value={joinCode} onChange={e => setJoinCode(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleJoinClass() }}
-                placeholder="输入班级邀请码"
-                className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
-              <button onClick={handleJoinClass} disabled={joinBusy}
-                className="px-4 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                {joinBusy ? '...' : '加入班级'}
-              </button>
-              {joinMsg && <span className="text-sm">{joinMsg}</span>}
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <input value={joinCode} onChange={e => setJoinCode(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleJoinClass() }}
+                  placeholder="输入班级邀请码"
+                  className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
+                <button onClick={handleJoinClass} disabled={joinBusy}
+                  className="px-4 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
+                  {joinBusy ? '...' : '加入班级'}
+                </button>
+                {joinMsg && <span className="text-sm">{joinMsg}</span>}
+              </div>
+
+              {/* Progress bar */}
+              {myProgress.total > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">总体进度</span>
+                    <span className="font-medium">{myProgress.passed}/{myProgress.total} 课时 · {myProgress.percent}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${myProgress.percent}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {/* My classes */}
+              {myClasses.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {myClasses.map((c: any) => (
+                    <span key={c.id} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-full">
+                      📚 {c.name}
+                      {c.message && <span className="text-xs text-blue-500" title={c.message}>📢</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

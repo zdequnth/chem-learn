@@ -77,6 +77,29 @@ export async function PUT(request: Request) {
   return NextResponse.json({ success: true, class_id: classId })
 }
 
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const body = await request.json()
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+
+  const update: any = {}
+  if (body.name !== undefined) update.name = body.name
+  if (body.message !== undefined) update.message = body.message
+
+  const { error } = await supabaseAdmin('classes', {
+    method: 'PATCH',
+    body: update,
+    query: `?id=eq.${id}`,
+  })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
