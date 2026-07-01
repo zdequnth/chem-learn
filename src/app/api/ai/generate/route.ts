@@ -54,28 +54,25 @@ export async function POST(request: Request) {
     // Strip markdown code fences
     raw = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
 
+    // Fix LaTeX backslashes: \c, \f, \b, \t, \n, \r followed by letters are LaTeX commands,
+    // not JSON escapes. Escape them so JSON.parse doesn't choke.
+    const fixLatex = (s: string) => s.replace(/(?<!\\)\\(?=[a-zA-Z])/g, '\\\\')
+
     // Try to parse, with escalating fixes
     let generated: any
     try {
-      generated = JSON.parse(raw)
+      generated = JSON.parse(fixLatex(raw))
     } catch (e1) {
       // Try extracting just the JSON object
       const match = raw.match(/\{[\s\S]*\}/)
       if (match) {
         try {
-          generated = JSON.parse(match[0])
+          generated = JSON.parse(fixLatex(match[0]))
         } catch (e2) {
-          // Try fixing backslash issues (LaTeX in JSON)
-          try {
-            const fixed = match[0]
-              .replace(/(?<!\\)\\(?!["\\/bfnrtu])/g, '\\\\') // escape unescaped backslashes
-            generated = JSON.parse(fixed)
-          } catch (e3) {
-            return NextResponse.json({
-              error: 'AI返回格式异常，请重试。错误: ' + (e2 as Error).message,
-              raw: raw.substring(0, 500),
-            }, { status: 500 })
-          }
+          return NextResponse.json({
+            error: 'AI返回格式异常，请重试。错误: ' + (e2 as Error).message,
+            raw: raw.substring(0, 500),
+          }, { status: 500 })
         }
       } else {
         return NextResponse.json({
