@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import 'katex/dist/katex.min.css'
 import { AuthProvider } from './providers'
@@ -10,9 +11,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <Suspense fallback={null}>
+          <AuthProvider>{children}</AuthProvider>
+        </Suspense>
       </body>
     </html>
   )
