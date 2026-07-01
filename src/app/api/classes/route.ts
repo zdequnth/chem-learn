@@ -38,6 +38,39 @@ export async function POST(request: Request) {
   return NextResponse.json(data)
 }
 
+export async function PUT(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const body = await request.json()
+  const { invite_code } = body
+  if (!invite_code) return NextResponse.json({ error: '缺少邀请码' }, { status: 400 })
+
+  // Find class by invite code
+  const { data: classes } = await supabaseAdmin('classes', {
+    query: `?invite_code=eq.${invite_code}&select=id`,
+  })
+  if (!classes || classes.length === 0) {
+    return NextResponse.json({ error: '邀请码无效' }, { status: 404 })
+  }
+
+  // Join class
+  const classId = classes[0].id
+  const { error } = await supabaseAdmin('class_members', {
+    method: 'POST',
+    body: { class_id: classId, student_id: user.id },
+  })
+  if (error) {
+    if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      return NextResponse.json({ error: '你已经在这个班级里了' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, class_id: classId })
+}
+
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')

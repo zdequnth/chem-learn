@@ -17,9 +17,27 @@ export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [joinCode, setJoinCode] = useState('')
+  const [joinMsg, setJoinMsg] = useState('')
+  const [joinBusy, setJoinBusy] = useState(false)
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
+
+  const handleJoinClass = async () => {
+    if (!joinCode.trim()) return
+    setJoinBusy(true)
+    setJoinMsg('')
+    const res = await fetch('/api/classes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_code: joinCode.trim() }),
+    })
+    const json = await res.json()
+    if (json.error) { setJoinMsg('❌ ' + json.error) }
+    else { setJoinMsg('✅ 加入成功！'); setJoinCode('') }
+    setJoinBusy(false)
+  }
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,9 +105,21 @@ export default function DashboardPage() {
           <p className="text-muted-foreground mt-1">
             {isTeacher ? '管理课程、题库和班级' : '继续你的化学闯关之旅'}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            角色: {role} | profile: {profile ? '已加载' : '未加载'} | metadata: {JSON.stringify((user?.user_metadata as any)?.role || '无')}
-          </p>
+
+          {/* Join class for students */}
+          {!isTeacher && (
+            <div className="mt-4 flex items-center gap-2">
+              <input value={joinCode} onChange={e => setJoinCode(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleJoinClass() }}
+                placeholder="输入班级邀请码"
+                className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
+              <button onClick={handleJoinClass} disabled={joinBusy}
+                className="px-4 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
+                {joinBusy ? '...' : '加入班级'}
+              </button>
+              {joinMsg && <span className="text-sm">{joinMsg}</span>}
+            </div>
+          )}
         </div>
 
         {loading ? (
