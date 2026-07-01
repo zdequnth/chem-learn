@@ -45,14 +45,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Try to get real profile from DB; if missing, upsert to fix foreign keys after DB reset
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
       if (data) {
         setProfile(data as Profile)
-      } else if (!data && !error) {
+      } else {
         // Profile missing in DB — upsert it so foreign keys work
         await supabase.from('profiles').upsert({
           id: userId,
