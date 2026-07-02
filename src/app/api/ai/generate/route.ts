@@ -44,20 +44,34 @@ export async function POST(request: Request) {
     // Strip markdown code fences
     raw = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
 
-    // Fix LaTeX backslashes: \c, \f, \b, \t, \n, \r followed by letters are LaTeX commands,
-    // not JSON escapes. Escape them so JSON.parse doesn't choke.
+    // Fix LaTeX backslashes followed by letters
     const fixLatex = (s: string) => s.replace(/(?<!\\)\\(?=[a-zA-Z])/g, '\\\\')
+
+    // Remove trailing commas
+    const fixTrailing = (s: string) => s.replace(/,(\s*[}\]])/g, '$1')
+
+    // Escape unescaped control characters inside strings
+    const fixJson = (s: string) => {
+      let result = fixLatex(s)
+      result = fixTrailing(result)
+      // Replace raw newlines, carriage returns, tabs inside quoted strings
+      result = result.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_m: string, inner: string) => {
+        const cleaned = inner.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+          .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+        return '"' + cleaned + '"'
+      })
+      return result
+    }
 
     // Try to parse, with escalating fixes
     let generated: any
     try {
-      generated = JSON.parse(fixLatex(raw))
+      generated = JSON.parse(fixJson(raw))
     } catch (e1) {
-      // Try extracting just the JSON object
       const match = raw.match(/\{[\s\S]*\}/)
       if (match) {
         try {
-          generated = JSON.parse(fixLatex(match[0]))
+          generated = JSON.parse(fixJson(match[0]))
         } catch (e2) {
           return NextResponse.json({
             error: 'AI返回格式异常，请重试。错误: ' + (e2 as Error).message,
