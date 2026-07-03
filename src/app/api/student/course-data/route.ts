@@ -39,13 +39,39 @@ export async function GET(request: Request) {
       progress = p || []
     }
 
-    // Auto-unlock first lesson
-    const firstLesson = (lessons || []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0]
+    // Auto-unlock: first lesson of course, and cross-chapter progression
+    const sortedChapters = (chapters || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
+    const sortedLessons = (lessons || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
+
+    // Always unlock first lesson of first chapter
+    const firstLesson = sortedLessons[0]
     if (firstLesson && !progress.find((p: any) => p.lesson_id === firstLesson.id)) {
       await supabaseAdmin('student_progress', {
         method: 'POST',
         body: { student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked' },
       })
+      progress.push({ student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
+    }
+
+    // For each chapter (except first), unlock first lesson if all lessons in previous chapter are passed
+    for (let i = 1; i < sortedChapters.length; i++) {
+      const prevChapter = sortedChapters[i - 1]
+      const thisChapter = sortedChapters[i]
+      const prevLessons = sortedLessons.filter((l: any) => l.chapter_id === prevChapter.id)
+      const thisFirstLesson = sortedLessons.find((l: any) => l.chapter_id === thisChapter.id)
+
+      if (prevLessons.length > 0 && thisFirstLesson) {
+        const allPrevPassed = prevLessons.every((l: any) =>
+          progress.find((p: any) => p.lesson_id === l.id && p.status === 'passed')
+        )
+        if (allPrevPassed && !progress.find((p: any) => p.lesson_id === thisFirstLesson.id && (p.status === 'unlocked' || p.status === 'in_progress' || p.status === 'passed'))) {
+          await supabaseAdmin('student_progress', {
+            method: 'POST',
+            body: { student_id: user.id, lesson_id: thisFirstLesson.id, status: 'unlocked' },
+          })
+          progress.push({ student_id: user.id, lesson_id: thisFirstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
+        }
+      }
     }
 
     return NextResponse.json({ course, chapters: chapters || [], lessons: lessons || [], progress })

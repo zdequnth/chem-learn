@@ -152,12 +152,6 @@ export default function CoursePage() {
                     })}
                   </div>
 
-                  {/* Boss test */}
-                  {cIdx < chapters.length - 1 && (
-                    <div className="flex justify-center my-4">
-                      <div className="text-xs text-muted-foreground">↓ 章节通关后解锁 ↓</div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
