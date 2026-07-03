@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [joinMsg, setJoinMsg] = useState('')
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -82,13 +83,31 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearTimeout(timeout) }
   }, [user, isTeacher])
 
-  // Fetch student's classes and progress
+  // Fetch student's classes, progress, and favorites
   useEffect(() => {
     if (!user || isTeacher) return
     fetch('/api/student/dashboard').then(r => r.json()).then(json => {
       if (!json.error) setMyClasses(json.classes || [])
     }).catch(() => {})
+    fetch('/api/student/favorites').then(r => r.json()).then(json => {
+      if (!json.error) setFavorites(json.favorites || [])
+    }).catch(() => {})
   }, [user, isTeacher])
+
+  const toggleFavorite = async (courseId: string) => {
+    const isFav = favorites.includes(courseId)
+    if (isFav) {
+      setFavorites(favorites.filter(id => id !== courseId))
+      await fetch(`/api/student/favorites?courseId=${courseId}`, { method: 'DELETE' })
+    } else {
+      setFavorites([...favorites, courseId])
+      await fetch('/api/student/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      })
+    }
+  }
 
   if (authLoading) {
     return (
@@ -137,6 +156,12 @@ export default function DashboardPage() {
                     <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-blue-700 shrink-0">📚 {c.name}</span>
+                        {c.courseName && (
+                          <Link href={`/courses/${c.course_id}`}
+                            className="text-xs text-emerald-600 hover:underline shrink-0">
+                            {c.courseName}
+                          </Link>
+                        )}
                         {c.total > 0 && (
                           <>
                             <div className="flex-1 bg-blue-200 rounded-full h-2.5">
@@ -187,7 +212,11 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course: any) => (
+            {[...courses].sort((a: any, b: any) => {
+              const aFav = favorites.includes(a.id) ? 0 : 1
+              const bFav = favorites.includes(b.id) ? 0 : 1
+              return aFav - bFav
+            }).map((course: any) => (
               <Link
                 key={course.id}
                 href={isTeacher ? `/teacher/courses/${course.id}` : `/courses/${course.id}`}
@@ -197,7 +226,15 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl">
                     {course.icon || '🧪'}
                   </div>
-                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center gap-1">
+                    {!isTeacher && (
+                      <button onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFavorite(course.id) }}
+                        className="text-lg hover:scale-110 transition-transform">
+                        {favorites.includes(course.id) ? '⭐' : '☆'}
+                      </button>
+                    )}
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                  </div>
                 </div>
                 <h3 className="text-lg font-semibold mb-1">{course.name}</h3>
                 {course.grade_level && (

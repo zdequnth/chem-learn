@@ -48,7 +48,15 @@ export async function GET() {
           ).length
         }
       }
-      myClasses.push({ ...cls, passed, total, percent: total > 0 ? Math.round((passed / total) * 100) : 0 })
+      // Get course name
+      let courseName = ''
+      if (cls.course_id) {
+        const { data: crs } = await supabaseAdmin('courses', {
+          query: `?id=eq.${cls.course_id}&select=name`,
+        })
+        courseName = crs?.[0]?.name || ''
+      }
+      myClasses.push({ ...cls, passed, total, percent: total > 0 ? Math.round((passed / total) * 100) : 0, courseName })
     }
   }
 
