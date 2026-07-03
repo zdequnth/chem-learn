@@ -112,7 +112,6 @@ export default function CourseDetailPage() {
     const json = await res.json()
     if (json.error) { setCollabMsg('❌ ' + json.error) }
     else {
-      setCollabMsg('✅ 已添加 ' + json.teacher.display_name)
       setCollabInput('')
       fetchCollaborators()
     }
