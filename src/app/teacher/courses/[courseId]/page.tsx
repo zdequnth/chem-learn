@@ -38,6 +38,10 @@ export default function CourseDetailPage() {
   const [editKpTitle, setEditKpTitle] = useState('')
   const [editKpDesc, setEditKpDesc] = useState('')
   const [editKpPdf, setEditKpPdf] = useState('')
+  const [isCourseOwner, setIsCourseOwner] = useState(false)
+  const [collaborators, setCollaborators] = useState<any[]>([])
+  const [collabEmail, setCollabEmail] = useState('')
+  const [collabMsg, setCollabMsg] = useState('')
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -48,6 +52,7 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!profile) return
     fetchData()
+    fetchCollaborators()
   }, [profile, courseId])
 
   const fetchData = async () => {
@@ -70,11 +75,40 @@ export default function CourseDetailPage() {
         expanded: true,
       }))
       setChapters(chs)
+      setIsCourseOwner(json.isOwner || false)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchCollaborators = async () => {
+    const res = await fetch(`/api/courses/collaborators?courseId=${courseId}`)
+    const json = await res.json()
+    setCollaborators(json.collaborators || [])
+  }
+
+  const handleAddCollaborator = async () => {
+    if (!collabEmail.trim()) return
+    setCollabMsg('')
+    const res = await fetch('/api/courses/collaborators', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, teacherEmail: collabEmail.trim() }),
+    })
+    const json = await res.json()
+    if (json.error) { setCollabMsg('❌ ' + json.error) }
+    else {
+      setCollabMsg('✅ 已添加 ' + json.teacher.display_name)
+      setCollabEmail('')
+      fetchCollaborators()
+    }
+  }
+
+  const handleRemoveCollaborator = async (teacherId: string) => {
+    await fetch(`/api/courses/collaborators?courseId=${courseId}&teacherId=${teacherId}`, { method: 'DELETE' })
+    fetchCollaborators()
   }
 
   const handleSaveCourse = async () => {
@@ -369,6 +403,33 @@ export default function CourseDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Collaborators (owner only) */}
+            {isCourseOwner && (
+              <div className="bg-card rounded-2xl border p-6 mb-6">
+                <h2 className="text-lg font-semibold mb-3">协作者管理</h2>
+                <div className="flex gap-2 mb-3">
+                  <input value={collabEmail} onChange={e => setCollabEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddCollaborator() }}
+                    placeholder="输入教师邮箱或姓名" className="flex-1 px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <button onClick={handleAddCollaborator}
+                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加协作者</button>
+                </div>
+                {collabMsg && <p className="text-sm mb-2">{collabMsg}</p>}
+                {collaborators.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {collaborators.map((c: any) => (
+                      <span key={c.id} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">
+                        👤 {c.display_name}
+                        <button onClick={() => handleRemoveCollaborator(c.id)} className="ml-1 text-red-400 hover:text-red-600">✕</button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂无协作者。添加其他教师后，他们也能编辑此课程的章节、课时和题目。</p>
+                )}
+              </div>
+            )}
 
             {/* Chapters & Lessons */}
             <div className="bg-card rounded-2xl border p-6">

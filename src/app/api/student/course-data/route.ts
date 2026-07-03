@@ -55,10 +55,24 @@ export async function GET(request: Request) {
   const role = (user.user_metadata as any)?.role
   const isTeacher = role === 'teacher' || role === 'admin'
   if (isTeacher) {
-    const { data: courses } = await supabaseAdmin('courses', {
+    // Get owned courses
+    const { data: owned } = await supabaseAdmin('courses', {
       query: `?owner_id=eq.${user.id}&order=sort_order&select=*`,
     })
-    return NextResponse.json({ courses: courses || [] })
+    // Get collaborated courses
+    const { data: collabIds } = await supabaseAdmin('course_collaborators', {
+      query: `?teacher_id=eq.${user.id}&select=course_id`,
+    })
+    const courseIds = (collabIds || []).map((c: any) => c.course_id)
+    let collabCourses: any[] = []
+    if (courseIds.length > 0) {
+      const { data: cc } = await supabaseAdmin('courses', {
+        query: `?id=in.(${courseIds.join(',')})&order=sort_order&select=*`,
+      })
+      collabCourses = cc || []
+    }
+    const all = [...(owned || []), ...collabCourses]
+    return NextResponse.json({ courses: all })
   }
   const { data: courses } = await supabaseAdmin('courses', {
     query: '?is_published=eq.true&order=sort_order&select=*',
