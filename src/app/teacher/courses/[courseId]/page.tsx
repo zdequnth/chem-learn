@@ -433,7 +433,7 @@ export default function CourseDetailPage() {
                         !collaborators.find((c: any) => c.id === t.id) &&
                         t.display_name.toLowerCase().includes(collabInput.toLowerCase())
                       ).map((t: any) => (
-                        <button key={t.id} onClick={() => handleAddCollaborator(t.display_name)}
+                        <button key={t.id} onClick={() => { setCollabInput(t.display_name); setShowTeacherList(false) }}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50">{t.display_name}</button>
                       ))}
                     </div>
