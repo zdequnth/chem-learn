@@ -55,6 +55,7 @@ export default function TeacherClassesPage() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return
+    if (!newCourse) { alert('请选择关联课程'); return }
     await fetch('/api/classes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -105,7 +106,7 @@ export default function TeacherClassesPage() {
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <select value={newCourse} onChange={e => setNewCourse(e.target.value)}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="">关联课程（可选）</option>
+                  <option value="">选择课程（必选）</option>
                   {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>

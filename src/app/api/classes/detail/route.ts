@@ -49,13 +49,27 @@ export async function GET(request: Request) {
       query: `?student_id=in.(${studentIds.join(',')})&select=*`,
     })
 
-    // Get all lessons for progress calculation
-    const { data: allLessons } = await supabaseAdmin('lessons', {
-      query: '?select=id,title,chapter_id&order=sort_order',
-    })
-    const { data: allChapters } = await supabaseAdmin('chapters', {
-      query: '?select=id,title,course_id&order=sort_order',
-    })
+    // Filter by class's course — only count lessons from the bound course
+    const courseId = cls.course_id
+    let allLessons: any[] = []
+    let allChapters: any[] = []
+    if (courseId) {
+      const { data: chs } = await supabaseAdmin('chapters', {
+        query: `?course_id=eq.${courseId}&order=sort_order&select=id,title,course_id`,
+      })
+      allChapters = chs || []
+      const chapterIds = allChapters.map((c: any) => c.id)
+      if (chapterIds.length > 0) {
+        const { data: lns } = await supabaseAdmin('lessons', {
+          query: `?chapter_id=in.(${chapterIds.join(',')})&order=sort_order&select=id,title,chapter_id`,
+        })
+        allLessons = lns || []
+      }
+    } else {
+      // No course bound — show nothing
+      allLessons = []
+      allChapters = []
+    }
 
     students = (profiles || []).map((p: any) => {
       const studentProgress = (progress || []).filter((sp: any) => sp.student_id === p.id)

@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const [joinMsg, setJoinMsg] = useState('')
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
-  const [myProgress, setMyProgress] = useState({ passed: 0, total: 0, percent: 0 })
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -87,10 +86,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user || isTeacher) return
     fetch('/api/student/dashboard').then(r => r.json()).then(json => {
-      if (!json.error) {
-        setMyClasses(json.classes || [])
-        setMyProgress(json.progress || { passed: 0, total: 0, percent: 0 })
-      }
+      if (!json.error) setMyClasses(json.classes || [])
     }).catch(() => {})
   }, [user, isTeacher])
 
@@ -134,25 +130,22 @@ export default function DashboardPage() {
                 {joinMsg && <span className="text-sm">{joinMsg}</span>}
               </div>
 
-              {/* Progress bar */}
-              {myProgress.total > 0 && (
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">总体进度</span>
-                    <span className="font-medium">{myProgress.passed}/{myProgress.total} 课时 · {myProgress.percent}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${myProgress.percent}%` }} />
-                  </div>
-                </div>
-              )}
-
-              {/* My classes with messages */}
+              {/* My classes with progress */}
               {myClasses.length > 0 && (
                 <div className="space-y-2">
                   {myClasses.map((c: any) => (
                     <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                      <span className="text-sm font-medium text-blue-700">📚 {c.name}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-blue-700">📚 {c.name}</span>
+                        {c.total > 0 && (
+                          <span className="text-xs text-blue-600">{c.passed}/{c.total} · {c.percent}%</span>
+                        )}
+                      </div>
+                      {c.total > 0 && (
+                        <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
+                          <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${c.percent}%` }} />
+                        </div>
+                      )}
                       {c.message && (
                         <p className="text-xs text-blue-600 mt-1 whitespace-pre-wrap">{c.message}</p>
                       )}

@@ -19,24 +19,38 @@ export async function GET() {
   })
   const classIds = (memberships || []).map((m: any) => m.class_id)
 
+  const { data: myProgress } = await supabaseAdmin('student_progress', {
+    query: `?student_id=eq.${user.id}&select=lesson_id,status`,
+  })
+
+  // Build per-class progress
   let myClasses: any[] = []
   if (classIds.length > 0) {
     const { data: classes } = await supabaseAdmin('classes', {
       query: `?id=in.(${classIds.join(',')})&select=*`,
     })
-    myClasses = classes || []
+
+    for (const cls of (classes || [])) {
+      let passed = 0; let total = 0
+      if (cls.course_id) {
+        // Get chapters and lessons for this course
+        const { data: chs } = await supabaseAdmin('chapters', {
+          query: `?course_id=eq.${cls.course_id}&select=id`,
+        })
+        const chIds = (chs || []).map((c: any) => c.id)
+        if (chIds.length > 0) {
+          const { data: lns } = await supabaseAdmin('lessons', {
+            query: `?chapter_id=in.(${chIds.join(',')})&select=id`,
+          })
+          total = (lns || []).length
+          passed = (lns || []).filter((l: any) =>
+            (myProgress || []).some((p: any) => p.lesson_id === l.id && p.status === 'passed')
+          ).length
+        }
+      }
+      myClasses.push({ ...cls, passed, total, percent: total > 0 ? Math.round((passed / total) * 100) : 0 })
+    }
   }
 
-  // Get overall progress
-  const { data: progress } = await supabaseAdmin('student_progress', {
-    query: `?student_id=eq.${user.id}&select=status`,
-  })
-  const passedCount = (progress || []).filter((p: any) => p.status === 'passed').length
-  const totalCount = (progress || []).length
-  const percent = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0
-
-  return NextResponse.json({
-    classes: myClasses,
-    progress: { passed: passedCount, total: totalCount, percent },
-  })
+  return NextResponse.json({ classes: myClasses })
 }
