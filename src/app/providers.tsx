@@ -81,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let resolved = false
 
     async function initAuth() {
+      // Detect password reset recovery link → redirect to update-password page
+      if (typeof window !== 'undefined' && window.location.hash?.includes('type=recovery') && !window.location.pathname.startsWith('/auth/update-password')) {
+        window.location.href = '/auth/update-password' + window.location.hash
+        return
+      }
+
       try {
         const { data } = await supabase.auth.getSession()
         if (resolved) return
