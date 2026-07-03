@@ -11,6 +11,14 @@ export async function GET(request: Request) {
   const courseId = searchParams.get('courseId')
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
 
+  // Support listing all teachers for dropdown
+  if (searchParams.get('listTeachers')) {
+    const { data: teachers } = await supabaseAdmin('profiles', {
+      query: '?role=in.(teacher,admin)&select=id,display_name',
+    })
+    return NextResponse.json({ teachers: teachers || [] })
+  }
+
   const { data: collaborators } = await supabaseAdmin('course_collaborators', {
     query: `?course_id=eq.${courseId}&select=id,teacher_id`,
   })
@@ -42,22 +50,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '仅课程创建者可管理协作者' }, { status: 403 })
   }
 
-  // Find teacher by email
-  const { data: profiles } = await supabaseAdmin('profiles', {
-    query: `?display_name=ilike.${teacherEmail}&role=in.(teacher,admin)&select=id,display_name`,
+  // Find teacher by name (fuzzy search)
+  const search = teacherEmail.trim()
+  const { data: allTeachers } = await supabaseAdmin('profiles', {
+    query: `?role=in.(teacher,admin)&select=id,display_name`,
   })
-  // Also try by email match (display_name might store email)
-  let teacher = profiles?.[0]
-  if (!teacher) {
-    // Try finding by Supabase auth email
-    const { data: allTeachers } = await supabaseAdmin('profiles', {
-      query: `?role=in.(teacher,admin)&select=id,display_name`,
-    })
-    teacher = (allTeachers || []).find((p: any) =>
-      p.display_name?.toLowerCase().includes(teacherEmail.toLowerCase()) ||
-      p.id === teacherEmail // allow pasting UUID directly
-    )
-  }
+  const teacher = (allTeachers || []).find((p: any) =>
+    p.display_name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.id === search
+  )
 
   if (!teacher) return NextResponse.json({ error: '未找到该教师，请确认邮箱或姓名' }, { status: 404 })
 

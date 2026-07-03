@@ -40,8 +40,10 @@ export default function CourseDetailPage() {
   const [editKpPdf, setEditKpPdf] = useState('')
   const [isCourseOwner, setIsCourseOwner] = useState(false)
   const [collaborators, setCollaborators] = useState<any[]>([])
-  const [collabEmail, setCollabEmail] = useState('')
+  const [collabInput, setCollabInput] = useState('')
   const [collabMsg, setCollabMsg] = useState('')
+  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
+  const [showTeacherList, setShowTeacherList] = useState(false)
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -89,19 +91,29 @@ export default function CourseDetailPage() {
     setCollaborators(json.collaborators || [])
   }
 
-  const handleAddCollaborator = async () => {
-    if (!collabEmail.trim()) return
+  const loadTeachers = async () => {
+    if (availableTeachers.length > 0) { setShowTeacherList(!showTeacherList); return }
+    const res = await fetch('/api/courses/collaborators?courseId=' + courseId + '&listTeachers=1')
+    const json = await res.json()
+    setAvailableTeachers(json.teachers || [])
+    setShowTeacherList(true)
+  }
+
+  const handleAddCollaborator = async (name?: string) => {
+    const input = name || collabInput.trim()
+    if (!input) return
     setCollabMsg('')
+    setShowTeacherList(false)
     const res = await fetch('/api/courses/collaborators', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId, teacherEmail: collabEmail.trim() }),
+      body: JSON.stringify({ courseId, teacherEmail: input }),
     })
     const json = await res.json()
     if (json.error) { setCollabMsg('❌ ' + json.error) }
     else {
       setCollabMsg('✅ 已添加 ' + json.teacher.display_name)
-      setCollabEmail('')
+      setCollabInput('')
       fetchCollaborators()
     }
   }
@@ -408,12 +420,24 @@ export default function CourseDetailPage() {
             {isCourseOwner && (
               <div className="bg-card rounded-2xl border p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-3">协作者管理</h2>
-                <div className="flex gap-2 mb-3">
-                  <input value={collabEmail} onChange={e => setCollabEmail(e.target.value)}
+                <div className="relative flex gap-2 mb-3">
+                  <input value={collabInput} onChange={e => { setCollabInput(e.target.value); setShowTeacherList(false) }}
+                    onFocus={loadTeachers}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddCollaborator() }}
-                    placeholder="输入教师邮箱或姓名" className="flex-1 px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                  <button onClick={handleAddCollaborator}
-                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加协作者</button>
+                    placeholder="输入教师姓名搜索，或点右侧按钮选择" className="flex-1 px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <button onClick={() => handleAddCollaborator()}
+                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加</button>
+                  {showTeacherList && availableTeachers.length > 0 && (
+                    <div className="absolute top-full left-0 right-20 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                      {availableTeachers.filter((t: any) =>
+                        !collaborators.find((c: any) => c.id === t.id) &&
+                        t.display_name.toLowerCase().includes(collabInput.toLowerCase())
+                      ).map((t: any) => (
+                        <button key={t.id} onClick={() => handleAddCollaborator(t.display_name)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50">{t.display_name}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {collabMsg && <p className="text-sm mb-2">{collabMsg}</p>}
                 {collaborators.length > 0 ? (
