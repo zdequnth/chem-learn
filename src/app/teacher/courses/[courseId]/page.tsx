@@ -420,24 +420,26 @@ export default function CourseDetailPage() {
             {isCourseOwner && (
               <div className="bg-card rounded-2xl border p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-3">协作者管理</h2>
-                <div className="relative flex gap-2 mb-3">
-                  <input value={collabInput} onChange={e => { setCollabInput(e.target.value); setShowTeacherList(false) }}
-                    onFocus={loadTeachers}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddCollaborator() }}
-                    placeholder="输入教师姓名搜索，或点右侧按钮选择" className="flex-1 px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                  <button onClick={() => handleAddCollaborator()}
-                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加</button>
-                  {showTeacherList && availableTeachers.length > 0 && (
-                    <div className="absolute top-full left-0 right-20 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
-                      {availableTeachers.filter((t: any) =>
-                        !collaborators.find((c: any) => c.id === t.id) &&
-                        t.display_name.toLowerCase().includes(collabInput.toLowerCase())
-                      ).map((t: any) => (
-                        <button key={t.id} onClick={() => { setCollabInput(t.display_name); setShowTeacherList(false) }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50">{t.display_name}</button>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <button onClick={loadTeachers}
+                      className="w-full px-3 py-2 text-sm border rounded-lg outline-none text-left flex items-center justify-between hover:border-emerald-500">
+                      <span className={collabInput ? '' : 'text-muted-foreground'}>{collabInput || '选择教师...'}</span>
+                      <span className="text-xs text-muted-foreground">▼</span>
+                    </button>
+                    {showTeacherList && availableTeachers.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                        {availableTeachers.filter((t: any) =>
+                          !collaborators.find((c: any) => c.id === t.id)
+                        ).map((t: any) => (
+                          <button key={t.id} onClick={() => { setCollabInput(t.display_name); setShowTeacherList(false) }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50">{t.display_name}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => handleAddCollaborator()} disabled={!collabInput}
+                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">添加</button>
                 </div>
                 {collabMsg && <p className="text-sm mb-2">{collabMsg}</p>}
                 {collaborators.length > 0 ? (
