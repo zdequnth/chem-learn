@@ -20,15 +20,13 @@ export default function UpdatePasswordPage() {
     setBusy(true)
 
     const { error: err } = await supabase.auth.updateUser({ password })
+    setBusy(false)
     if (err) {
       setError(err.message)
     } else {
-      setError('密码重置成功！')
-      // Sign out and redirect to login
-      await supabase.auth.signOut()
-      setTimeout(() => router.push('/login'), 1500)
+      setError('密码重置成功！请使用新密码重新登录')
+      setTimeout(() => window.location.href = '/login', 2000)
     }
-    setBusy(false)
   }
 
   return (
