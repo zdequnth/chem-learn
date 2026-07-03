@@ -112,12 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Password recovery: redirect to update-password page
-        if (event === 'PASSWORD_RECOVERY') {
-          window.location.href = '/auth/update-password'
-          return
-        }
-
         const currentUser = session?.user ?? null
 
         // Always update user on auth state changes
