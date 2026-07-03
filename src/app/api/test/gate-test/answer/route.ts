@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   const { sessionId, questionId, selectedOptionId } = await request.json()
 
-  // Read session via admin
+  // Read session
   const { data: sessions } = await supabaseAdmin('gate_test_sessions', {
     query: `?id=eq.${sessionId}&student_id=eq.${user.id}&select=*`,
   })
@@ -17,24 +17,25 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   if (session.status !== 'in_progress') return NextResponse.json({ error: 'Session not active' }, { status: 400 })
 
-  // Check answer
-  const { data: opts } = await supabaseAdmin('question_options', {
-    query: `?question_id=eq.${questionId}&is_correct=eq.true&select=id,content`,
-  })
-  const correctOpt = opts?.[0]
+  // Parallel: check answer + get question
+  const [optsRes, questionsRes] = await Promise.all([
+    supabaseAdmin('question_options', {
+      query: `?question_id=eq.${questionId}&is_correct=eq.true&select=id`,
+    }),
+    supabaseAdmin('questions', {
+      query: `?id=eq.${questionId}&select=explanation,lesson_id`,
+    }),
+  ])
+
+  const correctOpt = optsRes.data?.[0]
+  const question = questionsRes.data?.[0]
   const isCorrect = selectedOptionId === correctOpt?.id
 
-  // Get question
-  const { data: questions } = await supabaseAdmin('questions', {
-    query: `?id=eq.${questionId}&select=explanation,lesson_id`,
-  })
-  const question = questions?.[0]
-
-  // Record answer
-  await supabaseAdmin('gate_test_answers', {
+  // Record answer (fire-and-forget, non-blocking for response)
+  supabaseAdmin('gate_test_answers', {
     method: 'POST',
     body: { session_id: sessionId, question_id: questionId, selected_option_id: selectedOptionId, is_correct: isCorrect },
-  })
+  }).catch(() => {})
 
   const oldCC = session.consecutive_correct || 0
   const oldTC = session.total_correct || 0
@@ -50,30 +51,19 @@ export async function POST(request: Request) {
   let lockedUntil: string | null = null
   let passed = false
   let stars = 0
+  let alreadyPassed = false
 
-  // Check if lesson is already passed (retake mode)
-  const { data: progCheck } = await supabaseAdmin('student_progress', {
-    query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=status`,
-  })
-  const alreadyPassed = progCheck?.[0]?.status === 'passed'
-
-  // Check pass: 7 consecutive correct
   if (newCC >= 7) { status = 'passed'; passed = true }
-  // Check pass: >= 10 questions and >= 90% accuracy
   if (!passed && newQA >= 10 && newTC / newQA >= 0.90) { status = 'passed'; passed = true }
-  // Check fail: 3 wrong (don't lock if already passed)
   if (!passed && newTW >= 3) {
     status = 'failed'
-    if (!alreadyPassed) {
-      lockedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    }
+    lockedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString()
   }
-
   if (passed) stars = newTW === 0 ? 3 : newTW === 1 ? 2 : 1
 
   const accuracy = newQA > 0 ? newTC / newQA : 0
 
-  // Update session via admin
+  // Update session
   const patchResult = await supabaseAdmin('gate_test_sessions', {
     method: 'PATCH',
     body: {
@@ -84,41 +74,36 @@ export async function POST(request: Request) {
     },
     query: `?id=eq.${sessionId}`,
   })
-  if (patchResult.error) {
-    console.error('Failed to update gate_test_session:', patchResult.error)
-  }
+  if (patchResult.error) console.error('Failed to update session:', patchResult.error)
 
-  // Update student progress if passed (only if not already passed)
+  // Fire-and-forget: update student progress if passed
   if (passed) {
-    const { data: existing } = await supabaseAdmin('student_progress', {
+    supabaseAdmin('student_progress', {
       query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=id,status`,
-    })
-    const current = existing?.[0]
-    if (current && current.status !== 'passed') {
-      const up = await supabaseAdmin('student_progress', {
-        method: 'PATCH',
-        body: { status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: (session.attempt_count || 0) + 1 },
-        query: `?id=eq.${current.id}`,
-      })
-      if (up.error) console.error('Failed to update progress:', up.error)
-    } else if (!current) {
-      const up = await supabaseAdmin('student_progress', {
-        method: 'POST',
-        body: { student_id: user.id, lesson_id: session.lesson_id, status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: 1 },
-      })
-      if (up.error) console.error('Failed to create progress:', up.error)
-    }
-    // If already passed, don't downgrade or change anything
+    }).then(async ({ data: existing }) => {
+      const current = existing?.[0]
+      if (current && current.status !== 'passed') {
+        await supabaseAdmin('student_progress', {
+          method: 'PATCH',
+          body: { status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: (session.attempt_count || 0) + 1 },
+          query: `?id=eq.${current.id}`,
+        })
+      } else if (!current) {
+        await supabaseAdmin('student_progress', {
+          method: 'POST',
+          body: { student_id: user.id, lesson_id: session.lesson_id, status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: 1 },
+        })
+      }
+    }).catch(() => {})
   }
 
-  // Wrong question book
+  // Fire-and-forget: wrong question book
   if (!isCorrect && question) {
-    const { data: lessons } = await supabaseAdmin('lessons', {
+    supabaseAdmin('lessons', {
       query: `?id=eq.${question.lesson_id}&select=chapter_id`,
-    })
-    const chapterId = lessons?.[0]?.chapter_id
-    if (chapterId) {
-      // Upsert to handle duplicates
+    }).then(async ({ data: lessons }) => {
+      const chapterId = lessons?.[0]?.chapter_id
+      if (!chapterId) return
       const { data: existingWq } = await supabaseAdmin('wrong_question_book', {
         query: `?student_id=eq.${user.id}&question_id=eq.${questionId}&select=id`,
       })
@@ -134,13 +119,28 @@ export async function POST(request: Request) {
           body: { student_id: user.id, question_id: questionId, chapter_id: chapterId, last_wrong_at: new Date().toISOString(), wrong_count: 1, is_resolved: false },
         })
       }
-    }
+    }).catch(() => {})
   }
 
-  // Strip AI's "正确答案：X" or "Answer: X" prefix from explanation
+  // Strip AI's "正确答案：X" prefix from explanation
   let explanation = question?.explanation || null
   if (explanation) {
     explanation = explanation.replace(/^(正确答案：\s*[A-D][.。]?\s*|Answer:\s*[A-D][.。]?\s*)/i, '')
+  }
+
+  // Don't lock if already passed
+  if (!passed && newTW >= 3 && lockedUntil) {
+    supabaseAdmin('student_progress', {
+      query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=status`,
+    }).then(({ data }) => {
+      if (data?.[0]?.status === 'passed') {
+        supabaseAdmin('gate_test_sessions', {
+          method: 'PATCH',
+          body: { locked_until: null },
+          query: `?id=eq.${sessionId}`,
+        }).catch(() => {})
+      }
+    }).catch(() => {})
   }
 
   return NextResponse.json({
