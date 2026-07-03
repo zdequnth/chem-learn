@@ -135,17 +135,17 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {myClasses.map((c: any) => (
                     <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-blue-700">📚 {c.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-blue-700 shrink-0">📚 {c.name}</span>
                         {c.total > 0 && (
-                          <span className="text-xs text-blue-600">{c.passed}/{c.total} · {c.percent}%</span>
+                          <>
+                            <div className="flex-1 bg-blue-200 rounded-full h-2.5">
+                              <div className="bg-blue-500 h-2.5 rounded-full transition-all" style={{ width: `${c.percent}%` }} />
+                            </div>
+                            <span className="text-xs text-blue-600 w-10 text-right shrink-0">{c.percent}%</span>
+                          </>
                         )}
                       </div>
-                      {c.total > 0 && (
-                        <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
-                          <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${c.percent}%` }} />
-                        </div>
-                      )}
                       {c.message && (
                         <p className="text-xs text-blue-600 mt-1 whitespace-pre-wrap">{c.message}</p>
                       )}
