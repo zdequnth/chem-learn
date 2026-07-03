@@ -39,6 +39,7 @@ export default function ClassDetailPage() {
   const [editMessage, setEditMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'name' | 'progress'>('name')
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -137,37 +138,48 @@ export default function ClassDetailPage() {
 
             {/* Students Progress */}
             <div className="bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5" /> 学生进度（{students.length}人）
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Users className="w-5 h-5" /> 学生进度（{students.length}人）
+                </h2>
+                {students.length > 0 && (
+                  <div className="flex gap-1 text-xs">
+                    <button onClick={() => setSortBy('name')}
+                      className={`px-2 py-1 rounded ${sortBy === 'name' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
+                      姓名 ↑
+                    </button>
+                    <button onClick={() => setSortBy('progress')}
+                      className={`px-2 py-1 rounded ${sortBy === 'progress' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
+                      进度 ↓
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {students.length === 0 ? (
                 <p className="text-center py-12 text-muted-foreground">还没有学生加入</p>
               ) : (
-                <div className="space-y-4">
-                  {students.map(s => (
-                    <div key={s.id} className="border rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <button onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)}
-                          className="font-medium text-sm hover:text-emerald-600">
-                          {s.display_name}
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {s.totalPassed}/{s.totalLessons} 课时已通过
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* Overall progress bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-3 mb-1">
-                        <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${s.percent}%` }} />
-                      </div>
-                      <div className="text-xs text-muted-foreground text-right">{s.percent}%</div>
+                <div className="space-y-2">
+                  {[...students]
+                    .sort((a, b) => sortBy === 'name'
+                      ? a.display_name.localeCompare(b.display_name, 'zh')
+                      : b.percent - a.percent)
+                    .map(s => (
+                    <div key={s.id} className="border rounded-xl">
+                      <button onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left">
+                        <span className="font-medium text-sm w-24 shrink-0 truncate">{s.display_name}</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-3">
+                          <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${s.percent}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{s.percent}%</span>
+                      </button>
 
                       {/* Per-chapter breakdown */}
-                      {expandedStudent === s.id && (
-                        <div className="mt-3 space-y-2 pl-2 border-l-2 border-emerald-200">
+                      {expandedStudent === s.id && s.chapterProgress.length > 0 && (
+                        <div className="px-4 pb-3 space-y-2 border-t">
                           {s.chapterProgress.map(cp => (
-                            <div key={cp.chapterId}>
+                            <div key={cp.chapterId} className="pl-3 border-l-2 border-emerald-200">
                               <div className="flex items-center justify-between text-xs mb-0.5">
                                 <span className="text-muted-foreground">{cp.chapterTitle}</span>
                                 <span>{cp.passed}/{cp.total} · {cp.percent}%</span>
