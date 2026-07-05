@@ -97,16 +97,7 @@ export async function GET(request: Request) {
       })
       collabCourses = cc || []
     }
-    // Also get all published courses from other teachers (view-only)
-    const { data: others } = await supabaseAdmin('courses', {
-      query: `?owner_id=neq.${user.id}&is_published=eq.true&order=sort_order&select=*`,
-    })
-    // Merge, de-duplicate, owned first
     const all = [...(owned || []), ...collabCourses]
-    const ownedIds = new Set(all.map((c: any) => c.id))
-    for (const c of (others || [])) {
-      if (!ownedIds.has(c.id)) all.push(c)
-    }
     return NextResponse.json({ courses: all })
   }
   const { data: courses } = await supabaseAdmin('courses', {
