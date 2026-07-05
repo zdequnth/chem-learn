@@ -39,6 +39,8 @@ export default function CourseDetailPage() {
   const [editKpDesc, setEditKpDesc] = useState('')
   const [editKpPdf, setEditKpPdf] = useState('')
   const [isCourseOwner, setIsCourseOwner] = useState(false)
+  const [isCollaborator, setIsCollaborator] = useState(false)
+  const canEdit = isCourseOwner || isCollaborator || (profile?.role === 'admin')
   const [collaborators, setCollaborators] = useState<any[]>([])
   const [collabInput, setCollabInput] = useState('')
   const [collabMsg, setCollabMsg] = useState('')
@@ -78,6 +80,7 @@ export default function CourseDetailPage() {
       }))
       setChapters(chs)
       setIsCourseOwner(json.isOwner || false)
+      setIsCollaborator(json.isCollaborator || false)
     } catch (e) {
       console.error(e)
     } finally {
@@ -410,7 +413,7 @@ export default function CourseDetailPage() {
                       {course.grade_level && <span className="text-sm px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
                     </div>
                   </div>
-                  <button onClick={() => setEditCourse(true)} className="text-sm text-muted-foreground hover:text-foreground"><Edit3 className="w-4 h-4 inline" /> 编辑</button>
+                  {canEdit && <button onClick={() => setEditCourse(true)} className="text-sm text-muted-foreground hover:text-foreground"><Edit3 className="w-4 h-4 inline" /> 编辑</button>}
                 </div>
               )}
             </div>
@@ -460,6 +463,7 @@ export default function CourseDetailPage() {
             <div className="bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-4">章节与课时 ({chapters.length} 章)</h2>
 
+              {canEdit && (
               <div className="flex gap-3 mb-6">
                 <input value={newChapterTitle} onChange={e => setNewChapterTitle(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAddChapter() }}
@@ -467,6 +471,7 @@ export default function CourseDetailPage() {
                 <button onClick={handleAddChapter} disabled={busy}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
               </div>
+              )}
 
               {chapters.length === 0 ? (
                 <p className="text-center py-12 text-muted-foreground">还没有章节</p>
@@ -478,18 +483,18 @@ export default function CourseDetailPage() {
                         {ch.expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         <span className="font-medium flex-1">{ch.title}</span>
                         <span className="text-xs text-muted-foreground mr-2">{ch.lessons.length} 课时</span>
-                        <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'up') }}
+                        {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'up') }}
                           disabled={idx === 0}
                           className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title="上移">
                           <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'down') }}
+                        </button>}
+                        {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'down') }}
                           disabled={idx === chapters.length - 1}
                           className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title="下移">
                           <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); handleDeleteChapter(ch.id) }}
-                          className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                        </button>}
+                        {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteChapter(ch.id) }}
+                          className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>}
                       </div>
                       {ch.expanded && (
                         <div className="px-4 pb-3 pt-1">
@@ -500,18 +505,18 @@ export default function CourseDetailPage() {
                                 <span className="text-sm text-muted-foreground w-6">{idx + 1}.{lIdx + 1}</span>
                                 <span className="flex-1 text-sm">{l.title}</span>
                                 <span className="text-xs text-muted-foreground">知识点 ▸</span>
-                                <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
+                                {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
                                   disabled={lIdx === 0}
                                   className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30" title="上移">
                                   <ArrowUp className="w-3 h-3" />
-                                </button>
-                                <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'down') }}
+                                </button>}
+                                {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'down') }}
                                   disabled={lIdx === ch.lessons.length - 1}
                                   className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30" title="下移">
                                   <ArrowDown className="w-3 h-3" />
-                                </button>
-                                <button onClick={e => { e.stopPropagation(); handleDeleteLesson(l.id) }}
-                                  className="p-1 hover:bg-red-50 rounded ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                                </button>}
+                                {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteLesson(l.id) }}
+                                  className="p-1 hover:bg-red-50 rounded ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>}
                               </div>
                               {/* Knowledge Points */}
                               {expandedLesson === l.id && (
@@ -563,12 +568,16 @@ export default function CourseDetailPage() {
                                         /* View mode */
                                         <div>
                                           <div className="flex items-center gap-2">
-                                            <button onClick={() => handleStartEditKP(kp)}
-                                              className="text-sm font-medium hover:text-blue-600 text-left">
-                                              {kp.title}
-                                            </button>
-                                            <button onClick={() => handleDeleteKP(kp.id, l.id)}
-                                              className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                            {canEdit ? (
+                                              <button onClick={() => handleStartEditKP(kp)}
+                                                className="text-sm font-medium hover:text-blue-600 text-left">
+                                                {kp.title}
+                                              </button>
+                                            ) : (
+                                              <span className="text-sm font-medium">{kp.title}</span>
+                                            )}
+                                            {canEdit && <button onClick={() => handleDeleteKP(kp.id, l.id)}
+                                              className="text-red-400 hover:text-red-600 text-xs">✕</button>}
                                           </div>
                                           {kp.description && (
                                             <div className="text-xs text-gray-600 mt-1 line-clamp-2"><KatexHtml text={kp.description} /></div>
@@ -606,7 +615,7 @@ export default function CourseDetailPage() {
                                     </div>
                                   ))}
                                   {/* Add KP */}
-                                  <div className="space-y-1 mt-2">
+                                  {canEdit && <div className="space-y-1 mt-2">
                                     <div className="flex gap-2">
                                       <input
                                         value={newKpTitle[l.id] || ''}
@@ -653,11 +662,12 @@ export default function CourseDetailPage() {
                                       }}
                                       className="w-full px-2 py-1 text-xs border rounded resize-none"
                                     />
-                                  </div>
+                                  </div>}
                                 </div>
                               )}
                             </div>
                           ))}
+                          {canEdit && (
                           <div className="flex gap-2 mt-3 pl-7">
                             <input value={newLessonTitle[ch.id] || ''}
                               onChange={e => setNewLessonTitle({ ...newLessonTitle, [ch.id]: e.target.value })}
@@ -666,6 +676,7 @@ export default function CourseDetailPage() {
                             <button onClick={() => handleAddLesson(ch.id)} disabled={busy}
                               className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50">+ 课时</button>
                           </div>
+                          )}
                         </div>
                       )}
                     </div>
