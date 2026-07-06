@@ -74,6 +74,30 @@ export async function GET(request: Request) {
       }
     }
 
+    // Handle newly added lessons: unlock if its predecessor in the chapter is passed
+    for (const ch of sortedChapters) {
+      const chLessons = sortedLessons.filter((l: any) => l.chapter_id === ch.id).sort((a: any, b: any) => a.sort_order - b.sort_order)
+      for (let j = 0; j < chLessons.length; j++) {
+        const lesson = chLessons[j]
+        const hasRecord = progress.find((p: any) => p.lesson_id === lesson.id)
+        if (hasRecord) continue // already has progress, skip
+
+        // First lesson in chapter: already handled above (auto-unlocked)
+        // For non-first lessons: unlock if the previous lesson in this chapter is passed
+        if (j > 0) {
+          const prevLesson = chLessons[j - 1]
+          const prevPassed = progress.find((p: any) => p.lesson_id === prevLesson.id && p.status === 'passed')
+          if (prevPassed) {
+            await supabaseAdmin('student_progress', {
+              method: 'POST',
+              body: { student_id: user.id, lesson_id: lesson.id, status: 'unlocked' },
+            })
+            progress.push({ student_id: user.id, lesson_id: lesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ course, chapters: chapters || [], lessons: lessons || [], progress })
   }
 
