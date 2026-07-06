@@ -102,7 +102,7 @@ export default function TeacherClassesPage() {
             <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold mb-4">新建班级</h2>
               <div className="space-y-3">
-                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="班级名称（如 G10-H 化学 Period 1）"
+                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="年份+年级+课程+班级，如 2026 G9 化学A-3班"
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <select value={newCourse} onChange={e => setNewCourse(e.target.value)}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
