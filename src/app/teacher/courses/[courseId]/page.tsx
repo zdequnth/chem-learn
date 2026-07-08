@@ -38,6 +38,14 @@ export default function CourseDetailPage() {
   const [editKpTitle, setEditKpTitle] = useState('')
   const [editKpDesc, setEditKpDesc] = useState('')
   const [editKpPdf, setEditKpPdf] = useState('')
+  const [isCourseOwner, setIsCourseOwner] = useState(false)
+  const [isCollaborator, setIsCollaborator] = useState(false)
+  const canEdit = isCourseOwner || isCollaborator || (profile?.role === 'admin')
+  const [collaborators, setCollaborators] = useState<any[]>([])
+  const [collabInput, setCollabInput] = useState('')
+  const [collabMsg, setCollabMsg] = useState('')
+  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
+  const [showTeacherList, setShowTeacherList] = useState(false)
   // Modal state for KP editing
   const [modalKp, setModalKp] = useState<any>(null)
   const [modalLessonId, setModalLessonId] = useState('')
@@ -48,101 +56,6 @@ export default function CourseDetailPage() {
   const [modalVlTitle, setModalVlTitle] = useState('')
   const [modalVlUrl, setModalVlUrl] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
-  const [modalTab, setModalTab] = useState<'edit' | 'preview'>('edit')
-  // Multi-KP modal for a lesson
-  const [lessonModalId, setLessonModalId] = useState<string | null>(null)
-  const [lessonKps, setLessonKps] = useState<any[]>([])
-  const [expandedKpId, setExpandedKpId] = useState<string | null>(null)
-  const [lessonSaving, setLessonSaving] = useState(false)
-
-  const openLessonModal = async (lessonId: string) => {
-    setLessonModalId(lessonId)
-    setExpandedKpId(null)
-    // Fetch KPs
-    const res = await fetch(`/api/knowledge-points?lessonId=${lessonId}`)
-    const json = await res.json()
-    setKpData(prev => ({ ...prev, [lessonId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } }))
-    setLessonKps((json.kps || []).map((kp: any) => {
-      const pdfMatch = (kp.description || '').match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
-      return {
-        ...kp,
-        cleanDesc: pdfMatch ? (kp.description || '').replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '').trim() : (kp.description || ''),
-        pdfUrl: pdfMatch ? pdfMatch[1] : '',
-      }
-    }))
-  }
-
-  const updateKpField = (kpId: string, field: string, value: string) => {
-    setLessonKps(prev => prev.map(k => k.id === kpId ? { ...k, [field]: value } : k))
-  }
-
-  const handleLessonModalSave = async () => {
-    if (!lessonModalId) return
-    setLessonSaving(true)
-    // Save all KPs
-    for (const kp of lessonKps) {
-      const desc = kp.pdfUrl ? (kp.cleanDesc.trim() + '\n[pdf]' + kp.pdfUrl + '[/pdf]') : kp.cleanDesc.trim()
-      await fetch(`/api/knowledge-points?id=${kp.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: kp.title, description: desc || null }),
-      }).catch(() => {})
-    }
-    setLessonModalId(null)
-    setLessonSaving(false)
-    const res = await fetch(`/api/knowledge-points?lessonId=${lessonModalId}`)
-    const json = await res.json()
-    setKpData(prev => ({ ...prev, [lessonModalId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } }))
-  }
-
-  const handleAddKpInModal = async () => {
-    if (!lessonModalId) return
-    await fetch('/api/knowledge-points', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lesson_id: lessonModalId, title: '新知识点', description: null }),
-    })
-    const res = await fetch(`/api/knowledge-points?lessonId=${lessonModalId}`)
-    const json = await res.json()
-    setKpData(prev => ({ ...prev, [lessonModalId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } }))
-    setLessonKps((json.kps || []).map((kp: any) => ({
-      ...kp,
-      cleanDesc: (kp.description || '').replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '').trim(),
-      pdfUrl: ((kp.description || '').match(/\[pdf\]([\s\S]*?)\[\/pdf\]/) || [])[1] || '',
-    })))
-  }
-
-  const handleDeleteKpInModal = async (kpId: string) => {
-    await fetch(`/api/knowledge-points?id=${kpId}`, { method: 'DELETE' })
-    setLessonKps(prev => prev.filter(k => k.id !== kpId))
-  }
-
-  const handleAddVideoInModal = async (kpId: string, vlUrl: string, vlTitle: string) => {
-    if (!vlUrl.trim() || !lessonModalId) return
-    await fetch('/api/video-links', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ knowledge_point_id: kpId, url: vlUrl, title: vlTitle || '视频链接', platform: vlUrl.includes('bilibili') ? 'bilibili' : 'other' }),
-    })
-    const res = await fetch(`/api/knowledge-points?lessonId=${lessonModalId}`)
-    const json = await res.json()
-    setKpData(prev => ({ ...prev, [lessonModalId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } }))
-  }
-
-  const handleDeleteVideoInModal = async (vlId: string) => {
-    await fetch(`/api/video-links?id=${vlId}`, { method: 'DELETE' })
-    const res = await fetch(`/api/knowledge-points?lessonId=${lessonModalId}`)
-    const json = await res.json()
-    setKpData(prev => ({ ...prev, [lessonModalId!]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } }))
-  }
-  const [isCourseOwner, setIsCourseOwner] = useState(false)
-  const [isCollaborator, setIsCollaborator] = useState(false)
-  const canEdit = isCourseOwner || isCollaborator || (profile?.role === 'admin')
-  const [collaborators, setCollaborators] = useState<any[]>([])
-  const [collabInput, setCollabInput] = useState('')
-  const [collabMsg, setCollabMsg] = useState('')
-  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
-  const [showTeacherList, setShowTeacherList] = useState(false)
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -221,16 +134,18 @@ export default function CourseDetailPage() {
     setModalKp(kp)
     setModalLessonId(lessonId)
     setModalTitle(kp.title || '')
-    const pdfMatch = (kp.description || '').match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
-    setModalDesc(pdfMatch ? (kp.description || '').replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim() : (kp.description || ''))
+    // Parse [pdf:Title]URL[/pdf] or [pdf]URL[/pdf]
+    const desc = kp.description || ''
+    const pdfMatch = desc.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
-      const title = pdfMatch[1] || 'PDF 资料'
-      const url = pdfMatch[2]
-      setModalPdf(title + ':' + url)
+      const pdfTitle = pdfMatch[1] || 'PDF 资料'
+      const pdfUrl = pdfMatch[2]
+      setModalDesc(desc.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim())
+      setModalPdf(pdfTitle + ':' + pdfUrl)
     } else {
+      setModalDesc(desc)
       setModalPdf('')
     }
-  }
     const videos = (kpData[lessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id)
     setModalVideos(videos.map((v: any) => ({ id: v.id, title: v.title, url: v.url, platform: v.platform || 'other' })))
   }
@@ -238,8 +153,6 @@ export default function CourseDetailPage() {
   const handleModalSave = async () => {
     if (!modalKp) return
     setModalSaving(true)
-    // Save KP title + description + PDF
-    // Save PDF with title format: [pdf:Title]URL[/pdf]
     let pdfTag = ''
     if (modalPdf.trim()) {
       const colonIdx = modalPdf.indexOf(':')
@@ -253,19 +166,14 @@ export default function CourseDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: modalTitle, description: desc || null }),
     })
-    // Save video links: delete all existing for this KP and re-add from modal
+    // Video links: delete existing, re-add from modal
     const existingVideos = (kpData[modalLessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === modalKp.id)
-    for (const v of existingVideos) {
-      await fetch(`/api/video-links?id=${v.id}`, { method: 'DELETE' }).catch(() => {})
-    }
+    for (const v of existingVideos) await fetch(`/api/video-links?id=${v.id}`, { method: 'DELETE' }).catch(() => {})
     for (const v of modalVideos) {
       await fetch('/api/video-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          knowledge_point_id: modalKp.id, title: v.title || '视频链接',
-          url: v.url, platform: v.platform || 'other',
-        }),
+        body: JSON.stringify({ knowledge_point_id: modalKp.id, title: v.title || '视频链接', url: v.url, platform: v.platform || 'other' }),
       }).catch(() => {})
     }
     setModalKp(null)
@@ -406,7 +314,10 @@ export default function CourseDetailPage() {
   const toggleLessonKP = async (lessonId: string) => {
     if (expandedLesson === lessonId) { setExpandedLesson(null); return }
     setExpandedLesson(lessonId)
-    openLessonModal(lessonId)
+    // Fetch KPs and video links
+    const res = await fetch(`/api/knowledge-points?lessonId=${lessonId}`)
+    const json = await res.json()
+    setKpData({ ...kpData, [lessonId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } })
   }
 
   const handleAddKP = async (lessonId: string) => {
@@ -680,40 +591,148 @@ export default function CourseDetailPage() {
                               {/* Knowledge Points */}
                               {expandedLesson === l.id && (
                                 <div className="ml-14 mr-4 mb-3 mt-2 p-3 bg-gray-50 rounded-lg border">
+                                  <div className="text-xs font-medium text-muted-foreground mb-2">知识点管理</div>
+
                                   {((kpData[l.id]?.kps) || []).map((kp: any) => (
-                                    <div key={kp.id} className="flex items-center gap-2 py-1">
-                                      {canEdit ? (
-                                        <button onClick={() => openKpModal(kp, l.id)}
-                                          className="text-sm font-medium hover:text-blue-600 text-left flex-1">
-                                          {kp.title}
-                                          {kp.description && <span className="text-xs text-gray-400 ml-1">⋯</span>}
-                                        </button>
+                                    <div key={kp.id} className="mb-2 pl-2 border-l-2 border-blue-300">
+                                      {editingKpId === kp.id ? (
+                                        /* Edit mode */
+                                        <div className="space-y-2">
+                                          <input value={editKpTitle}
+                                            onChange={e => setEditKpTitle(e.target.value)}
+                                            className="w-full px-2 py-1 text-sm border rounded" placeholder="知识点名称" />
+                                          <div className="relative">
+                                            <textarea value={editKpDesc}
+                                              onChange={e => setEditKpDesc(e.target.value)}
+                                              onPaste={e => handleKpImagePaste(e, kp.id, l.id)}
+                                              rows={4}
+                                              className="w-full px-2 py-1 text-xs border rounded resize-none"
+                                              placeholder="详细描述（支持粘贴图片 Ctrl+V）" />
+                                            <button onClick={() => handleKpImageUpload(kp.id, l.id)}
+                                              className="absolute bottom-1 right-1 p-1 bg-gray-100 rounded hover:bg-gray-200" title="上传图片">
+                                              <Image className="w-3.5 h-3.5 text-gray-500" />
+                                            </button>
+                                          </div>
+                                          {editKpDesc.includes('![') && (
+                                            <div className="text-xs text-blue-500">已包含图片（Markdown 格式）</div>
+                                          )}
+                                          <div className="mt-2">
+                                            <label className="text-xs text-muted-foreground">PDF 文件链接</label>
+                                            <input value={editKpPdf}
+                                              onChange={e => setEditKpPdf(e.target.value)}
+                                              placeholder="https://example.com/file.pdf"
+                                              className="w-full px-2 py-1 text-xs border rounded mt-0.5" />
+                                          </div>
+                                          <div className="flex gap-2 mt-2">
+                                            <button onClick={() => handleSaveKP(kp.id, l.id)}
+                                              className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600">
+                                              <Save className="w-3 h-3" /> 保存
+                                            </button>
+                                            <button onClick={() => setEditingKpId(null)}
+                                              className="px-2 py-1 text-xs bg-gray-300 rounded hover:bg-gray-400">
+                                              取消
+                                            </button>
+                                          </div>
+                                        </div>
                                       ) : (
-                                        <span className="text-sm font-medium flex-1">{kp.title}</span>
+                                        /* View mode */
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            {canEdit ? (
+                                              <button onClick={() => openKpModal(kp, l.id)}
+                                                className="text-sm font-medium hover:text-blue-600 text-left">
+                                                {kp.title}
+                                              </button>
+                                            ) : (
+                                              <span className="text-sm font-medium">{kp.title}</span>
+                                            )}
+                                            {canEdit && <button onClick={() => handleDeleteKP(kp.id, l.id)}
+                                              className="text-red-400 hover:text-red-600 text-xs">✕</button>}
+                                          </div>
+                                          {kp.description && (
+                                            <div className="text-xs text-gray-600 mt-1 line-clamp-2"><KatexHtml text={kp.description} /></div>
+                                          )}
+                                          {getPdfUrl(kp.description || '') && (
+                                            <span className="text-xs text-red-500 mt-1 inline-block">📎 已附加 PDF</span>
+                                          )}
+                                        </div>
                                       )}
-                                      {(kpData[l.id]?.videoLinks || []).some((vl: any) => vl.knowledge_point_id === kp.id) && (
-                                        <span className="text-xs text-blue-400">🎬</span>
-                                      )}
-                                      {getPdfUrl(kp.description || '') && (
-                                        <span className="text-xs text-red-400">📎</span>
-                                      )}
-                                      {canEdit && (
-                                        <button onClick={() => handleDeleteKP(kp.id, l.id)}
-                                          className="text-red-400 hover:text-red-600 text-xs">✕</button>
-                                      )}
+
+                                      {/* Video links for this KP (shown in both modes) */}
+                                      {(kpData[l.id]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id).map((vl: any) => (
+                                        <div key={vl.id} className="flex items-center gap-2 ml-3 text-xs text-blue-600">
+                                          <a href={vl.url} target="_blank" className="hover:underline truncate max-w-xs">{vl.title || vl.url}</a>
+                                          <span className="text-gray-400">({vl.platform})</span>
+                                          <button onClick={() => handleDeleteVideoLink(vl.id, l.id)} className="text-red-400">✕</button>
+                                        </div>
+                                      ))}
+                                      {/* Add video link */}
+                                      <div className="flex gap-1 ml-3 mt-1">
+                                        <input
+                                          value={newVlTitle[`vl_${kp.id}`] || ''}
+                                          onChange={e => setNewVlTitle({ ...newVlTitle, [`vl_${kp.id}`]: e.target.value })}
+                                          placeholder="视频标题" className="w-24 px-1.5 py-0.5 text-xs border rounded"
+                                        />
+                                        <input
+                                          value={newVlUrl[`vl_${kp.id}`] || ''}
+                                          onChange={e => setNewVlUrl({ ...newVlUrl, [`vl_${kp.id}`]: e.target.value })}
+                                          placeholder="B站/YouTube链接" className="flex-1 px-1.5 py-0.5 text-xs border rounded"
+                                          onKeyDown={e => { if (e.key === 'Enter') handleAddVideoLink(kp.id, l.id) }}
+                                        />
+                                        <button onClick={() => handleAddVideoLink(kp.id, l.id)}
+                                          className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                                      </div>
                                     </div>
                                   ))}
-                                  {canEdit && (
-                                    <div className="flex gap-2 mt-2 pt-2 border-t">
-                                      <input value={newKpTitle[l.id] || ''}
+                                  {/* Add KP */}
+                                  {canEdit && <div className="space-y-1 mt-2">
+                                    <div className="flex gap-2">
+                                      <input
+                                        value={newKpTitle[l.id] || ''}
                                         onChange={e => setNewKpTitle({ ...newKpTitle, [l.id]: e.target.value })}
-                                        onKeyDown={e => { if (e.key === 'Enter') handleAddKP(l.id) }}
-                                        placeholder="新知识点名称"
-                                        className="flex-1 px-2 py-1 text-xs border rounded" />
+                                        placeholder="知识点名称（如：电子排布）"
+                                        className="flex-1 px-2 py-1 text-xs border rounded"
+                                      />
                                       <button onClick={() => handleAddKP(l.id)}
-                                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+ 知识点</button>
                                     </div>
-                                  )}
+                                    <input
+                                      value={newKpPdf[l.id] || ''}
+                                      onChange={e => setNewKpPdf({ ...newKpPdf, [l.id]: e.target.value })}
+                                      placeholder="PDF链接（可选）"
+                                      className="w-full px-2 py-1 text-xs border rounded"
+                                    />
+                                    <textarea
+                                      value={newKpDesc[l.id] || ''}
+                                      onChange={e => setNewKpDesc({ ...newKpDesc, [l.id]: e.target.value })}
+                                      placeholder="详细描述（支持长文本，可写知识要点、公式等）"
+                                      rows={2}
+                                      onPaste={async (e) => {
+                                        const items = e.clipboardData?.items
+                                        if (!items) return
+                                        for (const item of Array.from(items)) {
+                                          if (item.type.startsWith('image/')) {
+                                            e.preventDefault()
+                                            const file = item.getAsFile()
+                                            if (!file) continue
+                                            const formData = new FormData()
+                                            formData.append('file', file)
+                                            const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
+                                            const json = await res.json()
+                                            if (json.url) {
+                                              setNewKpDesc(prev => {
+                                                const updated = { ...prev }
+                                                updated[l.id] = (updated[l.id] || '') + '\n![' + ('图片') + '](' + json.url + ')'
+                                                return updated
+                                              })
+                                            }
+                                            break
+                                          }
+                                        }
+                                      }}
+                                      className="w-full px-2 py-1 text-xs border rounded resize-none"
+                                    />
+                                  </div>}
                                 </div>
                               )}
                             </div>
@@ -749,10 +768,9 @@ export default function CourseDetailPage() {
                 <button onClick={handleModalSave} disabled={modalSaving}
                   className="flex items-center gap-1 px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
                   {modalSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  {modalSaving ? '保存中...' : '完成'}
+                  完成
                 </button>
-                <button onClick={() => setModalKp(null)}
-                  className="px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300">取消</button>
+                <button onClick={() => setModalKp(null)} className="px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300">取消</button>
               </div>
             </div>
 
@@ -766,7 +784,7 @@ export default function CourseDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">详细描述</label>
+                  <label className="block text-sm font-medium mb-1">详细描述（Markdown / Ctrl+V 贴图）</label>
                   <div className="relative">
                     <textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
                       onPaste={async (e) => {
@@ -805,9 +823,9 @@ export default function CourseDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">PDF 文件链接</label>
+                  <label className="block text-sm font-medium mb-1">PDF 链接（标题:链接）</label>
                   <input value={modalPdf} onChange={e => setModalPdf(e.target.value)}
-                    placeholder="https://example.com/file.pdf"
+                    placeholder="讲义:https://example.com/file.pdf"
                     className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
 
@@ -843,14 +861,14 @@ export default function CourseDetailPage() {
                     <p className="text-sm text-muted-foreground">暂无描述</p>
                   )}
                   {modalPdf && (
-                    <div className="mt-3"><KatexHtml text={`[pdf]${modalPdf}[/pdf]`} /></div>
+                    <div className="mt-3"><KatexHtml text={`[pdf${modalPdf.includes(':') ? '' : ':' + 'PDF 资料'}]${modalPdf.includes(':') ? modalPdf.split(':').slice(1).join(':') : modalPdf}[/pdf]`} /></div>
                   )}
                 </div>
                 {modalVideos.length > 0 && (
                   <div className="bg-white border rounded-xl p-4 mt-3">
                     <h4 className="text-sm font-medium mb-2">视频</h4>
                     {modalVideos.map((v, i) => (
-                      <a key={i} href={v.url} target="_blank" className="block text-sm text-blue-600 hover:underline mb-1">▶ {v.title || v.url}</a>
+                      <a key={i} href={v.url} target="_blank" className="block text-sm text-blue-600 hover:underline mb-1">{'▶'} {v.title || v.url}</a>
                     ))}
                   </div>
                 )}
