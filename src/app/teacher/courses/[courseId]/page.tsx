@@ -588,53 +588,16 @@ export default function CourseDetailPage() {
                                     </div>
                                   ))}
                                   {/* Add KP */}
-                                  {canEdit && <div className="space-y-1 mt-2">
-                                    <div className="flex gap-2">
-                                      <input
-                                        value={newKpTitle[l.id] || ''}
-                                        onChange={e => setNewKpTitle({ ...newKpTitle, [l.id]: e.target.value })}
-                                        placeholder="知识点名称（如：电子排布）"
-                                        className="flex-1 px-2 py-1 text-xs border rounded"
-                                      />
-                                      <button onClick={() => handleAddKP(l.id)}
-                                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+ 知识点</button>
-                                    </div>
+                                  {canEdit && <div className="flex gap-2 mt-2 pt-2 border-t">
                                     <input
-                                      value={newKpPdf[l.id] || ''}
-                                      onChange={e => setNewKpPdf({ ...newKpPdf, [l.id]: e.target.value })}
-                                      placeholder="PDF链接（可选）"
-                                      className="w-full px-2 py-1 text-xs border rounded"
+                                      value={newKpTitle[l.id] || ''}
+                                      onChange={e => setNewKpTitle({ ...newKpTitle, [l.id]: e.target.value })}
+                                      onKeyDown={e => { if (e.key === 'Enter') handleAddKP(l.id) }}
+                                      placeholder="新知识点名称"
+                                      className="flex-1 px-2 py-1 text-xs border rounded"
                                     />
-                                    <textarea
-                                      value={newKpDesc[l.id] || ''}
-                                      onChange={e => setNewKpDesc({ ...newKpDesc, [l.id]: e.target.value })}
-                                      placeholder="详细描述（支持长文本，可写知识要点、公式等）"
-                                      rows={2}
-                                      onPaste={async (e) => {
-                                        const items = e.clipboardData?.items
-                                        if (!items) return
-                                        for (const item of Array.from(items)) {
-                                          if (item.type.startsWith('image/')) {
-                                            e.preventDefault()
-                                            const file = item.getAsFile()
-                                            if (!file) continue
-                                            const formData = new FormData()
-                                            formData.append('file', file)
-                                            const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
-                                            const json = await res.json()
-                                            if (json.url) {
-                                              setNewKpDesc(prev => {
-                                                const updated = { ...prev }
-                                                updated[l.id] = (updated[l.id] || '') + '\n![' + ('图片') + '](' + json.url + ')'
-                                                return updated
-                                              })
-                                            }
-                                            break
-                                          }
-                                        }
-                                      }}
-                                      className="w-full px-2 py-1 text-xs border rounded resize-none"
-                                    />
+                                    <button onClick={() => handleAddKP(l.id)}
+                                      className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
                                   </div>}
                                 </div>
                               )}
