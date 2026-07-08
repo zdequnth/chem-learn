@@ -100,8 +100,11 @@ function renderLatex(text: string): string {
 
 export function KatexHtml({ text }: { text: string }) {
   const html = useMemo(() => {
-    // Extract [pdf]...[/pdf] for embed
+    // Convert double newlines to paragraphs, single newlines to <br>
     let content = text
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+    content = '<p>' + content + '</p>'
     let pdfUrl = ''
     const pdfMatch = content.match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
