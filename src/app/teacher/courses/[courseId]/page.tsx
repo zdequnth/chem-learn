@@ -51,7 +51,8 @@ export default function CourseDetailPage() {
   const [modalLessonId, setModalLessonId] = useState('')
   const [modalTitle, setModalTitle] = useState('')
   const [modalDesc, setModalDesc] = useState('')
-  const [modalPdf, setModalPdf] = useState('')
+  const [modalPdfTitle, setModalPdfTitle] = useState('')
+  const [modalPdfUrl, setModalPdfUrl] = useState('')
   const [modalVideos, setModalVideos] = useState<{ id: string; title: string; url: string; platform: string }[]>([])
   const [modalVlTitle, setModalVlTitle] = useState('')
   const [modalVlUrl, setModalVlUrl] = useState('')
@@ -138,13 +139,13 @@ export default function CourseDetailPage() {
     const desc = kp.description || ''
     const pdfMatch = desc.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
-      const pdfTitle = pdfMatch[1] || 'PDF 资料'
-      const pdfUrl = pdfMatch[2]
+      setModalPdfTitle(pdfMatch[1] || '')
+      setModalPdfUrl(pdfMatch[2] || '')
       setModalDesc(desc.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim())
-      setModalPdf(pdfTitle + ':' + pdfUrl)
     } else {
+      setModalPdfTitle('')
+      setModalPdfUrl('')
       setModalDesc(desc)
-      setModalPdf('')
     }
     const videos = (kpData[lessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id)
     setModalVideos(videos.map((v: any) => ({ id: v.id, title: v.title, url: v.url, platform: v.platform || 'other' })))
@@ -154,11 +155,8 @@ export default function CourseDetailPage() {
     if (!modalKp) return
     setModalSaving(true)
     let pdfTag = ''
-    if (modalPdf.trim()) {
-      const colonIdx = modalPdf.indexOf(':')
-      const pdfTitle = colonIdx > 0 ? modalPdf.substring(0, colonIdx) : 'PDF 资料'
-      const pdfUrl = colonIdx > 0 ? modalPdf.substring(colonIdx + 1) : modalPdf
-      pdfTag = '[pdf:' + pdfTitle + ']' + pdfUrl + '[/pdf]'
+    if (modalPdfUrl.trim()) {
+      pdfTag = '[pdf:' + (modalPdfTitle || 'PDF 资料') + ']' + modalPdfUrl.trim() + '[/pdf]'
     }
     const desc = pdfTag ? (modalDesc.trim() + '\n' + pdfTag) : modalDesc.trim()
     await fetch(`/api/knowledge-points?id=${modalKp.id}`, {
@@ -823,10 +821,14 @@ export default function CourseDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">PDF 链接（标题:链接）</label>
-                  <input value={modalPdf} onChange={e => setModalPdf(e.target.value)}
-                    placeholder="讲义:https://example.com/file.pdf"
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <label className="block text-sm font-medium mb-1">PDF 链接</label>
+                  <div className="flex gap-2">
+                    <input value={modalPdfTitle} onChange={e => setModalPdfTitle(e.target.value)}
+                      placeholder="标题（如：课程讲义）" className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <input value={modalPdfUrl} onChange={e => setModalPdfUrl(e.target.value)}
+                      placeholder="https://example.com/file.pdf"
+                      className="flex-[2] px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
                 </div>
 
                 <div>
@@ -860,12 +862,9 @@ export default function CourseDetailPage() {
                   ) : (
                     <p className="text-sm text-muted-foreground">暂无描述</p>
                   )}
-                  {modalPdf && (() => {
-                    const colonIdx = modalPdf.indexOf(':')
-                    const pdfTitle = colonIdx > 0 ? modalPdf.substring(0, colonIdx) : 'PDF 资料'
-                    const pdfUrl = colonIdx > 0 ? modalPdf.substring(colonIdx + 1) : modalPdf
-                    return <div className="mt-3"><KatexHtml text={`[pdf:${pdfTitle}]${pdfUrl}[/pdf]`} /></div>
-                  })()}
+                  {modalPdfUrl && (
+                    <div className="mt-3"><KatexHtml text={`[pdf:${modalPdfTitle || 'PDF 资料'}]${modalPdfUrl}[/pdf]`} /></div>
+                  )}
                 </div>
                 {modalVideos.length > 0 && (
                   <div className="bg-white border rounded-xl p-4 mt-3">
