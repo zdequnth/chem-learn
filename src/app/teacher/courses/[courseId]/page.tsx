@@ -573,92 +573,17 @@ export default function CourseDetailPage() {
 
                                   {((kpData[l.id]?.kps) || []).map((kp: any) => (
                                     <div key={kp.id} className="mb-2 pl-2 border-l-2 border-blue-300">
-                                      {editingKpId === kp.id ? (
-                                        /* Edit mode */
-                                        <div className="space-y-2">
-                                          <input value={editKpTitle}
-                                            onChange={e => setEditKpTitle(e.target.value)}
-                                            className="w-full px-2 py-1 text-sm border rounded" placeholder="知识点名称" />
-                                          <div className="relative">
-                                            <textarea value={editKpDesc}
-                                              onChange={e => setEditKpDesc(e.target.value)}
-                                              onPaste={e => handleKpImagePaste(e, kp.id, l.id)}
-                                              rows={4}
-                                              className="w-full px-2 py-1 text-xs border rounded resize-none"
-                                              placeholder="详细描述（支持粘贴图片 Ctrl+V）" />
-                                            <button onClick={() => handleKpImageUpload(kp.id, l.id)}
-                                              className="absolute bottom-1 right-1 p-1 bg-gray-100 rounded hover:bg-gray-200" title="上传图片">
-                                              <Image className="w-3.5 h-3.5 text-gray-500" />
-                                            </button>
-                                          </div>
-                                          {editKpDesc.includes('![') && (
-                                            <div className="text-xs text-blue-500">已包含图片（Markdown 格式）</div>
-                                          )}
-                                          <div className="mt-2">
-                                            <label className="text-xs text-muted-foreground">PDF 文件链接</label>
-                                            <input value={editKpPdf}
-                                              onChange={e => setEditKpPdf(e.target.value)}
-                                              placeholder="https://example.com/file.pdf"
-                                              className="w-full px-2 py-1 text-xs border rounded mt-0.5" />
-                                          </div>
-                                          <div className="flex gap-2 mt-2">
-                                            <button onClick={() => handleSaveKP(kp.id, l.id)}
-                                              className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600">
-                                              <Save className="w-3 h-3" /> 保存
-                                            </button>
-                                            <button onClick={() => setEditingKpId(null)}
-                                              className="px-2 py-1 text-xs bg-gray-300 rounded hover:bg-gray-400">
-                                              取消
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        /* View mode */
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            {canEdit ? (
-                                              <button onClick={() => openKpModal(kp, l.id)}
-                                                className="text-sm font-medium hover:text-blue-600 text-left">
-                                                {kp.title}
-                                              </button>
-                                            ) : (
-                                              <span className="text-sm font-medium">{kp.title}</span>
-                                            )}
-                                            {canEdit && <button onClick={() => handleDeleteKP(kp.id, l.id)}
-                                              className="text-red-400 hover:text-red-600 text-xs">✕</button>}
-                                          </div>
-                                          {kp.description && (
-                                            <div className="text-xs text-gray-600 mt-1 line-clamp-2"><KatexHtml text={kp.description} /></div>
-                                          )}
-                                          {getPdfUrl(kp.description || '') && (
-                                            <span className="text-xs text-red-500 mt-1 inline-block">📎 已附加 PDF</span>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {/* Video links for this KP (shown in both modes) */}
-                                      {(kpData[l.id]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id).map((vl: any) => (
-                                        <div key={vl.id} className="flex items-center gap-2 ml-3 text-xs text-blue-600">
-                                          <a href={vl.url} target="_blank" className="hover:underline truncate max-w-xs">{vl.title || vl.url}</a>
-                                          <span className="text-gray-400">({vl.platform})</span>
-                                          <button onClick={() => handleDeleteVideoLink(vl.id, l.id)} className="text-red-400">✕</button>
-                                        </div>
-                                      ))}
-                                      {/* Add video link */}
-                                      <div className="flex gap-1 ml-3 mt-1">
-                                        <input
-                                          value={newVlTitle[`vl_${kp.id}`] || ''}
-                                          onChange={e => setNewVlTitle({ ...newVlTitle, [`vl_${kp.id}`]: e.target.value })}
-                                          placeholder="视频标题" className="w-24 px-1.5 py-0.5 text-xs border rounded"
-                                        />
-                                        <input
-                                          value={newVlUrl[`vl_${kp.id}`] || ''}
-                                          onChange={e => setNewVlUrl({ ...newVlUrl, [`vl_${kp.id}`]: e.target.value })}
-                                          placeholder="B站/YouTube链接" className="flex-1 px-1.5 py-0.5 text-xs border rounded"
-                                          onKeyDown={e => { if (e.key === 'Enter') handleAddVideoLink(kp.id, l.id) }}
-                                        />
-                                        <button onClick={() => handleAddVideoLink(kp.id, l.id)}
-                                          className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                                      <div className="flex items-center gap-2">
+                                        {canEdit ? (
+                                          <button onClick={() => openKpModal(kp, l.id)}
+                                            className="text-sm font-medium hover:text-blue-600 text-left">
+                                            {kp.title}
+                                          </button>
+                                        ) : (
+                                          <span className="text-sm font-medium">{kp.title}</span>
+                                        )}
+                                        {canEdit && <button onClick={() => handleDeleteKP(kp.id, l.id)}
+                                          className="text-red-400 hover:text-red-600 text-xs">✕</button>}
                                       </div>
                                     </div>
                                   ))}
