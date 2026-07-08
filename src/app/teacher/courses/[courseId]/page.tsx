@@ -860,9 +860,12 @@ export default function CourseDetailPage() {
                   ) : (
                     <p className="text-sm text-muted-foreground">暂无描述</p>
                   )}
-                  {modalPdf && (
-                    <div className="mt-3"><KatexHtml text={`[pdf${modalPdf.includes(':') ? '' : ':' + 'PDF 资料'}]${modalPdf.includes(':') ? modalPdf.split(':').slice(1).join(':') : modalPdf}[/pdf]`} /></div>
-                  )}
+                  {modalPdf && (() => {
+                    const colonIdx = modalPdf.indexOf(':')
+                    const pdfTitle = colonIdx > 0 ? modalPdf.substring(0, colonIdx) : 'PDF 资料'
+                    const pdfUrl = colonIdx > 0 ? modalPdf.substring(colonIdx + 1) : modalPdf
+                    return <div className="mt-3"><KatexHtml text={`[pdf:${pdfTitle}]${pdfUrl}[/pdf]`} /></div>
+                  })()}
                 </div>
                 {modalVideos.length > 0 && (
                   <div className="bg-white border rounded-xl p-4 mt-3">

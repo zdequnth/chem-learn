@@ -118,17 +118,16 @@ function basicMarkdown(text: string): string {
 
 export function KatexHtml({ text }: { text: string }) {
   const html = useMemo(() => {
-    let content = text
-    // Strip [pdf] tags - they're handled separately now
-    content = content.replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '')
-    // Apply basic markdown first, then LaTeX
-    content = basicMarkdown(content)
+    // 1. Extract PDF from original text FIRST
     let pdfUrl = ''
-    const pdfMatch = content.match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
+    let content = text
+    const pdfMatch = content.match(/\[pdf(?::[^\]]*)?\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
-      pdfUrl = pdfMatch[1]
-      content = content.replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '')
+      pdfUrl = pdfMatch[2] || pdfMatch[1] || ''
+      content = content.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '')
     }
+    // 2. Apply basic markdown to clean content
+    content = basicMarkdown(content)
 
     // Pre-process markdown images: ![alt](url) → <img>
     content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
