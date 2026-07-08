@@ -16,8 +16,8 @@ export default function TeacherQuestionsPage() {
   const supabase = createClient()
 
   const [courses, setCourses] = useState<Course[]>([])
-  const [chapters, setChapters] = useState<Chapter[]>([])
-  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [allChapters, setAllChapters] = useState<Chapter[]>([])
+  const [allLessons, setAllLessons] = useState<Lesson[]>([])
   const [selectedCourse, setSelectedCourse] = useState('')
   const [selectedChapter, setSelectedChapter] = useState('')
   const [selectedLesson, setSelectedLesson] = useState('')
@@ -82,23 +82,25 @@ export default function TeacherQuestionsPage() {
   const fetchCourses = async () => {
     const res = await fetch('/api/courses')
     const json = await res.json()
-    setCourses((json.courses || []) as Course[])
+    const clist = (json.courses || []) as Course[]
+    setCourses(clist)
+    // Preload all chapters and lessons for all courses
+    const allCh: Chapter[] = []
+    const allLn: Lesson[] = []
+    await Promise.all(clist.map(async (c) => {
+      const r = await fetch(`/api/student/course-data?courseId=${c.id}`)
+      const j = await r.json();
+      (j.chapters || []).forEach((ch: any) => allCh.push(ch));
+      (j.lessons || []).forEach((l: any) => allLn.push(l))
+    }))
+    setAllChapters(allCh)
+    setAllLessons(allLn)
     setLoading(false)
   }
 
-  useEffect(() => {
-    if (!selectedCourse) { setChapters([]); setSelectedChapter(''); setSelectedLesson(''); return }
-    fetch(`/api/student/course-data?courseId=${selectedCourse}`).then(r => r.json()).then(json => {
-      setChapters((json.chapters || []) as Chapter[])
-    })
-  }, [selectedCourse])
-
-  useEffect(() => {
-    if (!selectedChapter) { setLessons([]); setSelectedLesson(''); return }
-    fetch(`/api/student/course-data?courseId=${selectedCourse}`).then(r => r.json()).then(json => {
-      setLessons((json.lessons || []).filter((l: any) => l.chapter_id === selectedChapter) as Lesson[])
-    })
-  }, [selectedChapter])
+  // Filter locally — instant, no API calls
+  const filteredChapters = allChapters.filter((ch: any) => ch.course_id === selectedCourse)
+  const filteredLessons = allLessons.filter((l: any) => l.chapter_id === selectedChapter)
 
   useEffect(() => {
     if (!selectedLesson) { setQuestions([]); return }
@@ -214,12 +216,12 @@ export default function TeacherQuestionsPage() {
             <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
               <option value="">选择章节</option>
-              {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
               <option value="">选择课时</option>
-              {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+              {filteredLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </select>
           </div>
         </div>
