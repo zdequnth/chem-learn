@@ -119,10 +119,12 @@ function basicMarkdown(text: string): string {
 export function KatexHtml({ text }: { text: string }) {
   const html = useMemo(() => {
     // 1. Extract PDF from original text FIRST
+    let pdfTitle = 'PDF 资料'
     let pdfUrl = ''
     let content = text
-    const pdfMatch = content.match(/\[pdf(?::[^\]]*)?\]([\s\S]*?)\[\/pdf\]/)
+    const pdfMatch = content.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
+      pdfTitle = pdfMatch[1] || 'PDF 资料'
       pdfUrl = pdfMatch[2] || pdfMatch[1] || ''
       content = content.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '')
     }
@@ -135,15 +137,11 @@ export function KatexHtml({ text }: { text: string }) {
 
     let result = renderLatex(content)
 
-    // Append PDF link button if url exists
+    // Append PDF card if url exists
     if (pdfUrl) {
-      // Parse [pdf:Title]URL[/pdf] or [pdf]URL[/pdf]
-      const titleMatch = pdfUrl.match(/^([^:]+):(.+)/)
-      const pdfTitle = titleMatch ? titleMatch[1] : 'PDF 资料'
-      const pdfLink = titleMatch ? titleMatch[2] : pdfUrl
       result += `<div class="mt-3 border rounded-lg p-3 bg-red-50 border-red-200">
         <div class="text-sm font-medium text-red-800 mb-1">📄 PDF 资料</div>
-        <a href="${pdfLink}" target="_blank" rel="noopener noreferrer"
+        <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer"
           class="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 no-underline">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           ${pdfTitle}</a>
