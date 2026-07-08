@@ -221,9 +221,16 @@ export default function CourseDetailPage() {
     setModalKp(kp)
     setModalLessonId(lessonId)
     setModalTitle(kp.title || '')
-    const pdfMatch = (kp.description || '').match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
-    setModalDesc(pdfMatch ? (kp.description || '').replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '').trim() : (kp.description || ''))
-    setModalPdf(pdfMatch ? pdfMatch[1] : '')
+    const pdfMatch = (kp.description || '').match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
+    setModalDesc(pdfMatch ? (kp.description || '').replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim() : (kp.description || ''))
+    if (pdfMatch) {
+      const title = pdfMatch[1] || 'PDF 资料'
+      const url = pdfMatch[2]
+      setModalPdf(title + ':' + url)
+    } else {
+      setModalPdf('')
+    }
+  }
     const videos = (kpData[lessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id)
     setModalVideos(videos.map((v: any) => ({ id: v.id, title: v.title, url: v.url, platform: v.platform || 'other' })))
   }
@@ -232,7 +239,15 @@ export default function CourseDetailPage() {
     if (!modalKp) return
     setModalSaving(true)
     // Save KP title + description + PDF
-    const desc = modalPdf ? (modalDesc.trim() + '\n[pdf]' + modalPdf + '[/pdf]') : modalDesc.trim()
+    // Save PDF with title format: [pdf:Title]URL[/pdf]
+    let pdfTag = ''
+    if (modalPdf.trim()) {
+      const colonIdx = modalPdf.indexOf(':')
+      const pdfTitle = colonIdx > 0 ? modalPdf.substring(0, colonIdx) : 'PDF 资料'
+      const pdfUrl = colonIdx > 0 ? modalPdf.substring(colonIdx + 1) : modalPdf
+      pdfTag = '[pdf:' + pdfTitle + ']' + pdfUrl + '[/pdf]'
+    }
+    const desc = pdfTag ? (modalDesc.trim() + '\n' + pdfTag) : modalDesc.trim()
     await fetch(`/api/knowledge-points?id=${modalKp.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

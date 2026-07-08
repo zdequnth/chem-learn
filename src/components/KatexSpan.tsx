@@ -98,13 +98,31 @@ function renderLatex(text: string): string {
   }).join('')
 }
 
+function basicMarkdown(text: string): string {
+  let html = text
+  // Headings (### Title)
+  html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1">$1</h3>')
+  html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-3 mb-1">$1</h2>')
+  html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
+  // Bold and italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  // Unordered lists
+  html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="my-1">$&</ul>')
+  // Double newlines to paragraphs, single newlines to <br>
+  html = html.replace(/\n\n/g, '</p><p>')
+  html = html.replace(/\n/g, '<br>')
+  return '<p>' + html + '</p>'
+}
+
 export function KatexHtml({ text }: { text: string }) {
   const html = useMemo(() => {
-    // Convert double newlines to paragraphs, single newlines to <br>
     let content = text
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-    content = '<p>' + content + '</p>'
+    // Strip [pdf] tags - they're handled separately now
+    content = content.replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '')
+    // Apply basic markdown first, then LaTeX
+    content = basicMarkdown(content)
     let pdfUrl = ''
     const pdfMatch = content.match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
@@ -120,11 +138,17 @@ export function KatexHtml({ text }: { text: string }) {
 
     // Append PDF link button if url exists
     if (pdfUrl) {
-      const displayName = pdfUrl.replace(/^https?:\/\//, '').split('/').slice(0, 3).join('/')
-      result += `<a href="${pdfUrl}" target="_blank" rel="noopener noreferrer"
-        class="inline-flex items-center gap-2 px-4 py-2 mt-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 no-underline">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        打开 PDF 资料（新窗口）</a>`
+      // Parse [pdf:Title]URL[/pdf] or [pdf]URL[/pdf]
+      const titleMatch = pdfUrl.match(/^([^:]+):(.+)/)
+      const pdfTitle = titleMatch ? titleMatch[1] : 'PDF 资料'
+      const pdfLink = titleMatch ? titleMatch[2] : pdfUrl
+      result += `<div class="mt-3 border rounded-lg p-3 bg-red-50 border-red-200">
+        <div class="text-sm font-medium text-red-800 mb-1">📎 ${pdfTitle}</div>
+        <a href="${pdfLink}" target="_blank" rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 no-underline">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          打开文件（新窗口）</a>
+      </div>`
     }
 
     return result
@@ -132,15 +156,15 @@ export function KatexHtml({ text }: { text: string }) {
   return <span dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-/** Extract PDF URL from description */
+/** Extract PDF URL from description (supports [pdf]URL[/pdf] and [pdf:Title]URL[/pdf]) */
 export function getPdfUrl(text: string): string {
-  const m = text.match(/\[pdf\]([\s\S]*?)\[\/pdf\]/)
+  const m = text.match(/\[pdf(?::[^\]]*)?\]([\s\S]*?)\[\/pdf\]/)
   return m ? m[1] : ''
 }
 
 /** Strip PDF tag from description */
 export function stripPdfTag(text: string): string {
-  return text.replace(/\[pdf\][\s\S]*?\[\/pdf\]/, '').trim()
+  return text.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim()
 }
 
 export function cleanOption(text: string): string {
