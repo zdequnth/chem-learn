@@ -118,14 +118,15 @@ export default function LessonHubPage() {
                       <h3 className="font-medium mb-1">{kp.title}</h3>
                       {kp.description && <div className="text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-3 border rounded-lg p-3 bg-blue-50 border-blue-200">
+                          <div className="text-sm font-medium text-blue-800 mb-1">🎬 视频讲解</div>
                           {videoLinks[kp.id].map(vl => (
                             <a key={vl.id} href={vl.url} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
                               <Video className="w-3.5 h-3.5" />
                               {vl.title || '观看视频'}
                               {vl.platform && vl.platform !== 'other' && (
-                                <span className="text-xs px-1.5 py-0.5 bg-blue-50 rounded">{vl.platform}</span>
+                                <span className="text-xs px-1.5 py-0.5 bg-blue-100 rounded">{vl.platform}</span>
                               )}
                             </a>
                           ))}
