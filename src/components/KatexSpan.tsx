@@ -142,11 +142,11 @@ export function KatexHtml({ text }: { text: string }) {
       const pdfTitle = titleMatch ? titleMatch[1] : 'PDF 资料'
       const pdfLink = titleMatch ? titleMatch[2] : pdfUrl
       result += `<div class="mt-3 border rounded-lg p-3 bg-red-50 border-red-200">
-        <div class="text-sm font-medium text-red-800 mb-1">📎 ${pdfTitle}</div>
+        <div class="text-sm font-medium text-red-800 mb-1">📄 PDF 资料</div>
         <a href="${pdfLink}" target="_blank" rel="noopener noreferrer"
           class="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 no-underline">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          打开文件（新窗口）</a>
+          ${pdfTitle}</a>
       </div>`
     }
 

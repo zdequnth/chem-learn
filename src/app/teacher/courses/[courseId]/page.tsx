@@ -647,41 +647,8 @@ export default function CourseDetailPage() {
                                             {canEdit && <button onClick={() => handleDeleteKP(kp.id, l.id)}
                                               className="text-red-400 hover:text-red-600 text-xs">✕</button>}
                                           </div>
-                                          {kp.description && (
-                                            <div className="text-xs text-gray-600 mt-1 line-clamp-2"><KatexHtml text={kp.description} /></div>
-                                          )}
-                                          {getPdfUrl(kp.description || '') && (
-                                            <span className="text-xs text-red-500 mt-1 inline-block">📎 已附加 PDF</span>
-                                          )}
                                         </div>
                                       )}
-
-                                      {/* Video links for this KP (shown in both modes) */}
-                                      {(kpData[l.id]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id).map((vl: any) => (
-                                        <div key={vl.id} className="flex items-center gap-2 ml-3 text-xs text-blue-600">
-                                          <a href={vl.url} target="_blank" className="hover:underline truncate max-w-xs">{vl.title || vl.url}</a>
-                                          <span className="text-gray-400">({vl.platform})</span>
-                                          <button onClick={() => handleDeleteVideoLink(vl.id, l.id)} className="text-red-400">✕</button>
-                                        </div>
-                                      ))}
-                                      {/* Add video link */}
-                                      <div className="flex gap-1 ml-3 mt-1">
-                                        <input
-                                          value={newVlTitle[`vl_${kp.id}`] || ''}
-                                          onChange={e => setNewVlTitle({ ...newVlTitle, [`vl_${kp.id}`]: e.target.value })}
-                                          placeholder="视频标题" className="w-24 px-1.5 py-0.5 text-xs border rounded"
-                                        />
-                                        <input
-                                          value={newVlUrl[`vl_${kp.id}`] || ''}
-                                          onChange={e => setNewVlUrl({ ...newVlUrl, [`vl_${kp.id}`]: e.target.value })}
-                                          placeholder="B站/YouTube链接" className="flex-1 px-1.5 py-0.5 text-xs border rounded"
-                                          onKeyDown={e => { if (e.key === 'Enter') handleAddVideoLink(kp.id, l.id) }}
-                                        />
-                                        <button onClick={() => handleAddVideoLink(kp.id, l.id)}
-                                          className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
-                                      </div>
-                                    </div>
-                                  ))}
                                   {/* Add KP */}
                                   {canEdit && <div className="space-y-1 mt-2">
                                     <div className="flex gap-2">
