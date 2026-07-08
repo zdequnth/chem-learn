@@ -662,10 +662,43 @@ export default function CourseDetailPage() {
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteLesson(l.id) }}
                                   className="p-1 hover:bg-red-50 rounded ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>}
                               </div>
-                              {/* Knowledge Points — managed in modal */}
+                              {/* Knowledge Points */}
                               {expandedLesson === l.id && (
-                                <div className="ml-14 mr-4 mb-3 mt-2 text-center text-xs text-muted-foreground">
-                                  已在弹窗中编辑，点击其他课时刷新弹窗内容
+                                <div className="ml-14 mr-4 mb-3 mt-2 p-3 bg-gray-50 rounded-lg border">
+                                  {((kpData[l.id]?.kps) || []).map((kp: any) => (
+                                    <div key={kp.id} className="flex items-center gap-2 py-1">
+                                      {canEdit ? (
+                                        <button onClick={() => openKpModal(kp, l.id)}
+                                          className="text-sm font-medium hover:text-blue-600 text-left flex-1">
+                                          {kp.title}
+                                          {kp.description && <span className="text-xs text-gray-400 ml-1">⋯</span>}
+                                        </button>
+                                      ) : (
+                                        <span className="text-sm font-medium flex-1">{kp.title}</span>
+                                      )}
+                                      {(kpData[l.id]?.videoLinks || []).some((vl: any) => vl.knowledge_point_id === kp.id) && (
+                                        <span className="text-xs text-blue-400">🎬</span>
+                                      )}
+                                      {getPdfUrl(kp.description || '') && (
+                                        <span className="text-xs text-red-400">📎</span>
+                                      )}
+                                      {canEdit && (
+                                        <button onClick={() => handleDeleteKP(kp.id, l.id)}
+                                          className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {canEdit && (
+                                    <div className="flex gap-2 mt-2 pt-2 border-t">
+                                      <input value={newKpTitle[l.id] || ''}
+                                        onChange={e => setNewKpTitle({ ...newKpTitle, [l.id]: e.target.value })}
+                                        onKeyDown={e => { if (e.key === 'Enter') handleAddKP(l.id) }}
+                                        placeholder="新知识点名称"
+                                        className="flex-1 px-2 py-1 text-xs border rounded" />
+                                      <button onClick={() => handleAddKP(l.id)}
+                                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -691,281 +724,122 @@ export default function CourseDetailPage() {
         )}
       </main>
 
-      {/* Lesson KP Management Modal */}
-      {lessonModalId && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-8 overflow-y-auto" onClick={() => setLessonModalId(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 mb-12" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div>
-                <h2 className="text-lg font-semibold">知识点管理</h2>
-                <p className="text-xs text-muted-foreground">共 {lessonKps.length} 个知识点</p>
-              </div>
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button onClick={handleAddKpInModal}
-                    className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">+ 添加</button>
-                )}
-                <button onClick={handleLessonModalSave} disabled={lessonSaving}
-                  className="px-4 py-1.5 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1">
-                  {lessonSaving && <Loader2 className="w-3 h-3 animate-spin" />}
-                  完成
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              {lessonKps.length === 0 && (
-                <p className="text-center py-12 text-muted-foreground">还没有知识点，点击"+ 添加"创建</p>
-              )}
-              {lessonKps.map((kp: any) => {
-                const kpVideos = (kpData[lessonModalId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id)
-                const isExpanded = expandedKpId === kp.id
-                return (
-                  <div key={kp.id} className="border rounded-xl">
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      {canEdit ? (
-                        <input value={kp.title} onChange={e => updateKpField(kp.id, 'title', e.target.value)}
-                          className="flex-1 px-3 py-1.5 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
-                      ) : (
-                        <span className="flex-1 text-sm font-medium">{kp.title}</span>
-                      )}
-                      <button onClick={() => setExpandedKpId(isExpanded ? null : kp.id)}
-                        className="text-xs text-blue-600 hover:underline shrink-0">
-                        {isExpanded ? '收起' : '展开编辑'}
-                      </button>
-                      {canEdit && (
-                        <button onClick={() => handleDeleteKpInModal(kp.id)}
-                          className="text-red-400 hover:text-red-600 text-xs shrink-0">✕ 删除</button>
-                      )}
-                    </div>
-
-                    {isExpanded && (
-                      <div className="px-4 pb-4 space-y-3 border-t pt-3">
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">详细描述（支持 Markdown / Ctrl+V 贴图）</label>
-                          <textarea value={kp.cleanDesc} onChange={e => updateKpField(kp.id, 'cleanDesc', e.target.value)}
-                            rows={8}
-                            onPaste={async (e) => {
-                              const items = e.clipboardData?.items
-                              if (!items) return
-                              for (const item of Array.from(items)) {
-                                if (item.type.startsWith('image/')) {
-                                  e.preventDefault()
-                                  const file = item.getAsFile()
-                                  if (!file) continue
-                                  const formData = new FormData()
-                                  formData.append('file', file)
-                                  const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
-                                  const json = await res.json()
-                                  if (json.url) updateKpField(kp.id, 'cleanDesc', kp.cleanDesc + '\n![' + ('图片') + '](' + json.url + ')')
-                                  break
-                                }
-                              }
-                            }}
-                            className="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono"
-                            placeholder="支持 Markdown / Ctrl+V 粘贴图片上传" />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">PDF 文件链接</label>
-                          <input value={kp.pdfUrl} onChange={e => updateKpField(kp.id, 'pdfUrl', e.target.value)}
-                            placeholder="https://example.com/file.pdf"
-                            className="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground">视频链接</label>
-                          {kpVideos.map((vl: any) => (
-                            <div key={vl.id} className="flex items-center gap-2 text-xs mb-1">
-                              <a href={vl.url} target="_blank" className="text-blue-600 hover:underline truncate flex-1">{vl.title || vl.url}</a>
-                              <span className="text-gray-400">({vl.platform})</span>
-                              <button onClick={() => handleDeleteVideoInModal(vl.id)} className="text-red-400">✕</button>
-                            </div>
-                          ))}
-                          <div className="flex gap-1 mt-1">
-                            <input id={`vl-title-${kp.id}`} placeholder="标题" className="w-20 px-1.5 py-0.5 text-xs border rounded" />
-                            <input id={`vl-url-${kp.id}`} placeholder="B站/YouTube链接"
-                              className="flex-1 px-1.5 py-0.5 text-xs border rounded"
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  const titleEl = document.getElementById(`vl-title-${kp.id}`) as HTMLInputElement
-                                  const urlEl = document.getElementById(`vl-url-${kp.id}`) as HTMLInputElement
-                                  handleAddVideoInModal(kp.id, urlEl?.value || '', titleEl?.value || '')
-                                  if (urlEl) urlEl.value = ''
-                                  if (titleEl) titleEl.value = ''
-                                }
-                              }} />
-                            <button onClick={() => {
-                              const titleEl = document.getElementById(`vl-title-${kp.id}`) as HTMLInputElement
-                              const urlEl = document.getElementById(`vl-url-${kp.id}`) as HTMLInputElement
-                              handleAddVideoInModal(kp.id, urlEl?.value || '', titleEl?.value || '')
-                              if (urlEl) urlEl.value = ''
-                              if (titleEl) titleEl.value = ''
-                            }}
-                              className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
-                          </div>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="border rounded-lg p-3 bg-gray-50">
-                          <div className="text-xs font-medium text-muted-foreground mb-1">预览</div>
-                          <h4 className="font-medium mb-1">{kp.title || '(未命名)'}</h4>
-                          {kp.cleanDesc ? (
-                            <div className="text-sm"><KatexHtml text={kp.cleanDesc} /></div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">暂无描述</p>
-                          )}
-                          {kp.pdfUrl && <div className="mt-2"><KatexHtml text={`[pdf]${kp.pdfUrl}[/pdf]`} /></div>}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* KP Edit Modal */}
+      {/* KP Edit Modal — side by side */}
       {modalKp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto" onClick={() => setModalKp(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 mb-12" onClick={e => e.stopPropagation()}>
-            {/* Tabs */}
-            <div className="flex border-b">
-              <button onClick={() => setModalTab('edit')}
-                className={`flex-1 py-3 text-sm font-medium ${modalTab === 'edit' ? 'text-emerald-600 border-b-2 border-emerald-500' : 'text-muted-foreground'}`}>
-                编辑
-              </button>
-              <button onClick={() => setModalTab('preview')}
-                className={`flex-1 py-3 text-sm font-medium ${modalTab === 'preview' ? 'text-emerald-600 border-b-2 border-emerald-500' : 'text-muted-foreground'}`}>
-                学生端预览
-              </button>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 mb-12" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-3 border-b">
+              <h3 className="font-semibold">编辑知识点</h3>
+              <div className="flex gap-2">
+                <button onClick={handleModalSave} disabled={modalSaving}
+                  className="flex items-center gap-1 px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+                  {modalSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  {modalSaving ? '保存中...' : '完成'}
+                </button>
+                <button onClick={() => setModalKp(null)}
+                  className="px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300">取消</button>
+              </div>
             </div>
 
-            <div className="p-6">
-              {modalTab === 'edit' ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">知识点名称</label>
-                    <input value={modalTitle} onChange={e => setModalTitle(e.target.value)}
-                      className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                  </div>
+            <div className="flex divide-x max-h-[75vh] overflow-y-auto">
+              {/* Left: Edit */}
+              <div className="flex-1 p-6 space-y-4 min-w-0">
+                <div>
+                  <label className="block text-sm font-medium mb-1">知识点名称</label>
+                  <input value={modalTitle} onChange={e => setModalTitle(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">详细描述</label>
-                    <div className="relative">
-                      <textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
-                        onPaste={async (e) => {
-                          const items = e.clipboardData?.items
-                          if (!items) return
-                          for (const item of Array.from(items)) {
-                            if (item.type.startsWith('image/')) {
-                              e.preventDefault()
-                              const file = item.getAsFile()
-                              if (!file) continue
-                              const formData = new FormData()
-                              formData.append('file', file)
-                              const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
-                              const json = await res.json()
-                              if (json.url) setModalDesc(prev => prev + `\n![图片](${json.url})`)
-                              break
-                            }
+                <div>
+                  <label className="block text-sm font-medium mb-1">详细描述</label>
+                  <div className="relative">
+                    <textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
+                      onPaste={async (e) => {
+                        const items = e.clipboardData?.items
+                        if (!items) return
+                        for (const item of Array.from(items)) {
+                          if (item.type.startsWith('image/')) {
+                            e.preventDefault()
+                            const file = item.getAsFile()
+                            if (!file) continue
+                            const formData = new FormData(); formData.append('file', file)
+                            const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
+                            const json = await res.json()
+                            if (json.url) setModalDesc(prev => prev + '\n![图片](' + json.url + ')')
+                            break
                           }
-                        }}
-                        rows={12}
-                        className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm"
-                        placeholder={`支持 Markdown 格式：\n- 普通文字直接写\n- **粗体** *斜体*\n- $\\ce{K_2SO_4}$ 写化学式\n- Ctrl+V 粘贴图片自动上传\n- 换行即可分段`} />
-                      <button onClick={() => {
-                        const input = document.createElement('input')
-                        input.type = 'file'; input.accept = 'image/*'
-                        input.onchange = async () => {
-                          const file = input.files?.[0]
-                          if (!file) return
-                          const formData = new FormData()
-                          formData.append('file', file)
-                          const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
-                          const json = await res.json()
-                          if (json.url) setModalDesc(prev => prev + '\n![图片](' + json.url + ')')
                         }
-                        input.click()
                       }}
-                        className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片">
-                        <Image className="w-4 h-4 text-gray-500" />
-                      </button>
-                    </div>
-                    {modalDesc.includes('![') && (
-                      <div className="text-xs text-blue-500 mt-1">已包含图片（Markdown 格式，预览可看效果）</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">PDF 文件链接</label>
-                    <input value={modalPdf} onChange={e => setModalPdf(e.target.value)}
-                      placeholder="https://example.com/file.pdf"
-                      className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">视频链接</label>
-                    {modalVideos.map((v, i) => (
-                      <div key={i} className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground w-20 truncate">{v.title}</span>
-                        <span className="text-xs text-blue-600 flex-1 truncate">{v.url}</span>
-                        <button onClick={() => setModalVideos(modalVideos.filter((_, j) => j !== i))}
-                          className="text-red-400 text-xs">✕</button>
-                      </div>
-                    ))}
-                    <div className="flex gap-2 mt-2">
-                      <input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)}
-                        placeholder="标题（可选）" className="w-28 px-2 py-1 text-xs border rounded" />
-                      <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleModalAddVideo() }}
-                        placeholder="B站/YouTube链接" className="flex-1 px-2 py-1 text-xs border rounded" />
-                      <button onClick={handleModalAddVideo}
-                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button onClick={handleModalSave} disabled={modalSaving}
-                      className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2">
-                      {modalSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      {modalSaving ? '保存中...' : '完成'}
+                      rows={12}
+                      className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm"
+                      placeholder="Markdown / Ctrl+V 贴图 / 换行分段" />
+                    <button onClick={() => {
+                      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'
+                      inp.onchange = async () => {
+                        const f = inp.files?.[0]; if (!f) return
+                        const fd = new FormData(); fd.append('file', f)
+                        const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
+                        const j = await r.json()
+                        if (j.url) setModalDesc(prev => prev + '\n![图片](' + j.url + ')')
+                      }; inp.click()
+                    }}
+                      className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片">
+                      <Image className="w-4 h-4 text-gray-500" />
                     </button>
-                    <button onClick={() => setModalKp(null)}
-                      className="flex-1 py-3 bg-gray-200 rounded-xl font-medium hover:bg-gray-300">取消</button>
                   </div>
                 </div>
-              ) : (
-                /* Preview tab */
-                <div className="space-y-4 min-h-64">
-                  <div className="border rounded-xl p-4">
-                    <h3 className="font-medium text-lg mb-2">{modalTitle || '(未命名知识点)'}</h3>
-                    {modalDesc ? (
-                      <div className="text-sm"><KatexHtml text={modalDesc} /></div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">暂无描述</p>
-                    )}
-                    {modalPdf && (
-                      <div className="mt-3">
-                        <KatexHtml text={`[pdf]${modalPdf}[/pdf]`} />
-                      </div>
-                    )}
-                  </div>
-                  {modalVideos.length > 0 && (
-                    <div className="border rounded-xl p-4">
-                      <h4 className="text-sm font-medium mb-2">视频</h4>
-                      {modalVideos.map((v, i) => (
-                        <a key={i} href={v.url} target="_blank"
-                          className="block text-sm text-blue-600 hover:underline mb-1">
-                          ▶ {v.title || v.url}
-                        </a>
-                      ))}
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">PDF 文件链接</label>
+                  <input value={modalPdf} onChange={e => setModalPdf(e.target.value)}
+                    placeholder="https://example.com/file.pdf"
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">视频链接</label>
+                  {modalVideos.map((v, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-1 text-sm">
+                      <span className="text-muted-foreground truncate w-24">{v.title}</span>
+                      <span className="text-blue-600 truncate flex-1">{v.url}</span>
+                      <button onClick={() => setModalVideos(modalVideos.filter((_, j) => j !== i))} className="text-red-400">✕</button>
                     </div>
+                  ))}
+                  <div className="flex gap-2 mt-2">
+                    <input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)}
+                      placeholder="标题" className="w-24 px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleModalAddVideo() }}
+                      placeholder="B站/YouTube链接" className="flex-1 px-2 py-1 text-sm border rounded" />
+                    <button onClick={handleModalAddVideo}
+                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Preview */}
+              <div className="flex-1 p-6 bg-gray-50 min-w-0">
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">学生端预览</h4>
+                <div className="bg-white border rounded-xl p-4">
+                  <h3 className="font-semibold text-lg mb-3">{modalTitle || '(未命名)'}</h3>
+                  {modalDesc ? (
+                    <div className="text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">暂无描述</p>
+                  )}
+                  {modalPdf && (
+                    <div className="mt-3"><KatexHtml text={`[pdf]${modalPdf}[/pdf]`} /></div>
                   )}
                 </div>
-              )}
+                {modalVideos.length > 0 && (
+                  <div className="bg-white border rounded-xl p-4 mt-3">
+                    <h4 className="text-sm font-medium mb-2">视频</h4>
+                    {modalVideos.map((v, i) => (
+                      <a key={i} href={v.url} target="_blank" className="block text-sm text-blue-600 hover:underline mb-1">▶ {v.title || v.url}</a>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
