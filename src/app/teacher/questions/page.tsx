@@ -197,6 +197,9 @@ export default function TeacherQuestionsPage() {
             <Link href={`/teacher/ai-generate?course=${selectedCourse}&chapter=${selectedChapter}&lesson=${selectedLesson}`} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition-colors">
               🤖 AI 生成题目
             </Link>
+            <Link href="/teacher/import-questions" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-amber-700 transition-colors">
+              📄 导入题目
+            </Link>
           </div>
         </div>
 
