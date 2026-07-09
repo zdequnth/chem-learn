@@ -20,26 +20,51 @@ function tryRender(formula: string, displayMode: boolean): string {
 }
 
 function renderLatex(text: string): string {
-  // Split text by $...$ and $$...$$ delimiters, also handle bare \ce{...}
-  const segments: { type: 'text' | 'inline' | 'display' | 'ce'; content: string }[] = []
+  // Preprocess: replace bare \ce{...} with rendered HTML before segment parsing
+  // This handles nested braces correctly via brace counting
+  let preprocessed = ''
   let remaining = text
+  while (remaining.length > 0) {
+    const ceIdx = remaining.indexOf('\\ce{')
+    if (ceIdx === -1) { preprocessed += remaining; break }
+    preprocessed += remaining.slice(0, ceIdx)
+    remaining = remaining.slice(ceIdx)
+    // Brace count to find matching }
+    let depth = 1
+    let j = 4 // skip '\ce{'
+    while (j < remaining.length && depth > 0) {
+      if (remaining[j] === '{') depth++
+      else if (remaining[j] === '}') depth--
+      j++
+    }
+    if (depth === 0) {
+      const formula = remaining.slice(0, j)
+      preprocessed += tryRender(formula, false)
+      remaining = remaining.slice(j)
+    } else {
+      preprocessed += remaining.slice(0, 4)
+      remaining = remaining.slice(4)
+    }
+  }
+
+  // Now parse the preprocessed text for $...$, $$...$$, \(...\), \[...\]
+  const segments: { type: 'text' | 'inline' | 'display'; content: string }[] = []
+  remaining = preprocessed
 
   while (remaining.length > 0) {
-    // Find the earliest match: $$, $, \(, \[, or \ce{
+    // Find the earliest match: $$, $, \(, \[
     const dd = remaining.indexOf('$$')
     const sd = remaining.indexOf('$')
     const lp = remaining.indexOf('\\(')
     const bp = remaining.indexOf('\\[')
-    const ce = remaining.indexOf('\\ce{')
 
     // Each candidate: { idx, type, delim }
-    type Candidate = { idx: number; type: 'display' | 'inline' | 'ce'; delim: string; endDelim: string; openLen: number }
+    type Candidate = { idx: number; type: 'display' | 'inline'; delim: string; endDelim: string; openLen: number }
     const candidates: Candidate[] = []
     if (dd !== -1) candidates.push({ idx: dd, type: 'display', delim: '$$', endDelim: '$$', openLen: 2 })
     if (sd !== -1) candidates.push({ idx: sd, type: 'inline', delim: '$', endDelim: '$', openLen: 1 })
     if (lp !== -1) candidates.push({ idx: lp, type: 'inline', delim: '\\(', endDelim: '\\)', openLen: 2 })
     if (bp !== -1) candidates.push({ idx: bp, type: 'display', delim: '\\[', endDelim: '\\]', openLen: 2 })
-    if (ce !== -1) candidates.push({ idx: ce, type: 'ce', delim: '\\ce{', endDelim: '}', openLen: 4 })
     candidates.sort((a, b) => a.idx - b.idx)
 
     if (candidates.length === 0) {
@@ -54,39 +79,20 @@ function renderLatex(text: string): string {
       segments.push({ type: 'text', content: remaining.slice(0, first.idx) })
     }
 
-    if (first.type === 'ce') {
-      // Find matching } with brace counting
-      let depth = 1
-      let j = first.idx + 4
-      while (j < remaining.length && depth > 0) {
-        if (remaining[j] === '{') depth++
-        else if (remaining[j] === '}') depth--
-        j++
-      }
-      if (depth === 0) {
-        segments.push({ type: 'ce', content: remaining.slice(first.idx, j) })
-        remaining = remaining.slice(j)
-      } else {
-        segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + 4) })
-        remaining = remaining.slice(first.idx + 4)
-      }
+    // inline or display: search for end delimiter
+    const endIdx = remaining.indexOf(first.endDelim, first.idx + first.openLen)
+    if (endIdx !== -1) {
+      segments.push({ type: first.type, content: remaining.slice(first.idx + first.openLen, endIdx) })
+      remaining = remaining.slice(endIdx + first.endDelim.length)
     } else {
-      // inline or display: search for end delimiter
-      const endIdx = remaining.indexOf(first.endDelim, first.idx + first.openLen)
-      if (endIdx !== -1) {
-        segments.push({ type: first.type as 'inline' | 'display', content: remaining.slice(first.idx + first.openLen, endIdx) })
-        remaining = remaining.slice(endIdx + first.endDelim.length)
-      } else {
-        segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + first.openLen) })
-        remaining = remaining.slice(first.idx + first.openLen)
-      }
+      segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + first.openLen) })
+      remaining = remaining.slice(first.idx + first.openLen)
     }
   }
 
   // Render segments
   return segments.map(seg => {
     if (seg.type === 'text') return seg.content
-    if (seg.type === 'ce') return tryRender(seg.content, false)
 
     // $...$ or $$...$$: check if it looks like chemistry
     const needsChemistry = /[A-Z][a-z]?\d|[\^_]/.test(seg.content) && !/\\[a-zA-Z]+/.test(seg.content)
