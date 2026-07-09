@@ -25,16 +25,21 @@ function renderLatex(text: string): string {
   let remaining = text
 
   while (remaining.length > 0) {
-    // Find the earliest match: $$, $, or \ce{
+    // Find the earliest match: $$, $, \(, \[, or \ce{
     const dd = remaining.indexOf('$$')
     const sd = remaining.indexOf('$')
+    const lp = remaining.indexOf('\\(')
+    const bp = remaining.indexOf('\\[')
     const ce = remaining.indexOf('\\ce{')
 
-    // Find earliest occurrence
-    const candidates: { idx: number; type: 'display' | 'inline' | 'ce' }[] = []
-    if (dd !== -1) candidates.push({ idx: dd, type: 'display' })
-    if (sd !== -1) candidates.push({ idx: sd, type: 'inline' })
-    if (ce !== -1) candidates.push({ idx: ce, type: 'ce' })
+    // Each candidate: { idx, type, delim }
+    type Candidate = { idx: number; type: 'display' | 'inline' | 'ce'; delim: string; endDelim: string; openLen: number }
+    const candidates: Candidate[] = []
+    if (dd !== -1) candidates.push({ idx: dd, type: 'display', delim: '$$', endDelim: '$$', openLen: 2 })
+    if (sd !== -1) candidates.push({ idx: sd, type: 'inline', delim: '$', endDelim: '$', openLen: 1 })
+    if (lp !== -1) candidates.push({ idx: lp, type: 'inline', delim: '\\(', endDelim: '\\)', openLen: 2 })
+    if (bp !== -1) candidates.push({ idx: bp, type: 'display', delim: '\\[', endDelim: '\\]', openLen: 2 })
+    if (ce !== -1) candidates.push({ idx: ce, type: 'ce', delim: '\\ce{', endDelim: '}', openLen: 4 })
     candidates.sort((a, b) => a.idx - b.idx)
 
     if (candidates.length === 0) {
@@ -49,25 +54,7 @@ function renderLatex(text: string): string {
       segments.push({ type: 'text', content: remaining.slice(0, first.idx) })
     }
 
-    if (first.type === 'display') {
-      const end = remaining.indexOf('$$', first.idx + 2)
-      if (end !== -1) {
-        segments.push({ type: 'display', content: remaining.slice(first.idx + 2, end) })
-        remaining = remaining.slice(end + 2)
-      } else {
-        segments.push({ type: 'text', content: remaining.slice(first.idx) })
-        break
-      }
-    } else if (first.type === 'inline') {
-      const end = remaining.indexOf('$', first.idx + 1)
-      if (end !== -1) {
-        segments.push({ type: 'inline', content: remaining.slice(first.idx + 1, end) })
-        remaining = remaining.slice(end + 1)
-      } else {
-        segments.push({ type: 'text', content: remaining.slice(first.idx) })
-        break
-      }
-    } else if (first.type === 'ce') {
+    if (first.type === 'ce') {
       // Find matching } with brace counting
       let depth = 1
       let j = first.idx + 4
@@ -82,6 +69,16 @@ function renderLatex(text: string): string {
       } else {
         segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + 4) })
         remaining = remaining.slice(first.idx + 4)
+      }
+    } else {
+      // inline or display: search for end delimiter
+      const endIdx = remaining.indexOf(first.endDelim, first.idx + first.openLen)
+      if (endIdx !== -1) {
+        segments.push({ type: first.type as 'inline' | 'display', content: remaining.slice(first.idx + first.openLen, endIdx) })
+        remaining = remaining.slice(endIdx + first.endDelim.length)
+      } else {
+        segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + first.openLen) })
+        remaining = remaining.slice(first.idx + first.openLen)
       }
     }
   }
