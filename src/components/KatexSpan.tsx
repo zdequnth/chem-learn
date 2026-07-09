@@ -20,26 +20,35 @@ function tryRender(formula: string, displayMode: boolean): string {
 }
 
 function renderLatex(text: string): string {
-  // Preprocess: replace bare \ce{...} with rendered HTML before segment parsing
-  // This handles nested braces correctly via brace counting
+  // Preprocess: replace bare \ce{...} (NOT inside $...$ or $$...$$) with rendered HTML
+  // We detect "bare" by checking that there's no unclosed $ before the \ce
   let preprocessed = ''
   let remaining = text
   while (remaining.length > 0) {
     const ceIdx = remaining.indexOf('\\ce{')
     if (ceIdx === -1) { preprocessed += remaining; break }
+    // Check if \ce{ is inside a $...$ or $$...$$ block
+    const before = remaining.slice(0, ceIdx)
+    const dollarCount = (before.match(/\$/g) || []).length
+    const isInsideMath = dollarCount % 2 === 1 // unclosed $ means we're inside math
+    if (isInsideMath) {
+      // Don't preprocess — let the $ parser handle it
+      preprocessed += remaining.slice(0, ceIdx + 4)
+      remaining = remaining.slice(ceIdx + 4)
+      continue
+    }
     preprocessed += remaining.slice(0, ceIdx)
     remaining = remaining.slice(ceIdx)
     // Brace count to find matching }
     let depth = 1
-    let j = 4 // skip '\ce{'
+    let j = 4
     while (j < remaining.length && depth > 0) {
       if (remaining[j] === '{') depth++
       else if (remaining[j] === '}') depth--
       j++
     }
     if (depth === 0) {
-      const formula = remaining.slice(0, j)
-      preprocessed += tryRender(formula, false)
+      preprocessed += tryRender(remaining.slice(0, j), false)
       remaining = remaining.slice(j)
     } else {
       preprocessed += remaining.slice(0, 4)
