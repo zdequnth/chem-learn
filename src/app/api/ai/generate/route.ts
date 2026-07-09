@@ -3,14 +3,18 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const fixJson = (s: string): string => {
-  return s
-    .replace(/(?<!\\)\\(?=[a-zA-Z])/g, '\\\\') // LaTeX backslashes
-    .replace(/,(\s*[}\]])/g, '$1') // trailing commas
-    .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_m, inner) => { // escape control chars in strings
-      const cleaned = inner.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-        .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-      return '"' + cleaned + '"'
-    })
+  let t = s
+  // Escape LaTeX backslashes: \ followed by letters or ( [
+  t = t.replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
+  // Remove trailing commas
+  t = t.replace(/,(\s*[}\]])/g, '$1')
+  // Escape raw control chars inside strings
+  t = t.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_m, inner) => {
+    const cleaned = inner.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+      .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+    return '"' + cleaned + '"'
+  })
+  return t
 }
 
 async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
