@@ -11,6 +11,7 @@ interface WrongRecord {
   id: string
   question_id: string
   chapter_id: string
+  course_id: string
   wrong_count: number
   last_wrong_at: string
   is_resolved: boolean
@@ -29,6 +30,11 @@ export default function WrongBookPage() {
 
   const [records, setRecords] = useState<WrongRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCourse, setSelectedCourse] = useState('')
+  const [selectedChapter, setSelectedChapter] = useState('')
+  const [showResolved, setShowResolved] = useState(false)
+  const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
+  const [chapters, setChapters] = useState<{ id: string; title: string; courseId: string }[]>([])
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -37,12 +43,23 @@ export default function WrongBookPage() {
   useEffect(() => {
     if (!user) return
     fetchRecords()
+    fetch('/api/student/course-data').then(r => r.json()).then(json => {
+      setCourses((json.courses || []).map((c: any) => ({ id: c.id, name: c.name })))
+    })
   }, [user])
 
   const fetchRecords = async () => {
     const res = await fetch('/api/wrong-book')
     const json = await res.json()
     setRecords(json.records || [])
+    // Extract unique chapters from records
+    const chMap = new Map<string, { id: string; title: string; courseId: string }>()
+    ;(json.records || []).forEach((r: any) => {
+      if (r.chapter_id && !chMap.has(r.chapter_id)) {
+        chMap.set(r.chapter_id, { id: r.chapter_id, title: r.chapter_title, courseId: r.course_id })
+      }
+    })
+    setChapters(Array.from(chMap.values()))
     setLoading(false)
   }
 
@@ -55,13 +72,26 @@ export default function WrongBookPage() {
     fetchRecords()
   }
 
+  // Filter records
+  const filtered = records.filter(r => {
+    if (selectedCourse && r.course_id !== selectedCourse) return false
+    if (selectedChapter && r.chapter_id !== selectedChapter) return false
+    if (!showResolved && r.is_resolved) return false
+    return true
+  })
+  const filteredChapterIds = new Set(filtered.map(r => r.chapter_id))
+  const filteredChapters = chapters.filter(c => {
+    if (selectedCourse && c.courseId !== selectedCourse) return false
+    return filteredChapterIds.has(c.id) || (selectedCourse === c.courseId)
+  })
+
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
   }
 
   // Group by course → chapter
   const grouped: Record<string, Record<string, WrongRecord[]>> = {}
-  records.forEach(r => {
+  filtered.forEach(r => {
     if (!grouped[r.course_name]) grouped[r.course_name] = {}
     if (!grouped[r.course_name][r.chapter_title]) grouped[r.course_name][r.chapter_title] = []
     grouped[r.course_name][r.chapter_title].push(r)
@@ -80,7 +110,26 @@ export default function WrongBookPage() {
             </button>
           )}
         </div>
-        <p className="text-muted-foreground mb-8">个性化错题汇总，按课程-章节分类，方便复习</p>
+        <p className="text-muted-foreground mb-4">个性化错题汇总，按课程-章节分类，方便复习</p>
+
+        {/* Filters */}
+        <div className="flex items-center gap-3 mb-6">
+          <select value={selectedCourse} onChange={e => { setSelectedCourse(e.target.value); setSelectedChapter('') }}
+            className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">全部课程</option>
+            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">全部章节</option>
+            {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+            <input type="checkbox" checked={showResolved} onChange={e => setShowResolved(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" />
+            显示已掌握
+          </label>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>

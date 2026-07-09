@@ -62,6 +62,7 @@ export async function GET() {
       id: r.id,
       question_id: r.question_id,
       chapter_id: r.chapter_id,
+      course_id: chapter?.course_id || '',
       wrong_count: r.wrong_count,
       last_wrong_at: r.last_wrong_at,
       is_resolved: r.is_resolved,
