@@ -671,11 +671,10 @@ export default function CourseDetailPage() {
                                 ) : (
                                   <span className="flex-1 text-sm">{l.title}</span>
                                 )}
-                                {(l as any).is_key && <span className="text-xs text-amber-500 shrink-0">⭐</span>}
                                 <span className="text-xs text-muted-foreground cursor-pointer shrink-0">知识点 ▸</span>
                                 {canEdit && <button onClick={e => { e.stopPropagation(); toggleKeyLesson(l.id, !!(l as any).is_key) }}
-                                  className="p-0.5 hover:bg-amber-50 rounded shrink-0" title="重点课时">
-                                  <span className="text-xs">{((l as any).is_key) ? '⭐' : '☆'}</span>
+                                  className="p-0.5 hover:bg-red-50 rounded shrink-0" title="重点课时">
+                                  <span className="text-xs">{((l as any).is_key) ? '❤️' : '🤍'}</span>
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); startRenameLesson(l) }}
                                   className="p-0.5 hover:bg-gray-200 rounded shrink-0" title="重命名">
