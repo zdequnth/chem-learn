@@ -622,9 +622,12 @@ export default function CourseDetailPage() {
                             onBlur={saveRenameChapter}
                             autoFocus className="font-medium flex-1 px-2 py-0.5 border rounded text-sm" />
                         ) : (
-                          <span className="font-medium flex-1 cursor-pointer hover:text-emerald-600"
-                            onClick={e => { e.stopPropagation(); startRenameChapter(ch) }}>{ch.title}</span>
+                          <span className="font-medium flex-1">{ch.title}</span>
                         )}
+                        <button onClick={e => { e.stopPropagation(); startRenameChapter(ch) }}
+                          className="p-1 hover:bg-gray-200 rounded" title="重命名">
+                          <Edit3 className="w-3 h-3 text-gray-400" />
+                        </button>
                         <span className="text-xs text-muted-foreground mr-2">{ch.lessons.length} 课时</span>
                         {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'up') }}
                           disabled={idx === 0}
@@ -652,9 +655,12 @@ export default function CourseDetailPage() {
                                     onBlur={saveRenameLesson}
                                     autoFocus className="flex-1 px-2 py-0.5 border rounded text-sm" />
                                 ) : (
-                                  <span className="flex-1 text-sm cursor-pointer hover:text-emerald-600"
-                                    onClick={e => { e.stopPropagation(); startRenameLesson(l) }}>{l.title}</span>
+                                  <span className="flex-1 text-sm">{l.title}</span>
                                 )}
+                                <button onClick={e => { e.stopPropagation(); startRenameLesson(l) }}
+                                  className="p-0.5 hover:bg-gray-200 rounded" title="重命名">
+                                  <Edit3 className="w-3 h-3 text-gray-400" />
+                                </button>
                                 <span className="text-xs text-muted-foreground">知识点 ▸</span>
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
                                   disabled={lIdx === 0}
