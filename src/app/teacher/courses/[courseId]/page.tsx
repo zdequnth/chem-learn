@@ -252,11 +252,17 @@ export default function CourseDetailPage() {
   }
 
   const toggleKeyLesson = async (lessonId: string, current: boolean) => {
+    // Optimistic update: toggle local state immediately
+    setChapters(prev => prev.map(ch => ({
+      ...ch,
+      lessons: ch.lessons.map(l =>
+        l.id === lessonId ? { ...l, is_key: !current } : l
+      ),
+    })))
     await fetch(`/api/lessons?id=${lessonId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_key: !current }),
-    })
-    fetchData()
+    }).catch(() => { fetchData() }) // rollback on failure
   }
 
   const handleRemoveCollaborator = async (teacherId: string) => {
