@@ -115,22 +115,30 @@ export default function CoursePage() {
 
                           {isUnlocked ? (
                             <Link href={`/play/${lesson.id}`}
-                              className="flex-1 bg-card border rounded-xl p-4 hover:shadow-md hover:border-emerald-300 transition-all group">
+                              className={`flex-1 bg-card border rounded-xl p-4 hover:shadow-md transition-all group ${
+                                (lesson as any).is_key ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400' : 'hover:border-emerald-300'
+                              }`}>
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <h3 className="font-medium group-hover:text-emerald-600 transition-colors">
+                                  <h3 className={`font-medium transition-colors ${
+                                    (lesson as any).is_key ? 'group-hover:text-amber-600' : 'group-hover:text-emerald-600'
+                                  }`}>
                                     {cIdx + 1}.{lIdx + 1} {lesson.title}
+                                    {(lesson as any).is_key && <span className="ml-1">⭐</span>}
                                   </h3>
                                 </div>
-                                <Play className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 transition-transform" />
+                                <Play className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${
+                                  (lesson as any).is_key ? 'text-amber-500' : 'text-emerald-500'
+                                }`} />
                               </div>
                             </Link>
                           ) : (
-                            <div className="flex-1 bg-card border rounded-xl p-4 opacity-50">
+                            <div className={`flex-1 bg-card border rounded-xl p-4 opacity-50 ${(lesson as any).is_key ? 'border-amber-200' : ''}`}>
                               <div className="flex items-center justify-between">
                                 <div>
                                   <h3 className="font-medium text-muted-foreground">
                                     {cIdx + 1}.{lIdx + 1} {lesson.title}
+                                    {(lesson as any).is_key && <span className="ml-1">⭐</span>}
                                   </h3>
                                 </div>
                                 <Lock className="w-4 h-4 text-muted-foreground" />

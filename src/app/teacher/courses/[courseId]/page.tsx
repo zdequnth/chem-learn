@@ -251,6 +251,14 @@ export default function CourseDetailPage() {
     setEditingLessonId(null); fetchData()
   }
 
+  const toggleKeyLesson = async (lessonId: string, current: boolean) => {
+    await fetch(`/api/lessons?id=${lessonId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_key: !current }),
+    })
+    fetchData()
+  }
+
   const handleRemoveCollaborator = async (teacherId: string) => {
     await fetch(`/api/courses/collaborators?courseId=${courseId}&teacherId=${teacherId}`, { method: 'DELETE' })
     fetchCollaborators()
@@ -646,9 +654,9 @@ export default function CourseDetailPage() {
                         <div className="px-4 pb-3 pt-1">
                           {ch.lessons.map((l, lIdx) => (
                             <div key={l.id}>
-                              <div className="flex items-center gap-3 pl-7 py-2 border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
+                              <div className="flex items-center gap-2 pl-7 py-2 border-b last:border-b-0 hover:bg-gray-50"
                                 onClick={() => toggleLessonKP(l.id)}>
-                                <span className="text-sm text-muted-foreground w-6">{idx + 1}.{lIdx + 1}</span>
+                                <span className="text-sm text-muted-foreground w-7 shrink-0">{idx + 1}.{lIdx + 1}</span>
                                 {editingLessonId === l.id ? (
                                   <input value={renameTitle} onChange={e => setRenameTitle(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') saveRenameLesson(); if (e.key === 'Escape') setEditingLessonId(null) }}
@@ -657,23 +665,28 @@ export default function CourseDetailPage() {
                                 ) : (
                                   <span className="flex-1 text-sm">{l.title}</span>
                                 )}
-                                <button onClick={e => { e.stopPropagation(); startRenameLesson(l) }}
-                                  className="p-0.5 hover:bg-gray-200 rounded" title="重命名">
+                                {(l as any).is_key && <span className="text-xs text-amber-500 shrink-0">⭐</span>}
+                                <span className="text-xs text-muted-foreground cursor-pointer shrink-0">知识点 ▸</span>
+                                {canEdit && <button onClick={e => { e.stopPropagation(); toggleKeyLesson(l.id, !!(l as any).is_key) }}
+                                  className="p-0.5 hover:bg-amber-50 rounded shrink-0" title="重点课时">
+                                  <span className="text-xs">{((l as any).is_key) ? '⭐' : '☆'}</span>
+                                </button>}
+                                {canEdit && <button onClick={e => { e.stopPropagation(); startRenameLesson(l) }}
+                                  className="p-0.5 hover:bg-gray-200 rounded shrink-0" title="重命名">
                                   <Edit3 className="w-3 h-3 text-gray-400" />
-                                </button>
-                                <span className="text-xs text-muted-foreground">知识点 ▸</span>
+                                </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
                                   disabled={lIdx === 0}
-                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30" title="上移">
+                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title="上移">
                                   <ArrowUp className="w-3 h-3" />
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'down') }}
                                   disabled={lIdx === ch.lessons.length - 1}
-                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30" title="下移">
+                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title="下移">
                                   <ArrowDown className="w-3 h-3" />
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteLesson(l.id) }}
-                                  className="p-1 hover:bg-red-50 rounded ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>}
+                                  className="p-0.5 hover:bg-red-50 rounded shrink-0"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>}
                               </div>
                               {/* Knowledge Points */}
                               {expandedLesson === l.id && (
