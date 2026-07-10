@@ -68,14 +68,14 @@ export default function CourseDetailPage() {
   const [importChapters, setImportChapters] = useState<any[]>([])
   const [importChapterId, setImportChapterId] = useState('')
   const [importBusy, setImportBusy] = useState(false)
+  const [importCourses, setImportCourses] = useState<any[]>([])
 
   const openImportChapter = async () => {
     setShowImportChapter(true)
     setImportChapterId('')
-    // Load all courses for selection
     const res = await fetch('/api/courses')
     const json = await res.json()
-    setCourses((json.courses || []) as Course[])
+    setImportCourses(json.courses || [])
   }
 
   const loadImportChapters = async (cid: string) => {
@@ -736,7 +736,7 @@ export default function CourseDetailPage() {
               <select value={importCourseId} onChange={e => loadImportChapters(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="">选择源课程</option>
-                {courses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {importCourses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {importChapters.length > 0 && (
                 <select value={importChapterId} onChange={e => setImportChapterId(e.target.value)}
