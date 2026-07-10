@@ -622,7 +622,7 @@ export default function CourseDetailPage() {
                             onBlur={saveRenameChapter}
                             autoFocus className="font-medium flex-1 px-2 py-0.5 border rounded text-sm" />
                         ) : (
-                          <span className="font-medium flex-1">{ch.title}</span>
+                          <span className="font-medium flex-1">{idx + 1}. {ch.title}</span>
                         )}
                         <button onClick={e => { e.stopPropagation(); startRenameChapter(ch) }}
                           className="p-1 hover:bg-gray-200 rounded" title="重命名">

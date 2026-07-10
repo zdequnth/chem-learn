@@ -177,16 +177,14 @@ export default function ClassDetailPage() {
 
                       {/* Per-chapter breakdown */}
                       {expandedStudent === s.id && s.chapterProgress.length > 0 && (
-                        <div className="px-4 pb-3 space-y-2 border-t">
+                        <div className="px-4 pb-3 space-y-1 border-t pt-2">
                           {s.chapterProgress.map(cp => (
-                            <div key={cp.chapterId} className="pl-3 border-l-2 border-emerald-200">
-                              <div className="flex items-center justify-between text-xs mb-0.5">
-                                <span className="text-muted-foreground">{cp.chapterTitle}</span>
-                                <span>{cp.passed}/{cp.total} · {cp.percent}%</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div key={cp.chapterId} className="flex items-center gap-2 pl-3 border-l-2 border-emerald-200">
+                              <span className="text-xs text-muted-foreground w-20 shrink-0 truncate">{cp.chapterTitle}</span>
+                              <div className="flex-1 bg-gray-100 rounded-full h-2">
                                 <div className="bg-blue-400 h-2 rounded-full transition-all" style={{ width: `${cp.total > 0 ? (cp.passed / cp.total) * 100 : 0}%` }} />
                               </div>
+                              <span className="text-xs text-muted-foreground w-16 text-right shrink-0">{cp.passed}/{cp.total} · {cp.percent}%</span>
                             </div>
                           ))}
                         </div>
