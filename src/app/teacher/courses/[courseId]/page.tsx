@@ -63,6 +63,43 @@ export default function CourseDetailPage() {
   const [showBatchImport, setShowBatchImport] = useState(false)
   const [batchMd, setBatchMd] = useState('')
   const [batchBusy, setBatchBusy] = useState(false)
+  const [showImportChapter, setShowImportChapter] = useState(false)
+  const [importCourseId, setImportCourseId] = useState('')
+  const [importChapters, setImportChapters] = useState<any[]>([])
+  const [importChapterId, setImportChapterId] = useState('')
+  const [importBusy, setImportBusy] = useState(false)
+
+  const openImportChapter = async () => {
+    setShowImportChapter(true)
+    setImportChapterId('')
+    // Load all courses for selection
+    const res = await fetch('/api/courses')
+    const json = await res.json()
+    setCourses((json.courses || []) as Course[])
+  }
+
+  const loadImportChapters = async (cid: string) => {
+    setImportCourseId(cid)
+    setImportChapterId('')
+    if (!cid) { setImportChapters([]); return }
+    const r = await fetch(`/api/student/course-data?courseId=${cid}`)
+    const j = await r.json()
+    setImportChapters(j.chapters || [])
+  }
+
+  const handleImportChapter = async () => {
+    if (!importChapterId || importBusy) return
+    setImportBusy(true)
+    const res = await fetch('/api/chapters/copy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceChapterId: importChapterId, targetCourseId: courseId }),
+    })
+    const json = await res.json()
+    setImportBusy(false)
+    setShowImportChapter(false)
+    alert(`导入完成：${json.lessons || 0} 个课时，${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`)
+    fetchData()
+  }
 
   const handleBatchImport = async () => {
     if (!batchMd.trim()) return
@@ -566,6 +603,8 @@ export default function CourseDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
                 <button onClick={() => setShowBatchImport(true)}
                   className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">📄 批量导入</button>
+                <button onClick={openImportChapter}
+                  className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 text-sm">📥 导入章节</button>
               </div>
               )}
 
@@ -687,6 +726,36 @@ export default function CourseDetailPage() {
           </>
         )}
       </main>
+
+      {/* Import Chapter Modal */}
+      {showImportChapter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowImportChapter(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入章节</h3>
+            <div className="space-y-3">
+              <select value={importCourseId} onChange={e => loadImportChapters(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">选择源课程</option>
+                {courses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {importChapters.length > 0 && (
+                <select value={importChapterId} onChange={e => setImportChapterId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">选择要导入的章节</option>
+                  {importChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={handleImportChapter} disabled={!importChapterId || importBusy}
+                className="flex-1 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50">
+                {importBusy ? '导入中...' : '开始导入'}
+              </button>
+              <button onClick={() => setShowImportChapter(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Batch Import Modal */}
       {showBatchImport && (
