@@ -56,6 +56,28 @@ export default function CourseDetailPage() {
   const [modalVlTitle, setModalVlTitle] = useState('')
   const [modalVlUrl, setModalVlUrl] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
+  // Inline rename
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
+  const [showBatchImport, setShowBatchImport] = useState(false)
+  const [batchMd, setBatchMd] = useState('')
+  const [batchBusy, setBatchBusy] = useState(false)
+
+  const handleBatchImport = async () => {
+    if (!batchMd.trim()) return
+    setBatchBusy(true)
+    const res = await fetch('/api/courses/batch-import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, markdown: batchMd.trim() }),
+    })
+    const json = await res.json()
+    setBatchBusy(false)
+    setShowBatchImport(false)
+    setBatchMd('')
+    alert(`导入完成：${json.chapters || 0} 个章节，${json.lessons || 0} 个课时`)
+    fetchData()
+  }
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -166,6 +188,30 @@ export default function CourseDetailPage() {
     if (!modalVlUrl.trim()) return
     setModalVideos([...modalVideos, { id: '', title: modalVlTitle || '视频链接', url: modalVlUrl, platform: modalVlUrl.includes('bilibili') ? 'bilibili' : 'other' }])
     setModalVlTitle(''); setModalVlUrl('')
+  }
+
+  const startRenameChapter = (ch: Chapter) => {
+    setEditingChapterId(ch.id); setRenameTitle(ch.title)
+  }
+  const saveRenameChapter = async () => {
+    if (!editingChapterId || !renameTitle.trim()) return
+    await fetch(`/api/chapters?id=${editingChapterId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: renameTitle.trim() }),
+    })
+    setEditingChapterId(null); fetchData()
+  }
+
+  const startRenameLesson = (l: Lesson) => {
+    setEditingLessonId(l.id); setRenameTitle(l.title)
+  }
+  const saveRenameLesson = async () => {
+    if (!editingLessonId || !renameTitle.trim()) return
+    await fetch(`/api/lessons?id=${editingLessonId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: renameTitle.trim() }),
+    })
+    setEditingLessonId(null); fetchData()
   }
 
   const handleRemoveCollaborator = async (teacherId: string) => {
@@ -518,6 +564,8 @@ export default function CourseDetailPage() {
                   placeholder="新章节名称" className="flex-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <button onClick={handleAddChapter} disabled={busy}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
+                <button onClick={() => setShowBatchImport(true)}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">📄 批量导入</button>
               </div>
               )}
 
@@ -529,7 +577,15 @@ export default function CourseDetailPage() {
                     <div key={ch.id} className="border rounded-xl overflow-hidden">
                       <div className="flex items-center gap-3 px-4 py-3 bg-accent/50 cursor-pointer hover:bg-accent" onClick={() => toggleChapter(ch.id)}>
                         {ch.expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        <span className="font-medium flex-1">{ch.title}</span>
+                        {editingChapterId === ch.id ? (
+                          <input value={renameTitle} onChange={e => setRenameTitle(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveRenameChapter(); if (e.key === 'Escape') setEditingChapterId(null) }}
+                            onBlur={saveRenameChapter}
+                            autoFocus className="font-medium flex-1 px-2 py-0.5 border rounded text-sm" />
+                        ) : (
+                          <span className="font-medium flex-1 cursor-pointer hover:text-emerald-600"
+                            onClick={e => { e.stopPropagation(); startRenameChapter(ch) }}>{ch.title}</span>
+                        )}
                         <span className="text-xs text-muted-foreground mr-2">{ch.lessons.length} 课时</span>
                         {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'up') }}
                           disabled={idx === 0}
@@ -551,7 +607,15 @@ export default function CourseDetailPage() {
                               <div className="flex items-center gap-3 pl-7 py-2 border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
                                 onClick={() => toggleLessonKP(l.id)}>
                                 <span className="text-sm text-muted-foreground w-6">{idx + 1}.{lIdx + 1}</span>
-                                <span className="flex-1 text-sm">{l.title}</span>
+                                {editingLessonId === l.id ? (
+                                  <input value={renameTitle} onChange={e => setRenameTitle(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveRenameLesson(); if (e.key === 'Escape') setEditingLessonId(null) }}
+                                    onBlur={saveRenameLesson}
+                                    autoFocus className="flex-1 px-2 py-0.5 border rounded text-sm" />
+                                ) : (
+                                  <span className="flex-1 text-sm cursor-pointer hover:text-emerald-600"
+                                    onClick={e => { e.stopPropagation(); startRenameLesson(l) }}>{l.title}</span>
+                                )}
                                 <span className="text-xs text-muted-foreground">知识点 ▸</span>
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
                                   disabled={lIdx === 0}
@@ -623,6 +687,26 @@ export default function CourseDetailPage() {
           </>
         )}
       </main>
+
+      {/* Batch Import Modal */}
+      {showBatchImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowBatchImport(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">批量导入章节和课时</h3>
+            <p className="text-sm text-muted-foreground mb-3">按 Markdown 格式粘贴：# 章节名，## 课时名</p>
+            <textarea value={batchMd} onChange={e => setBatchMd(e.target.value)}
+              rows={10} placeholder={`# 酸碱中和\n## 指示剂\n## 滴定管的使用\n# 离子检验\n## 氯离子\n## 硫酸根离子`}
+              className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm resize-none" />
+            <div className="flex gap-3 mt-4">
+              <button onClick={handleBatchImport} disabled={batchBusy || !batchMd.trim()}
+                className="flex-1 py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
+                {batchBusy ? '导入中...' : '开始导入'}
+              </button>
+              <button onClick={() => setShowBatchImport(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalKp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto" onClick={() => setModalKp(null)}>
