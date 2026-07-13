@@ -10,10 +10,15 @@ export async function POST(request: Request) {
   const { courseId, markdown } = await request.json()
   if (!courseId || !markdown?.trim()) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
 
+  // Get existing max sort_order so new chapters go to the end
+  const { data: existing } = await supabaseAdmin('chapters', {
+    query: `?course_id=eq.${courseId}&select=sort_order&order=sort_order.desc&limit=1`,
+  })
+  let chapterOrder = (existing?.[0]?.sort_order ?? -1) + 1
+
   // Parse: # Chapter Title, ## Lesson Title
   const lines = markdown.split('\n')
   let currentChapterId: string | null = null
-  let chapterOrder = 0
   let lessonOrder = 0
   const result = { chapters: 0, lessons: 0 }
 
