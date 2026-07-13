@@ -39,18 +39,20 @@ export async function GET(request: Request) {
       progress = p || []
     }
 
-    // Auto-unlock: first lesson of course, and cross-chapter progression
     const sortedChapters = (chapters || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
     const sortedLessons = (lessons || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
 
-    // Always unlock first lesson of first chapter
-    const firstLesson = sortedLessons[0]
-    if (firstLesson && !progress.find((p: any) => p.lesson_id === firstLesson.id)) {
-      await supabaseAdmin('student_progress', {
-        method: 'POST',
-        body: { student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked' },
-      })
-      progress.push({ student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
+    // First visit: unlock first lesson of the course
+    const hasAnyProgress = progress.length > 0
+    if (!hasAnyProgress) {
+      const firstLesson = sortedLessons[0]
+      if (firstLesson) {
+        await supabaseAdmin('student_progress', {
+          method: 'POST',
+          body: { student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked' },
+        })
+        progress.push({ student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
+      }
     }
 
     // For each chapter (except first), unlock first lesson if all lessons in previous chapter are passed
