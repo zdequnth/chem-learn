@@ -73,6 +73,35 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Philosophy */}
+      <section className="py-20 px-4 bg-gradient-to-r from-emerald-50 via-white to-emerald-50">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="text-sm font-medium text-emerald-600 mb-3 tracking-wide uppercase">教学理念</div>
+          <h2 className="text-2xl font-bold mb-6">布鲁姆精熟学习理论</h2>
+          <p className="text-lg text-muted-foreground leading-relaxed mb-8">
+            必须完全掌握当前知识点、达标通过后，才能解锁下一课时。
+            不允许盲目跳进度，杜绝似懂非懂、基础漏洞不断累积。
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-muted-foreground">
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="text-2xl mb-2">🎯</div>
+              <h4 className="font-semibold mb-1 text-foreground">精准达标</h4>
+              <p>连续答对 7 题或正确率 ≥ 90% 方可通过，确保真正掌握</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="text-2xl mb-2">🔒</div>
+              <h4 className="font-semibold mb-1 text-foreground">阶梯解锁</h4>
+              <p>通过当前课时才能解锁下一课，杜绝跨步跳进度</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="text-2xl mb-2">📊</div>
+              <h4 className="font-semibold mb-1 text-foreground">漏洞清零</h4>
+              <p>答错自动记入错题本，针对性复习直到完全掌握</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="py-20 px-4 bg-background">
         <div className="max-w-4xl mx-auto">
