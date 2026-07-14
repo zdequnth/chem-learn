@@ -16,13 +16,14 @@ export async function POST(request: Request) {
 解析：${explanation || '无解析'}
 
 要求：
-1. 用 Markdown 格式，包含以下部分：
+1. 用纯文本格式（不用任何HTML标签），包含以下部分：
    - **核心概念**：1-2句话概括这道题考察的关键化学概念
-   - **关键公式/反应**：使用 $\\ce{}$ 书写相关化学式或方程式
+   - **关键公式/反应**：化学式直接写，如 Fe2O3、4Fe + 3O2 → 2Fe2O3（不要用LaTeX或KaTeX）
    - **常见误区**：学生容易犯的错误
    - **学习建议**：如何理解这个知识点
 2. 简洁扼要，不超过200字
-3. 使用中文`
+3. 使用中文
+4. 重要：请直接输出纯文本，不要包含任何HTML标签或代码`
 
   try {
     const completion = await client.chat.completions.create({

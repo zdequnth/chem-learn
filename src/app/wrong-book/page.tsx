@@ -38,7 +38,7 @@ export default function WrongBookPage() {
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [chapters, setChapters] = useState<{ id: string; title: string; courseId: string }[]>([])
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
-  const [aiResults, setAiResults] = useState<Record<string, string>>({})
+  const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -75,8 +75,9 @@ export default function WrongBookPage() {
       body: JSON.stringify({ stem, explanation }),
     })
     const json = await res.json()
-    setAiResults(prev => ({ ...prev, [recordId]: json.result || json.error || '生成失败' }))
     setAiGenerating(null)
+    if (json.error) { alert('生成失败: ' + json.error); return }
+    setAiModal({ title: '知识点总结', content: json.result || '' })
   }
 
   const toggleResolved = async (id: string, current: boolean) => {
@@ -199,12 +200,6 @@ export default function WrongBookPage() {
                             className="mt-2 flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 disabled:opacity-50 no-print">
                             🧠 {aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点'}
                           </button>
-                          {aiResults[r.id] && (
-                            <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
-                              <div className="text-xs font-medium text-purple-700 mb-1">AI 知识点总结</div>
-                              <div className="text-sm"><KatexHtml text={aiResults[r.id]} /></div>
-                            </div>
-                          )}
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
                               <p className="text-sm text-blue-800">解析：{r.question_explanation}</p>
@@ -225,6 +220,16 @@ export default function WrongBookPage() {
           </div>
         )}
       </main>
+
+      {aiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAiModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">🧠 {aiModal.title}</h3>
+            <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
+            <button onClick={() => setAiModal(null)} className="mt-4 px-4 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
