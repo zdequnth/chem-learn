@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
