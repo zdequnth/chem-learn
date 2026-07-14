@@ -37,8 +37,8 @@ function WrongTestForm() {
     if (!user) return
     const courseId = sp.get('courseId') || ''
     const chapterId = sp.get('chapterId') || ''
-    fetch(`/api/wrong-book?courseId=${courseId}&chapterId=${chapterId}&unresolvedOnly=1`).then(r => r.json()).then(json => {
-      const qs: WqQuestion[] = (json.questions || []).map((q: any) => ({
+    fetch(`/api/wrong-book?chapterId=${chapterId}&unresolvedOnly=1`).then(r => r.json()).then(json => {
+      const qs: WqQuestion[] = (json.records || []).map((q: any) => ({
         id: q.question_id, wbId: q.id, stem: q.question_stem,
         explanation: q.question_explanation,
         options: (q.all_options || []).map((o: any) => ({ id: o.id, content: o.content, isCorrect: o.isCorrect })),

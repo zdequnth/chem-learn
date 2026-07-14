@@ -178,12 +178,7 @@ export default function WrongBookPage() {
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               {r.is_repeated_wrong && <span className="text-sm" title="反复错误">🌶️</span>}
-                              <button onClick={() => toggleResolved(r.id, r.is_resolved)}
-                                className={`no-print px-3 py-1 text-xs rounded-full font-medium ${
-                                  r.is_resolved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
-                                }`}>
-                                {r.is_resolved ? '✓ 已掌握' : '标记掌握'}
-                              </button>
+                              {r.is_resolved && <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-50 text-green-600">✓ 已掌握</span>}
                             </div>
                           </div>
                           {r.question_explanation && (
