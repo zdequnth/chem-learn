@@ -40,6 +40,26 @@ export default function ClassDetailPage() {
   const [saving, setSaving] = useState(false)
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'name' | 'progress'>('name')
+  const [addStudentName, setAddStudentName] = useState('')
+  const [addStudentMsg, setAddStudentMsg] = useState('')
+
+  const handleAddStudent = async () => {
+    if (!addStudentName.trim() || !cls) return
+    setAddStudentMsg('')
+    const res = await fetch('/api/classes/detail', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId, studentName: addStudentName.trim() }),
+    })
+    const json = await res.json()
+    if (json.error) { setAddStudentMsg('❌ ' + json.error) }
+    else { setAddStudentMsg('✅ 已添加 ' + json.student.display_name); setAddStudentName(''); fetchDetail() }
+  }
+
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!confirm('确定移除此学生？')) return
+    await fetch(`/api/classes/detail?classId=${classId}&studentId=${studentId}`, { method: 'DELETE' })
+    fetchDetail()
+  }
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -127,6 +147,18 @@ export default function ClassDetailPage() {
                     <span>邀请码：<code className="px-2 py-0.5 bg-gray-100 rounded font-mono">{cls.invite_code}</code></span>
                     <span>{students.length} 名学生</span>
                   </div>
+                  {isOwner && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <input value={addStudentName} onChange={e => setAddStudentName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddStudent() }}
+                        placeholder="输入学生姓名添加"
+                        className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
+                      <button onClick={handleAddStudent}
+                        className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加学生</button>
+                      {addStudentMsg && <span className="text-xs">{addStudentMsg}</span>}
+                    </div>
+                  )}
+                  </div>
                   {cls.message && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                       📢 {cls.message}
@@ -169,6 +201,10 @@ export default function ClassDetailPage() {
                       <button onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left">
                         <span className="font-medium text-sm w-24 shrink-0 truncate">{s.display_name}</span>
+                        {isOwner && (
+                          <button onClick={e => { e.stopPropagation(); handleRemoveStudent(s.id) }}
+                            className="text-red-400 hover:text-red-600 text-xs shrink-0 mr-1">✕</button>
+                        )}
                         <div className="flex-1 bg-gray-200 rounded-full h-3">
                           <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${s.percent}%` }} />
                         </div>

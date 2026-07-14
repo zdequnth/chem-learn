@@ -105,3 +105,62 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ class: cls, students, isOwner })
 }
+
+// Teacher adds a student to the class
+export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const { classId, studentName } = await request.json()
+  if (!classId || !studentName) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+
+  // Check permission: only class owner can add
+  const { data: cls } = await supabaseAdmin('classes', { query: `?id=eq.${classId}&select=teacher_id` })
+  if (cls?.[0]?.teacher_id !== user.id && (user.user_metadata as any)?.role !== 'admin') {
+    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+  }
+
+  // Find student by display_name
+  const { data: students } = await supabaseAdmin('profiles', {
+    query: `?role=eq.student&select=id,display_name`,
+  })
+  const match = (students || []).find((s: any) =>
+    s.display_name?.toLowerCase().includes(studentName.toLowerCase())
+  )
+  if (!match) return NextResponse.json({ error: '未找到该学生' }, { status: 404 })
+
+  const { error } = await supabaseAdmin('class_members', {
+    method: 'POST',
+    body: { class_id: classId, student_id: match.id },
+  })
+  if (error) {
+    if (error.message?.includes('duplicate')) return NextResponse.json({ error: '该学生已在班级中' }, { status: 409 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  return NextResponse.json({ success: true, student: match })
+}
+
+// Teacher removes a student from the class
+export async function DELETE(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const classId = searchParams.get('classId')
+  const studentId = searchParams.get('studentId')
+  if (!classId || !studentId) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+
+  // Check permission
+  const { data: cls } = await supabaseAdmin('classes', { query: `?id=eq.${classId}&select=teacher_id` })
+  if (cls?.[0]?.teacher_id !== user.id && (user.user_metadata as any)?.role !== 'admin') {
+    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+  }
+
+  await supabaseAdmin('class_members', {
+    method: 'DELETE',
+    query: `?class_id=eq.${classId}&student_id=eq.${studentId}`,
+  })
+  return NextResponse.json({ success: true })
+}
