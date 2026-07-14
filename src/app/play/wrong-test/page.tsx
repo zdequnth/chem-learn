@@ -30,24 +30,42 @@ function WrongTestForm() {
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 })
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
   const [aiResult, setAiResult] = useState('')
+  const [selectedCourse, setSelectedCourse] = useState('')
+  const [selectedChapter, setSelectedChapter] = useState('')
+  const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
+  const [chapters, setChapters] = useState<{ id: string; title: string }[]>([])
 
   useEffect(() => { if (!authLoading && !user) router.push('/login') }, [user, authLoading, router])
 
   useEffect(() => {
     if (!user) return
-    const courseId = sp.get('courseId') || ''
-    const chapterId = sp.get('chapterId') || ''
-    fetch(`/api/wrong-book?chapterId=${chapterId}&unresolvedOnly=1`).then(r => r.json()).then(json => {
+    fetch('/api/student/course-data').then(r => r.json()).then(json => {
+      setCourses((json.courses || []).map((c: any) => ({ id: c.id, name: c.name })))
+    })
+    loadQuestions()
+  }, [user])
+
+  const loadQuestions = (chapterId?: string) => {
+    const cid = chapterId || selectedChapter || sp.get('chapterId') || ''
+    const url = cid ? `/api/wrong-book?chapterId=${cid}&unresolvedOnly=1` : '/api/wrong-book?unresolvedOnly=1'
+    fetch(url).then(r => r.json()).then(json => {
       const qs: WqQuestion[] = (json.records || []).map((q: any) => ({
         id: q.question_id, wbId: q.id, stem: q.question_stem,
         explanation: q.question_explanation,
         options: (q.all_options || []).map((o: any) => ({ id: o.id, content: o.content, isCorrect: o.isCorrect })),
       })).sort(() => Math.random() - 0.5)
       setQuestions(qs)
-      setStats(prev => ({ ...prev, total: qs.length }))
-      setLoading(false)
+      setStats({ correct: 0, wrong: 0, total: qs.length })
+      setCurrentIdx(0); setDone(false); setLoading(false)
     })
-  }, [user])
+  }
+
+  useEffect(() => {
+    if (!selectedCourse) { setChapters([]); setSelectedChapter(''); return }
+    fetch(`/api/student/course-data?courseId=${selectedCourse}`).then(r => r.json()).then(json => {
+      setChapters((json.chapters || []).map((c: any) => ({ id: c.id, title: c.title })))
+    })
+  }, [selectedCourse])
 
   const question = questions[currentIdx]
   const letters = ['A', 'B', 'C', 'D']
@@ -136,12 +154,26 @@ function WrongTestForm() {
           <ArrowLeft className="w-4 h-4" /> 返回错题本
         </Link>
 
+        {/* Filters */}
+        <div className="flex items-center gap-3 mb-4">
+          <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">全部课程</option>
+            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={selectedChapter} onChange={e => { setSelectedChapter(e.target.value); loadQuestions(e.target.value) }}
+            className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">全部章节</option>
+            {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : questions.length === 0 ? (
           <div className="text-center py-20">
             <h2 className="text-xl font-semibold mb-2">没有待重测的错题</h2>
-            <p className="text-muted-foreground">所有错题已掌握</p>
+            <p className="text-muted-foreground">选中的课程/章节下所有错题已掌握</p>
           </div>
         ) : (
           <>
