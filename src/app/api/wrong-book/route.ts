@@ -2,15 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
+  const { searchParams } = new URL(request.url)
+  const courseId = searchParams.get('courseId')
+  const chapterId = searchParams.get('chapterId')
+  const unresolvedOnly = searchParams.get('unresolvedOnly')
+
   // Get wrong records
-  const { data: records } = await supabaseAdmin('wrong_question_book', {
-    query: `?student_id=eq.${user.id}&order=last_wrong_at.desc&limit=200&select=*`,
-  })
+  let queryStr = `?student_id=eq.${user.id}&order=last_wrong_at.desc&limit=200&select=*`
+  if (chapterId) queryStr += `&chapter_id=eq.${chapterId}`
+  if (unresolvedOnly === '1') queryStr += `&is_resolved=eq.false`
+  const { data: records } = await supabaseAdmin('wrong_question_book', { query: queryStr })
 
   if (!records || records.length === 0) {
     return NextResponse.json({ records: [] })
@@ -85,11 +91,14 @@ export async function PUT(request: Request) {
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
   const body = await request.json()
-  const { id, is_resolved } = body
+  const { id, is_resolved, is_repeated_wrong } = body
+  const update: any = {}
+  if (is_resolved !== undefined) update.is_resolved = is_resolved
+  if (is_repeated_wrong !== undefined) update.is_repeated_wrong = is_repeated_wrong
 
   await supabaseAdmin('wrong_question_book', {
     method: 'PATCH',
-    body: { is_resolved },
+    body: update,
     query: `?id=eq.${id}`,
   })
   return NextResponse.json({ success: true })

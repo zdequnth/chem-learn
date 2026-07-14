@@ -15,6 +15,7 @@ interface WrongRecord {
   wrong_count: number
   last_wrong_at: string
   is_resolved: boolean
+  is_repeated_wrong: boolean
   question_stem: string
   question_explanation: string
   correct_answer: string
@@ -103,12 +104,20 @@ export default function WrongBookPage() {
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold">错题本</h1>
-          {records.length > 0 && (
-            <button onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors no-print">
-              <Printer className="w-4 h-4" /> 导出 PDF / 打印
-            </button>
-          )}
+          <div className="flex gap-2">
+            {records.filter(r => !r.is_resolved).length > 0 && (
+              <Link href={`/play/wrong-test?chapterId=${selectedChapter}`}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 text-sm no-print">
+                🎯 错题重测
+              </Link>
+            )}
+            {records.length > 0 && (
+              <button onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors text-sm no-print">
+                <Printer className="w-4 h-4" /> 导出
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground mb-4">个性化错题汇总，按课程-章节分类，方便复习</p>
 
@@ -166,12 +175,15 @@ export default function WrongBookPage() {
                                 ))}
                               </div>
                             </div>
-                            <button onClick={() => toggleResolved(r.id, r.is_resolved)}
-                              className={`no-print shrink-0 px-3 py-1 text-xs rounded-full font-medium ${
-                                r.is_resolved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
-                              }`}>
-                              {r.is_resolved ? '✓ 已掌握' : '标记掌握'}
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {r.is_repeated_wrong && <span className="text-sm" title="反复错误">🌶️</span>}
+                              <button onClick={() => toggleResolved(r.id, r.is_resolved)}
+                                className={`no-print px-3 py-1 text-xs rounded-full font-medium ${
+                                  r.is_resolved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                                }`}>
+                                {r.is_resolved ? '✓ 已掌握' : '标记掌握'}
+                              </button>
+                            </div>
                           </div>
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
