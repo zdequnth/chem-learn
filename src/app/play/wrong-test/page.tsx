@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
@@ -13,7 +13,7 @@ interface WqQuestion {
   options: { id: string; content: string; isCorrect: boolean }[]
 }
 
-export default function WrongTestPage() {
+function WrongTestForm() {
   const router = useRouter()
   const sp = useSearchParams()
   const { user, loading: authLoading } = useAuth()
@@ -210,5 +210,17 @@ export default function WrongTestPage() {
         )}
       </main>
     </div>
+  )
+}
+
+export default function WrongTestPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <WrongTestForm />
+    </Suspense>
   )
 }
