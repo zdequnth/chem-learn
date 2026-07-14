@@ -79,12 +79,12 @@ function WrongTestForm() {
     // Update wrong-book record
     if (isOk) {
       await fetch('/api/wrong-book', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: question.wbId, is_resolved: true }),
       })
     } else {
       await fetch('/api/wrong-book', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: question.wbId, is_repeated_wrong: true }),
       })
     }
