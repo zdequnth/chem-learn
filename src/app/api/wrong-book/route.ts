@@ -72,6 +72,7 @@ export async function GET(request: Request) {
       wrong_count: r.wrong_count,
       last_wrong_at: r.last_wrong_at,
       is_resolved: r.is_resolved,
+      is_repeated_wrong: r.is_repeated_wrong || false,
       question_stem: q?.stem || '',
       question_explanation: q?.explanation || '',
       correct_answer: correctOpt?.content || '',
