@@ -102,51 +102,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-20 px-4 bg-background">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">闯关规则</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { step: '01', title: '知识树学习', desc: '浏览知识点 + 观看视频', color: 'from-blue-500 to-cyan-500' },
-              { step: '02', title: '通关测试', desc: '连对7题或90%→通关', color: 'from-emerald-500 to-green-500' },
-            ].map((s, i) => (
-              <div key={i} className="relative text-center">
-                <div className={`w-16 h-16 bg-gradient-to-br ${s.color} rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-4`}>
-                  {s.step}
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{s.title}</h3>
-                <p className="text-muted-foreground">{s.desc}</p>
-                {i < 1 && (
-                  <div className="hidden md:block absolute top-8 -right-4 text-muted-foreground text-2xl">→</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">准备好开始了吗？</h2>
-          <p className="text-muted-foreground text-lg mb-8">
-            加入 ChemLearn，开启你的化学闯关之旅！
-          </p>
-          <Link href="/login?signup=true" className="px-10 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold text-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-lg shadow-emerald-200 inline-block">
-            立即注册，开始闯关
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t">
-        <p className="text-center text-muted-foreground text-sm">
-          为国际学校化学教学打造 · 青岛中学
-        </p>
-      </footer>
     </div>
   )
 }
