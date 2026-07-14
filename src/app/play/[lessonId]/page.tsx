@@ -191,7 +191,7 @@ export default function LessonHubPage() {
                   <h3 className="font-semibold">关卡测试</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  连续答对7题或正确率≥90%通关，累计答错3题锁定30分钟
+                  连续答对7题或正确率≥90%通关，累计答错3题锁定10分钟
                 </p>
               </button>
             )}

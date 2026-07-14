@@ -62,7 +62,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {[
             { icon: '📚', title: '知识树', desc: '查看知识点清单和视频链接，系统学习每个概念' },
-            { icon: '🎯', title: '关卡测试', desc: '连续答对7题或正确率≥90%即通关，答错3题锁定30分钟' },
+            { icon: '🎯', title: '关卡测试', desc: '连续答对7题或正确率≥90%即通关，答错3题锁定10分钟' },
           ].map((f, i) => (
             <div key={i} className="bg-card rounded-2xl p-8 shadow-sm border text-center">
               <div className="text-4xl mb-4">{f.icon}</div>
