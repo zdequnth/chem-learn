@@ -48,13 +48,13 @@ export async function POST(request: Request) {
       method: 'PATCH',
       body: { status: passed ? 'passed' : 'failed', score_percentage: Math.round(accuracy * 100), stars_earned: stars,
         completed_at: new Date().toISOString(),
-        locked_until: passed || isRetake ? null : new Date(Date.now() + 30 * 60 * 1000).toISOString() },
+        locked_until: passed || isRetake ? null : new Date(Date.now() + 10 * 60 * 1000).toISOString() },
       query: `?id=eq.${sessionId}`,
     })
 
     return NextResponse.json({
       done: true, passed, stars,
-      lockedUntil: passed || isRetake ? null : new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      lockedUntil: passed || isRetake ? null : new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       stats: { questionsAsked: totalAsked, totalCorrect: session.total_correct || 0, totalWrong: session.total_wrong || 0, accuracy: Math.round(accuracy * 100) },
     })
   }

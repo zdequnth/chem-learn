@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   if (!passed && newQA >= 10 && newTC / newQA >= 0.90) { status = 'passed'; passed = true }
   if (!passed && newTW >= 3) {
     status = 'failed'
-    lockedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    lockedUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString()
   }
   if (passed) stars = newTW === 0 ? 3 : newTW === 1 ? 2 : 1
 
