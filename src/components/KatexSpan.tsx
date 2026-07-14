@@ -112,6 +112,21 @@ function renderLatex(text: string): string {
 
 function basicMarkdown(text: string): string {
   let html = text
+  // Markdown tables
+  html = html.replace(/(\|[^\n]+\|\n\|[-:|\s]+\|\n(?:\|[^\n]+\|\n?)+)/g, (match) => {
+    const lines = match.trim().split('\n').filter(l => l.includes('|'))
+    if (lines.length < 2) return match
+    // Skip separator line (|---|---|)
+    const rows = lines.filter(l => !/^[\|\s\-:]+\|[\|\-:\s]+$/.test(l))
+    const cells = rows.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()))
+    if (cells.length === 0) return match
+    const thead = `<thead class="bg-gray-100"><tr>${cells[0].map(c => `<th class="px-3 py-2 text-left text-xs font-medium border">${c}</th>`).join('')}</tr></thead>`
+    const tbody = cells.length > 1
+      ? `<tbody>${cells.slice(1).map(r => `<tr>${r.map(c => `<td class="px-3 py-1.5 text-xs border">${c}</td>`).join('')}</tr>`).join('')}</tbody>`
+      : ''
+    return `<table class="w-full my-2 border-collapse border rounded-lg overflow-hidden">${thead}${tbody}</table>`
+  })
+
   // Headings (### Title)
   html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1">$1</h3>')
   html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-3 mb-1">$1</h2>')
