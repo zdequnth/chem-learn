@@ -37,6 +37,8 @@ export default function WrongBookPage() {
   const [showResolved, setShowResolved] = useState(false)
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [chapters, setChapters] = useState<{ id: string; title: string; courseId: string }[]>([])
+  const [aiGenerating, setAiGenerating] = useState<string | null>(null)
+  const [aiResults, setAiResults] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -63,6 +65,18 @@ export default function WrongBookPage() {
     })
     setChapters(Array.from(chMap.values()))
     setLoading(false)
+  }
+
+  const handleGenerateKP = async (recordId: string, stem: string, explanation: string) => {
+    if (aiGenerating) return
+    setAiGenerating(recordId)
+    const res = await fetch('/api/ai/generate-kp-from-question', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stem, explanation }),
+    })
+    const json = await res.json()
+    setAiResults(prev => ({ ...prev, [recordId]: json.result || json.error || '生成失败' }))
+    setAiGenerating(null)
   }
 
   const toggleResolved = async (id: string, current: boolean) => {
@@ -181,6 +195,16 @@ export default function WrongBookPage() {
                               {r.is_resolved && <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-50 text-green-600">✓ 已掌握</span>}
                             </div>
                           </div>
+                          <button onClick={() => handleGenerateKP(r.id, r.question_stem, r.question_explanation || '')} disabled={aiGenerating === r.id}
+                            className="mt-2 flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 disabled:opacity-50 no-print">
+                            🧠 {aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点'}
+                          </button>
+                          {aiResults[r.id] && (
+                            <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                              <div className="text-xs font-medium text-purple-700 mb-1">AI 知识点总结</div>
+                              <div className="text-sm"><KatexHtml text={aiResults[r.id]} /></div>
+                            </div>
+                          )}
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
                               <p className="text-sm text-blue-800">解析：{r.question_explanation}</p>
