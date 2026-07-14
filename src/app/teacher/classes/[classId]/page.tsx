@@ -158,7 +158,6 @@ export default function ClassDetailPage() {
                       {addStudentMsg && <span className="text-xs">{addStudentMsg}</span>}
                     </div>
                   )}
-                  </div>
                   {cls.message && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                       📢 {cls.message}
