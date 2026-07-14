@@ -59,15 +59,17 @@ function WrongTestForm() {
     setExplanation(question.explanation)
 
     // Update wrong-book record
-    await fetch('/api/wrong-book', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: question.wbId,
-        is_resolved: !!isOk,
-        is_repeated_wrong: !isOk,
-      }),
-    })
+    if (isOk) {
+      await fetch('/api/wrong-book', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: question.wbId, is_resolved: true }),
+      })
+    } else {
+      await fetch('/api/wrong-book', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: question.wbId, is_repeated_wrong: true }),
+      })
+    }
 
     setStats(prev => ({ ...prev, correct: prev.correct + (isOk ? 1 : 0), wrong: prev.wrong + (isOk ? 0 : 1) }))
   }
