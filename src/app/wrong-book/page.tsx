@@ -35,6 +35,7 @@ export default function WrongBookPage() {
   const [selectedCourse, setSelectedCourse] = useState('')
   const [selectedChapter, setSelectedChapter] = useState('')
   const [showResolved, setShowResolved] = useState(false)
+  const [showRepeatedOnly, setShowRepeatedOnly] = useState(false)
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [chapters, setChapters] = useState<{ id: string; title: string; courseId: string }[]>([])
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
@@ -94,6 +95,7 @@ export default function WrongBookPage() {
     if (selectedCourse && r.course_id !== selectedCourse) return false
     if (selectedChapter && r.chapter_id !== selectedChapter) return false
     if (!showResolved && r.is_resolved) return false
+    if (showRepeatedOnly && !r.is_repeated_wrong) return false
     return true
   })
   const filteredChapterIds = new Set(filtered.map(r => r.chapter_id))
@@ -154,6 +156,12 @@ export default function WrongBookPage() {
               className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" />
             显示已掌握
           </label>
+          <button onClick={() => setShowRepeatedOnly(!showRepeatedOnly)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              showRepeatedOnly ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-gray-100 text-muted-foreground border'
+            }`}>
+            🌶️ 反复错误
+          </button>
         </div>
 
         {loading ? (
