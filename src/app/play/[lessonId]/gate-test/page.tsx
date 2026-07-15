@@ -122,10 +122,9 @@ export default function GateTestPage() {
     setLoading(false)
 
     // Background prefetch: immediately start loading next question while student reads this one
-    const sid = sessionId
     fetch('/api/test/gate-test/next', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid }),
+      body: JSON.stringify({ sessionId: sessionId }),
     }).then(r => r.json()).then(d => {
       if (!d.done) setPrefetchedQuestion(d.question)
     }).catch(() => {})
