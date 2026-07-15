@@ -49,6 +49,7 @@ export default function GateTestPage() {
   const [prefetchedQuestion, setPrefetchedQuestion] = useState<any>(null)
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
+  const [pendingFailure, setPendingFailure] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -164,13 +165,20 @@ export default function GateTestPage() {
     setPrefetchedQuestion(data.nextQuestion || null)
 
     if (data.done) {
-      setDone(true)
-      setResult({ passed: data.passed, stars: data.stars, lockedUntil: data.lockedUntil })
+      if (data.passed) {
+        setDone(true)
+        setResult({ passed: true, stars: data.stars, lockedUntil: data.lockedUntil })
+      } else {
+        // Show explanation first, delay failure result until student clicks "next"
+        setPendingFailure(true)
+        setResult({ passed: false, stars: 0, lockedUntil: data.lockedUntil })
+      }
     }
   }
 
   const handleNext = () => {
     if (done) return
+    if (pendingFailure) { setDone(true); return }
     fetchNextQuestion()
   }
 
@@ -409,7 +417,7 @@ export default function GateTestPage() {
           ) : (
             <button onClick={handleNext}
               className="px-8 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">
-              下一题
+              {pendingFailure ? '继续' : '下一题'}
             </button>
           )}
         </div>
