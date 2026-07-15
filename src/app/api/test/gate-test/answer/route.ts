@@ -143,10 +143,33 @@ export async function POST(request: Request) {
     }).catch(() => {})
   }
 
+  // Prefetch next question if test continues
+  let nextQuestion: any = null
+  if (status === 'in_progress') {
+    const { data: asked } = await supabaseAdmin('gate_test_answers', {
+      query: `?session_id=eq.${sessionId}&select=question_id`,
+    })
+    const askedIds = (asked || []).map((a: any) => a.question_id)
+    let qs = `?lesson_id=eq.${session.lesson_id}&question_type=eq.gate_test&is_approved=eq.true&select=id,stem,explanation,image_url&limit=50`
+    if (askedIds.length > 0) qs += `&id=not.in.(${askedIds.join(',')})`
+    const { data: available } = await supabaseAdmin('questions', { query: qs })
+    if (available && available.length > 0) {
+      const q = available[Math.floor(Math.random() * available.length)]
+      const { data: opts } = await supabaseAdmin('question_options', {
+        query: `?question_id=eq.${q.id}&order=display_order&select=id,content,is_correct`,
+      })
+      nextQuestion = {
+        id: q.id, stem: q.stem, explanation: q.explanation, imageUrl: q.image_url,
+        options: ((opts || []) as any[]).sort(() => Math.random() - 0.5).map((o: any) => ({ id: o.id, content: o.content })),
+      }
+    }
+  }
+
   return NextResponse.json({
     isCorrect,
     correctOptionId: correctOpt?.id || null,
     explanation,
+    nextQuestion,
     done: status !== 'in_progress', passed, stars, lockedUntil,
     stats: { questionsAsked: newQA, consecutiveCorrect: newCC, totalCorrect: newTC, totalWrong: newTW, accuracy: Math.round(accuracy * 100) },
   })

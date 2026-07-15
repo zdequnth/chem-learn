@@ -46,6 +46,7 @@ export default function GateTestPage() {
   const [lockedMinutes, setLockedMinutes] = useState(0)
   const [initialLocked, setInitialLocked] = useState(false)
   const [questionNumber, setQuestionNumber] = useState(0)
+  const [prefetchedQuestion, setPrefetchedQuestion] = useState<any>(null)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -81,6 +82,20 @@ export default function GateTestPage() {
   }
 
   const fetchNextQuestion = async (sid?: string) => {
+    // Use prefetched question if available
+    if (prefetchedQuestion && !sid) {
+      setQuestion(prefetchedQuestion)
+      setQuestionNumber(prev => prev + 1)
+      setSelectedOption(null)
+      setIsAnswered(false)
+      setIsCorrect(null)
+      setCorrectOptionId(null)
+      setExplanation(null)
+      setLoading(false)
+      setPrefetchedQuestion(null)
+      return
+    }
+
     const res = await fetch('/api/test/gate-test/next', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,6 +151,7 @@ export default function GateTestPage() {
     setCorrectOptionId(data.correctOptionId)
     setExplanation(data.explanation)
     setStats(data.stats)
+    setPrefetchedQuestion(data.nextQuestion || null)
 
     if (data.done) {
       setDone(true)
