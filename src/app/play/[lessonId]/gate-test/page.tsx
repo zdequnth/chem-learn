@@ -47,6 +47,8 @@ export default function GateTestPage() {
   const [initialLocked, setInitialLocked] = useState(false)
   const [questionNumber, setQuestionNumber] = useState(0)
   const [prefetchedQuestion, setPrefetchedQuestion] = useState<any>(null)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -366,6 +368,32 @@ export default function GateTestPage() {
                 : '?'}
             </div>
             <p className="text-sm text-amber-700"><KatexHtml text={explanation} /></p>
+            <button onClick={async () => {
+              if (aiGenerating) return
+              setAiGenerating(true)
+              const res = await fetch('/api/ai/generate-kp-from-question', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stem: question.stem, explanation }),
+              })
+              const json = await res.json()
+              setAiGenerating(false)
+              if (json.error) { alert('生成失败: ' + json.error); return }
+              setAiModal({ title: '知识点总结', content: json.result || '' })
+            }} disabled={aiGenerating}
+              className="mt-3 flex items-center gap-1 px-3 py-1.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 disabled:opacity-50">
+              🧠 {aiGenerating ? 'AI 生成中...' : 'AI 生成知识点'}
+            </button>
+          </div>
+        )}
+
+        {/* AI Result Modal */}
+        {aiModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAiModal(null)}>
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-3">🧠 {aiModal.title}</h3>
+              <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
+              <button onClick={() => setAiModal(null)} className="mt-4 px-4 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
+            </div>
           </div>
         )}
 
