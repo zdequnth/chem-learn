@@ -45,6 +45,7 @@ export default function GateTestPage() {
   const [error, setError] = useState('')
   const [lockedMinutes, setLockedMinutes] = useState(0)
   const [initialLocked, setInitialLocked] = useState(false)
+  const [questionNumber, setQuestionNumber] = useState(0)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -97,6 +98,7 @@ export default function GateTestPage() {
 
     setQuestion(data.question)
     setStats(data.stats)
+    setQuestionNumber(prev => prev + 1)
     setSelectedOption(null)
     setIsAnswered(false)
     setIsCorrect(null)
@@ -303,7 +305,7 @@ export default function GateTestPage() {
 
         {/* Question */}
         <div className="bg-card rounded-2xl border p-6 mb-6">
-          <div className="text-xs text-muted-foreground mb-2">第 {stats.questionsAsked + 1} 题</div>
+          <div className="text-xs text-muted-foreground mb-2">第 {questionNumber} 题</div>
           <h2 className="text-lg font-medium mb-4"><KatexHtml text={question.stem} /></h2>
           {question.imageUrl && (
             <img src={question.imageUrl} alt="" className="mb-4 rounded-lg max-h-64" />
