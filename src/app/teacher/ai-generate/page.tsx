@@ -172,7 +172,6 @@ function AIGenerateForm() {
               <select value={questionType} onChange={e => setQuestionType(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="gate_test">关卡测试</option>
-                <option value="boss_test">章节BOSS测试</option>
               </select>
             </div>
             <div>

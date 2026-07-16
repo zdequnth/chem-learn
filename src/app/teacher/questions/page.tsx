@@ -289,7 +289,6 @@ export default function TeacherQuestionsPage() {
                 <select value={manualForm.question_type} onChange={e => setManualForm({ ...manualForm, question_type: e.target.value })}
                   className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
                   <option value="gate_test">关卡测试</option>
-                  <option value="boss_test">章节BOSS</option>
                 </select>
                 <select value={manualForm.difficulty} onChange={e => setManualForm({ ...manualForm, difficulty: Number(e.target.value) })}
                   className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
