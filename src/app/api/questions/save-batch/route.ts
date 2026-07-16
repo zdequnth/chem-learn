@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const { questions } = body
 
   // Check access for all unique lesson_ids
-  const lessonIds = [...new Set((questions || []).map((q: any) => q.lesson_id))]
+  const lessonIds = [...new Set<string>((questions || []).map((q: any) => q.lesson_id))]
   for (const lid of lessonIds) {
     if (!await checkLessonAccess(user.id, lid)) {
       return NextResponse.json({ error: '无权操作' }, { status: 403 })
