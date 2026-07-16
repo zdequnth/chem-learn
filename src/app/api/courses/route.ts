@@ -55,12 +55,26 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-    const { data, error } = await supabaseAdmin('courses', {
+    // Owned courses
+    const { data: owned } = await supabaseAdmin('courses', {
       query: `?owner_id=eq.${user.id}&order=sort_order`,
     })
 
-    if (error) return NextResponse.json({ error: error.message || '数据库错误' }, { status: 500 })
-    return NextResponse.json({ courses: data })
+    // Collaborated courses
+    const { data: cc } = await supabaseAdmin('course_collaborators', {
+      query: `?teacher_id=eq.${user.id}&select=course_id`,
+    })
+    const collabIds = (cc || []).map((c: any) => c.course_id)
+    let collabCourses: any[] = []
+    if (collabIds.length > 0) {
+      const { data: collab } = await supabaseAdmin('courses', {
+        query: `?id=in.(${collabIds.join(',')})&order=sort_order`,
+      })
+      collabCourses = collab || []
+    }
+
+    const all = [...(owned || []), ...collabCourses]
+    return NextResponse.json({ courses: all })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
