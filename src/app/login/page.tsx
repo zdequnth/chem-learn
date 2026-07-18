@@ -84,12 +84,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-blue-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🧪</div>
-          <h1 className="text-3xl font-bold">ChemLearn</h1>
-          <p className="text-muted-foreground mt-1">化学闯关学习平台</p>
+          <div className="text-5xl mb-3">🔑</div>
+          <h1 className="text-3xl font-bold">SelfPass</h1>
+          <p className="text-muted-foreground mt-1">自主通关学习平台</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -99,10 +99,10 @@ function LoginForm() {
               <p className="text-sm text-muted-foreground text-center mb-4">输入注册邮箱，我们会发送重置链接</p>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                  placeholder="注册邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder="注册邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 {error && <div className={`p-3 rounded-lg text-sm ${error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
                 <button type="submit" disabled={busy}
-                  className="w-full py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
+                  className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
                   {busy ? '发送中...' : '发送重置邮件'}
                 </button>
                 <button type="button" onClick={() => { setForgotPassword(false); setError('') }}
@@ -128,7 +128,7 @@ function LoginForm() {
             {isSignup && (
               <>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} required
-                  placeholder="你的姓名" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder="你的姓名" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setRole('student')}
                     className={`flex-1 py-2 rounded-lg text-sm ${role === 'student' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' : 'bg-gray-50 text-gray-500'}`}>
@@ -141,17 +141,17 @@ function LoginForm() {
                 </div>
                 {role === 'teacher' && (
                   <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)}
-                    placeholder="教师邀请码（向管理员索取）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                    placeholder="教师邀请码（向管理员索取）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 )}
               </>
             )}
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              placeholder="邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              placeholder="密码（至少6位）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              placeholder="密码（至少6位）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
             {error && <div className={`p-3 rounded-lg text-sm ${error.includes('成功') || error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
             <button type="submit" disabled={busy}
-              className="w-full py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
+              className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
               {busy ? '处理中...' : isSignup ? '注册' : '登录'}
             </button>
             {!isSignup && (
