@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import { ArrowLeft, Loader2, Star } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 
 const subjectNames: Record<string, string> = {
   Chinese: '语文', Math: '数学', English: '英语',
@@ -81,13 +81,10 @@ export default function SubjectCoursesPage() {
                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl">
                     {c.icon || '📚'}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFavorite(c.id) }}
-                      className="text-lg hover:scale-110 transition-transform">
-                      {favorites.includes(c.id) ? '⭐' : '☆'}
-                    </button>
-                    <Star className="w-5 h-5 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFavorite(c.id) }}
+                    className="text-lg hover:scale-110 transition-transform">
+                    {favorites.includes(c.id) ? '⭐' : '☆'}
+                  </button>
                 </div>
                 <h3 className="text-lg font-semibold mb-1">{c.name}</h3>
                 {c.grade_level && <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full font-medium mb-2">{c.grade_level}</span>}
