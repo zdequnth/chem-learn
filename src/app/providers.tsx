@@ -52,6 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle()
       if (data) {
         setProfile(data as Profile)
+        // If DB role differs from JWT, update local metadata
+        if (data.role && data.role !== (userMeta?.role || 'student')) {
+          supabase.auth.updateUser({ data: { role: data.role } }).catch(() => {})
+        }
       } else {
         // Profile missing — call server-side API (uses admin key, bypasses RLS)
         fetch('/api/profile/ensure', { method: 'POST' }).catch(() => {})

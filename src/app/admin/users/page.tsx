@@ -22,22 +22,21 @@ export default function AdminUsersPage() {
   const [changing, setChanging] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!authLoading && (!user || (profile?.role !== 'admin'))) {
-      router.push('/dashboard')
-    }
-  }, [user, profile, authLoading, router])
-
-  useEffect(() => {
-    if (!profile || profile.role !== 'admin') return
-    fetchUsers()
-  }, [profile])
+    if (!authLoading && !user) router.push('/login')
+  }, [user, authLoading, router])
 
   const fetchUsers = async () => {
     const res = await fetch('/api/admin/users')
+    if (res.status === 403) { router.push('/dashboard'); return }
     const json = await res.json()
     setUsers(json.users || [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (!user) return
+    fetchUsers()
+  }, [user])
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     setChanging(userId)

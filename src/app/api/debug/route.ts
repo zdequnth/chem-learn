@@ -1,9 +1,13 @@
-import { supabaseAdmin } from '@/lib/admin'
+import { createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const { data } = await supabaseAdmin('profiles', {
-    query: '?id=eq.35191d5b-aa3c-4d28-9242-a153fea9aea0&select=id,role,display_name',
+  const admin = createAdminClient()
+  const test1 = await admin.from('courses').select('id').limit(1)
+  const test2 = await admin.auth.getSession()
+  return NextResponse.json({
+    test1Data: test1.data,
+    test1Error: test1.error ? (test1.error.message || JSON.stringify(test1.error)) : null,
+    test2HasSession: !!test2.data?.session,
   })
-  return NextResponse.json(data)
 }
