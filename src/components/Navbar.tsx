@@ -46,7 +46,7 @@ export default function Navbar() {
                   <Link href="/teacher/classes" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                     班级
                   </Link>
-                  {profile?.role === 'admin' && (
+                  {(profile?.role === 'admin' || (user as any)?.user_metadata?.role === 'admin') && (
                     <Link href="/admin/users" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                       用户管理
                     </Link>
