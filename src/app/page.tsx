@@ -1,14 +1,14 @@
 import Link from 'next/link'
 
 const subjects = [
-  { key: 'Chinese', name: '语文', icon: '📖', color: 'from-red-400 to-red-600', bg: 'bg-red-50 border-red-200' },
-  { key: 'Math', name: '数学', icon: '📐', color: 'from-blue-400 to-blue-600', bg: 'bg-blue-50 border-blue-200' },
-  { key: 'English', name: '英语', icon: '🌍', color: 'from-indigo-400 to-indigo-600', bg: 'bg-indigo-50 border-indigo-200' },
-  { key: 'Second foreign Language', name: '二外', icon: '🗣️', color: 'from-teal-400 to-teal-600', bg: 'bg-teal-50 border-teal-200' },
-  { key: 'Physics', name: '物理', icon: '⚛️', color: 'from-amber-400 to-amber-600', bg: 'bg-amber-50 border-amber-200' },
-  { key: 'Chemistry', name: '化学', icon: '🧪', color: 'from-emerald-400 to-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-  { key: 'Biology', name: '生物', icon: '🧬', color: 'from-green-400 to-green-600', bg: 'bg-green-50 border-green-200' },
-  { key: 'Humanities', name: '人文', icon: '📜', color: 'from-violet-400 to-violet-600', bg: 'bg-violet-50 border-violet-200' },
+  { key: 'Chinese', name: 'Chinese', icon: '📖', color: 'from-red-400 to-red-600', bg: 'bg-red-50 border-red-200' },
+  { key: 'Math', name: 'Math', icon: '📐', color: 'from-blue-400 to-blue-600', bg: 'bg-blue-50 border-blue-200' },
+  { key: 'English', name: 'English', icon: '🌍', color: 'from-indigo-400 to-indigo-600', bg: 'bg-indigo-50 border-indigo-200' },
+  { key: 'Second foreign Language', name: '2nd Language', icon: '🗣️', color: 'from-teal-400 to-teal-600', bg: 'bg-teal-50 border-teal-200' },
+  { key: 'Physics', name: 'Physics', icon: '⚛️', color: 'from-amber-400 to-amber-600', bg: 'bg-amber-50 border-amber-200' },
+  { key: 'Chemistry', name: 'Chemistry', icon: '🧪', color: 'from-emerald-400 to-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+  { key: 'Biology', name: 'Biology', icon: '🧬', color: 'from-green-400 to-green-600', bg: 'bg-green-50 border-green-200' },
+  { key: 'Humanities', name: 'Humanities', icon: '📜', color: 'from-violet-400 to-violet-600', bg: 'bg-violet-50 border-violet-200' },
 ]
 
 export default function HomePage() {
@@ -81,10 +81,10 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20 px-4 max-w-7xl mx-auto">
+      <section id="features" className="py-20 px-4 max-w-3xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold mb-4">学习流程</h2>
-          <p className="text-muted-foreground text-lg">游戏化闯关，让化学学习不再枯燥</p>
+          <p className="text-muted-foreground text-lg">游戏化闯关，让学习不再枯燥</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
