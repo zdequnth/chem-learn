@@ -23,7 +23,7 @@ export default function CourseDetailPage() {
   const [chapters, setChapters] = useState<ChapterWithLessons[]>([])
   const [loading, setLoading] = useState(true)
   const [editCourse, setEditCourse] = useState(false)
-  const [courseForm, setCourseForm] = useState({ name: '', description: '', grade_level: '', icon: '🧪' })
+  const [courseForm, setCourseForm] = useState({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry' })
   const [newChapterTitle, setNewChapterTitle] = useState('')
   const [newLessonTitle, setNewLessonTitle] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -140,6 +140,7 @@ export default function CourseDetailPage() {
           description: json.course.description || '',
           grade_level: json.course.grade_level || '',
           icon: json.course.icon || '🧪',
+          subject: json.course.subject || 'Chemistry',
         })
       }
       const chs: ChapterWithLessons[] = (json.chapters || []).map((ch: any) => ({
@@ -281,6 +282,7 @@ export default function CourseDetailPage() {
         description: courseForm.description.trim() || null,
         grade_level: courseForm.grade_level.trim() || null,
         icon: courseForm.icon || '🧪',
+        subject: courseForm.subject,
       }),
     })
     setEditCourse(false)
@@ -537,6 +539,10 @@ export default function CourseDetailPage() {
             <div className="bg-card rounded-2xl border p-6 mb-6">
               {editCourse ? (
                 <div className="space-y-3">
+                  <select value={courseForm.subject} onChange={e => setCourseForm({ ...courseForm, subject: e.target.value })}
+                    className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                    {[{k:'Chinese',n:'语文 📖'},{k:'Math',n:'数学 📐'},{k:'English',n:'英语 🌍'},{k:'Second foreign Language',n:'二外 🗣️'},{k:'Physics',n:'物理 ⚛️'},{k:'Chemistry',n:'化学 🧪'},{k:'Biology',n:'生物 🧬'},{k:'Humanities',n:'人文 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
+                  </select>
                   <input value={courseForm.name} onChange={e => setCourseForm({ ...courseForm, name: e.target.value })}
                     placeholder="课程名称" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                   <input value={courseForm.grade_level} onChange={e => setCourseForm({ ...courseForm, grade_level: e.target.value })}
@@ -556,6 +562,7 @@ export default function CourseDetailPage() {
                     <div>
                       <h1 className="text-2xl font-bold">{course.name}</h1>
                       {course.grade_level && <span className="text-sm px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
+                      {course.subject && <span className="text-sm px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full ml-1">{course.subject}</span>}
                     </div>
                   </div>
                   {canEdit && <button onClick={() => setEditCourse(true)} className="text-sm text-muted-foreground hover:text-foreground"><Edit3 className="w-4 h-4 inline" /> 编辑</button>}
