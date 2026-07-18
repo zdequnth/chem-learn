@@ -24,7 +24,7 @@ export default function UpdatePasswordPage() {
     } else {
       setError('密码重置成功！请用新密码登录')
       setTimeout(() => {
-        window.location.href = 'https://chemlearn.top/login'
+        window.location.href = '/login'
       }, 2000)
     }
   }
