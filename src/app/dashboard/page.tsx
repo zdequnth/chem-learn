@@ -211,46 +211,74 @@ export default function DashboardPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...courses].sort((a: any, b: any) => {
-              const aFav = favorites.includes(a.id) ? 0 : 1
-              const bFav = favorites.includes(b.id) ? 0 : 1
-              return aFav - bFav
-            }).map((course: any) => (
-              <Link
-                key={course.id}
-                href={isTeacher ? `/teacher/courses/${course.id}` : `/courses/${course.id}`}
-                className="bg-card rounded-2xl p-6 border shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl">
-                    {course.icon || '🧪'}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!isTeacher && (
+          <>
+          {/* Favorited courses */}
+          {!isTeacher && [...courses].filter((c: any) => favorites.includes(c.id)).length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">⭐ 我的收藏</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...courses].filter((c: any) => favorites.includes(c.id)).map((course: any) => (
+                  <Link key={course.id} href={`/courses/${course.id}`}
+                    className="bg-card rounded-2xl p-4 border shadow-sm hover:shadow-md hover:border-amber-300 transition-all group">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">{course.icon || '🧪'}</div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm group-hover:text-amber-600 truncate">{course.name}</h4>
+                        {course.grade_level && <span className="text-xs text-muted-foreground">{course.grade_level}</span>}
+                      </div>
                       <button onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFavorite(course.id) }}
-                        className="text-lg hover:scale-110 transition-transform">
-                        {favorites.includes(course.id) ? '⭐' : '☆'}
-                      </button>
-                    )}
+                        className="text-amber-500 text-lg shrink-0">⭐</button>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Subject grid for students */}
+          {!isTeacher && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">选择学科</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  {key:'Chinese',name:'Chinese',icon:'📖',bg:'bg-red-50 border-red-200'},
+                  {key:'Math',name:'Math',icon:'📐',bg:'bg-blue-50 border-blue-200'},
+                  {key:'English',name:'English',icon:'🌍',bg:'bg-indigo-50 border-indigo-200'},
+                  {key:'Second foreign Language',name:'2nd Language',icon:'🗣️',bg:'bg-teal-50 border-teal-200'},
+                  {key:'Physics',name:'Physics',icon:'⚛️',bg:'bg-amber-50 border-amber-200'},
+                  {key:'Chemistry',name:'Chemistry',icon:'🧪',bg:'bg-emerald-50 border-emerald-200'},
+                  {key:'Biology',name:'Biology',icon:'🧬',bg:'bg-green-50 border-green-200'},
+                  {key:'Humanities',name:'Humanities',icon:'📜',bg:'bg-violet-50 border-violet-200'},
+                ].map(s => (
+                  <Link key={s.key} href={`/subjects/${encodeURIComponent(s.key)}`}
+                    className={`${s.bg} border rounded-xl p-4 text-center hover:shadow-md hover:-translate-y-0.5 transition-all`}>
+                    <div className="text-3xl mb-1">{s.icon}</div>
+                    <span className="text-sm font-medium">{s.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Teacher course grid */}
+          {isTeacher && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...courses].map((course: any) => (
+                <Link key={course.id} href={`/teacher/courses/${course.id}`}
+                  className="bg-card rounded-2xl p-6 border shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl">{course.icon || '🧪'}</div>
                     <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                   </div>
-                </div>
-                <h3 className="text-lg font-semibold mb-1">{course.name}</h3>
-                {course.grade_level && (
-                  <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full font-medium mb-2">
-                    {course.grade_level}
-                  </span>
-                )}
-                {course.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{course.description}</p>
-                )}
-                <div className="text-sm text-muted-foreground mt-2">
-                  {course.is_published ? '🟢 已发布' : '⚪ 未发布'}
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <h3 className="text-lg font-semibold mb-1">{course.name}</h3>
+                  {course.grade_level && <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full font-medium mb-2">{course.grade_level}</span>}
+                  {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{course.description}</p>}
+                  <div className="text-sm text-muted-foreground mt-2">{course.is_published ? '🟢 已发布' : '⚪ 未发布'}</div>
+                </Link>
+              ))}
+            </div>
+          )}
+          </>
         )}
       </main>
     </div>
