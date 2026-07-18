@@ -17,7 +17,7 @@ export default function TeacherCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [newCourse, setNewCourse] = useState({ name: '', description: '', grade_level: '', icon: '🧪' })
+  const [newCourse, setNewCourse] = useState({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry' })
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -56,6 +56,7 @@ export default function TeacherCoursesPage() {
           description: newCourse.description.trim(),
           grade_level: newCourse.grade_level.trim(),
           icon: newCourse.icon || '🧪',
+          subject: newCourse.subject,
           sort_order: courses.length,
         }),
       })
@@ -64,7 +65,7 @@ export default function TeacherCoursesPage() {
         alert('创建失败: ' + json.error)
       } else {
         setShowCreate(false)
-        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪' })
+        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry' })
         fetchCourses()
       }
     } catch (e: any) {
@@ -113,6 +114,10 @@ export default function TeacherCoursesPage() {
             <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold mb-4">新建课程</h2>
               <div className="space-y-3">
+                <select value={newCourse.subject} onChange={e => setNewCourse({ ...newCourse, subject: e.target.value })}
+                  className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                  {[{k:'Chinese',n:'语文 📖'},{k:'Math',n:'数学 📐'},{k:'English',n:'英语 🌍'},{k:'Second foreign Language',n:'二外 🗣️'},{k:'Physics',n:'物理 ⚛️'},{k:'Chemistry',n:'化学 🧪'},{k:'Biology',n:'生物 🧬'},{k:'Humanities',n:'人文 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
+                </select>
                 <input value={newCourse.name} onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
                   placeholder="课程名称（必填）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <input value={newCourse.grade_level} onChange={e => setNewCourse({ ...newCourse, grade_level: e.target.value })}

@@ -1,23 +1,34 @@
 import Link from 'next/link'
 
+const subjects = [
+  { key: 'Chinese', name: '语文', icon: '📖', color: 'from-red-400 to-red-600', bg: 'bg-red-50 border-red-200' },
+  { key: 'Math', name: '数学', icon: '📐', color: 'from-blue-400 to-blue-600', bg: 'bg-blue-50 border-blue-200' },
+  { key: 'English', name: '英语', icon: '🌍', color: 'from-indigo-400 to-indigo-600', bg: 'bg-indigo-50 border-indigo-200' },
+  { key: 'Second foreign Language', name: '二外', icon: '🗣️', color: 'from-teal-400 to-teal-600', bg: 'bg-teal-50 border-teal-200' },
+  { key: 'Physics', name: '物理', icon: '⚛️', color: 'from-amber-400 to-amber-600', bg: 'bg-amber-50 border-amber-200' },
+  { key: 'Chemistry', name: '化学', icon: '🧪', color: 'from-emerald-400 to-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+  { key: 'Biology', name: '生物', icon: '🧬', color: 'from-green-400 to-green-600', bg: 'bg-green-50 border-green-200' },
+  { key: 'Humanities', name: '人文', icon: '📜', color: 'from-violet-400 to-violet-600', bg: 'bg-violet-50 border-violet-200' },
+]
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center text-xl">
-                🧪
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-xl flex items-center justify-center text-xl">
+                🔑
               </div>
-              <span className="text-xl font-bold">ChemLearn</span>
+              <span className="text-xl font-bold">SelfPass</span>
             </div>
             <div className="flex items-center gap-3">
               <Link href="/login" className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium transition-colors">
                 登录
               </Link>
-              <Link href="/login?signup=true" className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-medium hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-md">
+              <Link href="/login?signup=true" className="px-5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-md">
                 立即开始
               </Link>
             </div>
@@ -26,29 +37,46 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-32 pb-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border border-emerald-200 rounded-full text-emerald-700 text-sm font-medium mb-6">
-            ✨ AI驱动的智能出题系统
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 border border-purple-200 rounded-full text-purple-700 text-sm font-medium mb-6">
+            🔑 AI驱动的智能学习系统
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-              化学闯关
+            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+              SelfPass
             </span>
             <br />
-            <span>让学习变得有趣</span>
+            <span className="text-3xl md:text-4xl">自主通关，让学习每一步都扎实</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            游戏化通关模式 + AI智能出题 + 即时反馈，学生在闯关中掌握化学知识！
+            游戏化通关模式 + AI智能出题 + 即时反馈，涵盖语文、数学、英语、物理、化学、生物、二外、人文八大领域
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login?signup=true" className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold text-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-lg shadow-emerald-200">
+            <Link href="/login?signup=true" className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl font-semibold text-lg hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-lg shadow-purple-200">
               开始闯关
             </Link>
-            <Link href="#features" className="px-8 py-4 bg-white border rounded-xl font-semibold text-lg hover:border-input transition-colors shadow-sm">
-              了解更多
+            <Link href="#subjects" className="px-8 py-4 bg-white border rounded-xl font-semibold text-lg hover:border-input transition-colors shadow-sm">
+              选择学科
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Subjects Grid */}
+      <section id="subjects" className="py-12 px-4 max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold mb-2">选择学科</h2>
+          <p className="text-muted-foreground">涵盖八大领域，找到你的学习方向</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {subjects.map(s => (
+            <Link key={s.key} href={`/login?signup=true`}
+              className={`${s.bg} border rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all group`}>
+              <div className="text-4xl mb-3">{s.icon}</div>
+              <h3 className={`font-semibold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.name}</h3>
+            </Link>
+          ))}
         </div>
       </section>
 

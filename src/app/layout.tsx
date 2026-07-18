@@ -4,8 +4,8 @@ import 'katex/dist/katex.min.css'
 import { AuthProvider } from './providers'
 
 export const metadata: Metadata = {
-  title: 'ChemLearn - 化学闯关学习平台',
-  description: '游戏化通关式化学学习平台',
+  title: 'SelfPass - 自主通关学习平台',
+  description: '游戏化精熟学习，一步一阶，自主通关',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

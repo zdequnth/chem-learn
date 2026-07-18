@@ -20,10 +20,10 @@ export default function Navbar() {
           {/* Left: Logo + Nav links */}
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center text-lg">
-                🧪
+              <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-lg flex items-center justify-center text-lg">
+                🔑
               </div>
-              <span className="text-lg font-bold hidden sm:block">ChemLearn</span>
+              <span className="text-lg font-bold hidden sm:block">SelfPass</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-1">
@@ -46,6 +46,11 @@ export default function Navbar() {
                   <Link href="/teacher/classes" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                     班级
                   </Link>
+                  {profile?.role === 'admin' && (
+                    <Link href="/admin/users" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                      用户管理
+                    </Link>
+                  )}
                 </>
               )}
             </div>
