@@ -6,8 +6,14 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
-  const role = (user.user_metadata as any)?.role
-  if (role !== 'admin') return NextResponse.json({ error: '无权访问' }, { status: 403 })
+
+  // Check real role from DB (not JWT which may be stale)
+  const { data: profile } = await supabaseAdmin('profiles', {
+    query: `?id=eq.${user.id}&select=role`,
+  })
+  if (!profile || profile[0]?.role !== 'admin') {
+    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+  }
 
   const { data: profiles } = await supabaseAdmin('profiles', {
     query: '?select=id,role,display_name,created_at&order=created_at.desc&limit=100',
@@ -19,8 +25,13 @@ export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
-  const role = (user.user_metadata as any)?.role
-  if (role !== 'admin') return NextResponse.json({ error: '无权访问' }, { status: 403 })
+
+  const { data: profile } = await supabaseAdmin('profiles', {
+    query: `?id=eq.${user.id}&select=role`,
+  })
+  if (!profile || profile[0]?.role !== 'admin') {
+    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+  }
 
   const { searchParams } = new URL(request.url)
   const userId = searchParams.get('id')
