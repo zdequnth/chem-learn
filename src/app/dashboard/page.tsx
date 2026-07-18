@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -89,9 +90,21 @@ export default function DashboardPage() {
     fetch('/api/student/dashboard').then(r => r.json()).then(json => {
       if (!json.error) setMyClasses(json.classes || [])
     }).catch(() => {})
+    fetchFavs()
+  }, [user, isTeacher])
+
+  const fetchFavs = () => {
     fetch('/api/student/favorites').then(r => r.json()).then(json => {
       if (!json.error) setFavorites(json.favorites || [])
     }).catch(() => {})
+  }
+
+  // Re-fetch favorites on page focus (after navigating back)
+  useEffect(() => {
+    if (!user || isTeacher) return
+    const onFocus = () => fetchFavs()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [user, isTeacher])
 
   const toggleFavorite = async (courseId: string) => {
