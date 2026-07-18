@@ -22,7 +22,6 @@ export default function DashboardPage() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
-  const [favorites, setFavorites] = useState<string[]>([])
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
