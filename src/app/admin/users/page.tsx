@@ -20,6 +20,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [changing, setChanging] = useState<string | null>(null)
+  const [forbidden, setForbidden] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -27,7 +28,7 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     const res = await fetch('/api/admin/users')
-    if (res.status === 403) { router.push('/dashboard'); return }
+    if (res.status === 403) { setLoading(false); setForbidden(true); return }
     const json = await res.json()
     setUsers(json.users || [])
     setLoading(false)
@@ -50,6 +51,20 @@ export default function AdminUsersPage() {
 
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
+  }
+
+  if (forbidden) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 pt-24 pb-20 text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold mb-2">暂无访问权限</h2>
+          <p className="text-muted-foreground mb-6">此页面仅限管理员访问，如需帮助请联系系统管理员</p>
+          <a href="/dashboard" className="px-6 py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600">返回仪表盘</a>
+        </main>
+      </div>
+    )
   }
 
   const filtered = filter === 'all' ? users : users.filter(u => u.role === filter)
