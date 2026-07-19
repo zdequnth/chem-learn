@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useLang, t } from '@/lib/i18n'
 
 const subjects = [
   { key: 'Chinese', name: 'Chinese', icon: '📖', color: 'from-red-400 to-red-600', bg: 'bg-red-50 border-red-200' },
@@ -12,6 +15,7 @@ const subjects = [
 ]
 
 export default function HomePage() {
+  const { lang, setLang } = useLang()
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
       {/* Nav */}
@@ -19,18 +23,14 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-xl flex items-center justify-center text-xl">
-                🔑
-              </div>
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-xl flex items-center justify-center text-xl">🔑</div>
               <span className="text-xl font-bold">SelfPass</span>
             </div>
             <div className="flex items-center gap-3">
-              <Link href="/login" className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium transition-colors">
-                登录
-              </Link>
-              <Link href="/login?signup=true" className="px-5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-md">
-                立即开始
-              </Link>
+              <button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+                className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors">🌐 {lang === 'zh' ? 'EN' : '中文'}</button>
+              <Link href="/login" className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium transition-colors">{t('login', lang)}</Link>
+              <Link href="/login?signup=true" className="px-5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-md">{t('startNow', lang)}</Link>
             </div>
           </div>
         </div>
@@ -40,24 +40,24 @@ export default function HomePage() {
       <section className="pt-32 pb-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 border border-purple-200 rounded-full text-purple-700 text-sm font-medium mb-6">
-            🔑 AI驱动的智能学习系统
+            {lang === 'zh' ? '🔑 AI驱动的智能学习系统' : '🔑 AI-Powered Learning System'}
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
             <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
               SelfPass
             </span>
             <br />
-            <span className="text-3xl md:text-4xl">自主通关，让学习每一步都扎实</span>
+            <span className="text-3xl md:text-4xl">{lang === 'zh' ? '自主通关，让学习每一步都扎实' : 'Master each step, build real confidence'}</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            游戏化通关模式 + AI智能出题 + 即时反馈，涵盖语文、数学、英语、物理、化学、生物、二外、人文八大领域
+            {lang === 'zh' ? '游戏化通关模式 + AI智能出题 + 即时反馈，涵盖语文、数学、英语、物理、化学、生物、二外、人文八大领域' : 'Game-based mastery + AI-powered questions + instant feedback across 8 subjects'}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/login?signup=true" className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl font-semibold text-lg hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-lg shadow-purple-200">
-              开始闯关
+              {lang === 'zh' ? '开始闯关' : 'Start Now'}
             </Link>
             <Link href="#subjects" className="px-8 py-4 bg-white border rounded-xl font-semibold text-lg hover:border-input transition-colors shadow-sm">
-              选择学科
+              {lang === 'zh' ? '选择学科' : 'Choose Subject'}
             </Link>
           </div>
         </div>
