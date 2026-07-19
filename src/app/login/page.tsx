@@ -130,36 +130,36 @@ function LoginForm() {
             {isSignup && (
               <>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} required
-                  placeholder="你的姓名" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                  placeholder={t('yourName', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setRole('student')}
                     className={`flex-1 py-2 rounded-lg text-sm ${role === 'student' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' : 'bg-gray-50 text-gray-500'}`}>
-                    我是学生
+                    {t('iAmStudent', lang)}
                   </button>
                   <button type="button" onClick={() => setRole('teacher')}
                     className={`flex-1 py-2 rounded-lg text-sm ${role === 'teacher' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500' : 'bg-gray-50 text-gray-500'}`}>
-                    我是老师
+                    {t('iAmTeacher', lang)}
                   </button>
                 </div>
                 {role === 'teacher' && (
                   <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)}
-                    placeholder="教师邀请码（向管理员索取）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                    placeholder={t('teacherCode', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 )}
               </>
             )}
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+              placeholder={t('email', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              placeholder="密码（至少6位）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+              placeholder={t('password', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
             {error && <div className={`p-3 rounded-lg text-sm ${error.includes('成功') || error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
             <button type="submit" disabled={busy}
               className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
-              {busy ? '处理中...' : isSignup ? '注册' : '登录'}
+              {busy ? t('registering', lang) : isSignup ? t('signup', lang) : t('login', lang)}
             </button>
             {!isSignup && (
               <button type="button" onClick={() => { setForgotPassword(true); setError('') }}
                 className="w-full text-center text-sm text-muted-foreground hover:text-emerald-600">
-                忘记密码？
+                {t('forgotPassword', lang)}
               </button>
             )}
           </form>
