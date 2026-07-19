@@ -91,25 +91,25 @@ function LoginForm() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🔑</div>
           <h1 className="text-3xl font-bold">SelfPass</h1>
-          <p className="text-muted-foreground mt-1">自主通关学习平台</p>
+          <p className="text-muted-foreground mt-1">{t('loginSub', lang)}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
           {forgotPassword ? (
             <>
-              <h2 className="text-lg font-semibold text-center mb-4">找回密码</h2>
-              <p className="text-sm text-muted-foreground text-center mb-4">输入注册邮箱，我们会发送重置链接</p>
+              <h2 className="text-lg font-semibold text-center mb-4">{t('resetTitle', lang)}</h2>
+              <p className="text-sm text-muted-foreground text-center mb-4">{t('resetDesc', lang)}</p>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                  placeholder="注册邮箱" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                  placeholder={t('email', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 {error && <div className={`p-3 rounded-lg text-sm ${error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
                 <button type="submit" disabled={busy}
                   className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
-                  {busy ? '发送中...' : '发送重置邮件'}
+                  {busy ? t('sending', lang) : t('sendReset', lang)}
                 </button>
                 <button type="button" onClick={() => { setForgotPassword(false); setError('') }}
                   className="w-full py-2 text-sm text-muted-foreground hover:text-foreground">
-                  ← 返回登录
+                  {t('backToLogin', lang)}
                 </button>
               </form>
             </>
@@ -118,11 +118,11 @@ function LoginForm() {
           <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setIsSignup(false)}
               className={`flex-1 py-2 rounded-md text-sm font-medium ${!isSignup ? 'bg-white shadow' : 'text-gray-500'}`}>
-              登录
+              {t('login', lang)}
             </button>
             <button onClick={() => setIsSignup(true)}
               className={`flex-1 py-2 rounded-md text-sm font-medium ${isSignup ? 'bg-white shadow' : 'text-gray-500'}`}>
-              注册
+              {t('signup', lang)}
             </button>
           </div>
 
