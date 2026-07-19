@@ -8,11 +8,13 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
 import { ArrowRight, Loader2 } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const supabase = createClient()
+  const { lang } = useLang()
 
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
@@ -140,10 +142,10 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-20">
         <div className="mb-8">
           <h1 className="text-2xl font-bold">
-            {isTeacher ? '教师工作台' : `你好，${profile?.display_name || user.email || '同学'}`}
+            {isTeacher ? t('teacherDashboard', lang) : (lang === 'zh' ? `你好，${profile?.display_name || user.email || '同学'}` : `Hi, ${profile?.display_name || user.email || ''}`)}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {isTeacher ? '管理课程、题库和班级' : '继续你的化学闯关之旅'}
+            {isTeacher ? t('manageCourses', lang) : t('studentDashboard', lang)}
           </p>
 
           {/* Join class + progress for students */}
