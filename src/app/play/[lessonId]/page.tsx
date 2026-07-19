@@ -9,12 +9,14 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml } from '@/components/KatexSpan'
 import type { Lesson, Chapter, Course, KnowledgePoint, VideoLink, StudentProgress, GateTestSession } from '@/lib/types'
 import { ArrowLeft, BookOpen, Video, Swords, Clock, Lock, Loader2 } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 export default function LessonHubPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const supabase = createClient()
+  const { lang } = useLang()
 
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [chapter, setChapter] = useState<Chapter | null>(null)
@@ -83,7 +85,7 @@ export default function LessonHubPage() {
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : !lesson ? (
-          <div className="text-center py-20"><p className="text-muted-foreground">课时不存在</p></div>
+          <div className="text-center py-20"><p className="text-muted-foreground">{lang === 'zh' ? '课时不存在' : 'Lesson not found'}</p></div>
         ) : (
           <>
             {/* Breadcrumb */}
@@ -147,16 +149,16 @@ export default function LessonHubPage() {
                     🏅
                   </div>
                   <div>
-                    <h3 className="font-semibold">关卡测试</h3>
+                    <h3 className="font-semibold">{t('gateTest', lang)}</h3>
                     <div className="flex items-center gap-1 text-yellow-500 mt-1">
                       {'★'.repeat(progress?.stars_earned || 0)}{'☆'.repeat(3 - (progress?.stars_earned || 0))}
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-emerald-600 font-medium mb-3">已通过 ✓</p>
+                <p className="text-sm text-emerald-600 font-medium mb-3">{lang === 'zh' ? '已通过 ✓' : 'Passed ✓'}</p>
                 <button onClick={handleStartGateTest}
                   className="px-5 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">
-                  重新测试（不影响通关状态）
+                  {t('retestBtn', lang)}
                 </button>
               </div>
             ) : !isLessonUnlocked ? (
@@ -167,7 +169,7 @@ export default function LessonHubPage() {
                   </div>
                   <h3 className="font-semibold text-muted-foreground">关卡测试</h3>
                 </div>
-                <p className="text-sm text-muted-foreground">请先完成上一个课时的关卡测试</p>
+                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '请先完成上一个课时的关卡测试' : 'Complete the previous lesson first'}</p>
               </div>
             ) : isGateLocked ? (
               <div className="bg-card border border-red-200 rounded-2xl p-6 text-left">
@@ -175,10 +177,10 @@ export default function LessonHubPage() {
                   <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
                     <Clock className="w-5 h-5 text-red-500" />
                   </div>
-                  <h3 className="font-semibold">关卡测试</h3>
+                  <h3 className="font-semibold">{t('gateTest', lang)}</h3>
                 </div>
                 <p className="text-sm text-red-600">
-                  已被锁定 · {Math.ceil((new Date(lockInfo.lockedUntil!).getTime() - Date.now()) / 60000)} 分钟后解锁
+                  {lang === 'zh' ? '已被锁定 · ' : 'Locked · '}{Math.ceil((new Date(lockInfo.lockedUntil!).getTime() - Date.now()) / 60000)}{lang === 'zh' ? ' 分钟后解锁' : ' min remaining'}
                 </p>
               </div>
             ) : (
@@ -188,10 +190,10 @@ export default function LessonHubPage() {
                   <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <Swords className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <h3 className="font-semibold">关卡测试</h3>
+                  <h3 className="font-semibold">{t('gateTest', lang)}</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  连续答对7题或正确率≥90%通关，累计答错3题锁定10分钟
+                  {t('passRules', lang)}
                 </p>
               </button>
             )}
