@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { ArrowLeft, CheckCircle, XCircle, Clock, Loader2, Star, AlertTriangle } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 interface GateTestQuestion {
   id: string
@@ -50,6 +51,7 @@ export default function GateTestPage() {
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
   const [pendingFailure, setPendingFailure] = useState(false)
+  const { lang } = useLang()
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -255,7 +257,7 @@ export default function GateTestPage() {
             ) : (
               <>
                 <XCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">测试失败</h2>
+                <h2 className="text-2xl font-bold mb-2">{lang === 'zh' ? '测试失败' : 'Test Failed'}</h2>
                 <p className="text-muted-foreground mb-2">
                   答错 {stats.totalWrong} 题，累计答错3题
                 </p>
