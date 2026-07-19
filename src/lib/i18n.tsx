@@ -181,22 +181,26 @@ const translations: Record<string, Record<string, string>> = {
   aiGenQuestions: { zh: '🤖 AI 生成题目', en: '🤖 AI Generate Qs' },
   importQuestions: { zh: '📄 导入题目', en: '📄 Import Qs' },
 
-  // Subjects
-  subjects: {
-    Chinese: { zh: '语文', en: 'Chinese' },
-    Math: { zh: '数学', en: 'Math' },
-    English: { zh: '英语', en: 'English' },
-    'Second foreign Language': { zh: '二外', en: '2nd Language' },
-    Physics: { zh: '物理', en: 'Physics' },
-    Chemistry: { zh: '化学', en: 'Chemistry' },
-    Biology: { zh: '生物', en: 'Biology' },
-    Humanities: { zh: '人文', en: 'Humanities' },
-  },
+}
+
+const subjectDict: Record<string, Record<string, string>> = {
+  Chinese: { zh: '语文', en: 'Chinese' },
+  Math: { zh: '数学', en: 'Math' },
+  English: { zh: '英语', en: 'English' },
+  'Second foreign Language': { zh: '二外', en: '2nd Language' },
+  Physics: { zh: '物理', en: 'Physics' },
+  Chemistry: { zh: '化学', en: 'Chemistry' },
+  Biology: { zh: '生物', en: 'Biology' },
+  Humanities: { zh: '人文', en: 'Humanities' },
 }
 
 export type Lang = 'zh' | 'en'
 export function t(key: string, lang: Lang): string {
-  return translations[key]?.[lang] || key
+  return (translations as Record<string, Record<string, string>>)[key]?.[lang] || key
+}
+
+export function subjectName(key: string, lang: Lang): string {
+  return subjectDict[key]?.[lang] || key
 }
 
 const LangContext = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: 'zh', setLang: () => {} })
@@ -221,7 +225,3 @@ export function useLang() {
   return useContext(LangContext)
 }
 
-// Export subject name helper
-export function subjectName(key: string, lang: Lang): string {
-  return translations.subjects?.[key]?.[lang] || key
-}
