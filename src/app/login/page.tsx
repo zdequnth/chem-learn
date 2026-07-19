@@ -4,12 +4,14 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
+import { useLang, t } from '@/lib/i18n'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const supabase = createClient()
+  const { lang } = useLang()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,7 +53,7 @@ function LoginForm() {
 
     if (isSignup) {
       if (role === 'teacher' && inviteCode !== process.env.NEXT_PUBLIC_TEACHER_CODE) {
-        setError('教师邀请码不正确')
+        setError(t('wrongCode', lang))
         setBusy(false)
         return
       }
@@ -62,7 +64,7 @@ function LoginForm() {
       if (result.error) {
         setError(result.error.message)
       } else {
-        setError('注册成功，请登录')
+        setError(t('registerSuccess', lang))
         setIsSignup(false)
       }
     } else {

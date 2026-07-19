@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import 'katex/dist/katex.min.css'
 import { AuthProvider } from './providers'
+import { LangProvider } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'SelfPass - 自主通关学习平台',
@@ -12,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased" suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <LangProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </LangProvider>
       </body>
     </html>
   )
