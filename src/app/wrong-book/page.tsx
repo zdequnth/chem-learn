@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, BookOpen, ChevronRight, Printer } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 interface WrongRecord {
   id: string
@@ -29,6 +30,7 @@ interface WrongRecord {
 export default function WrongBookPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [records, setRecords] = useState<WrongRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,7 +123,7 @@ export default function WrongBookPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold">错题本</h1>
+          <h1 className="text-2xl font-bold">{t('wrongBookTitle', lang)}</h1>
           <div className="flex gap-2">
             {records.filter(r => !r.is_resolved).length > 0 && (
               <Link href={`/play/wrong-test?chapterId=${selectedChapter}`}
@@ -137,18 +139,18 @@ export default function WrongBookPage() {
             )}
           </div>
         </div>
-        <p className="text-muted-foreground mb-4">个性化错题汇总，按课程-章节分类，方便复习</p>
+        <p className="text-muted-foreground mb-4">{t('wrongBookDesc', lang)}</p>
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-6">
           <select value={selectedCourse} onChange={e => { setSelectedCourse(e.target.value); setSelectedChapter('') }}
             className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">全部课程</option>
+            <option value="">{t('allCourses', lang)}</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}
             className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">全部章节</option>
+            <option value="">{t('allChapters', lang)}</option>
             {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">

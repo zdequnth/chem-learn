@@ -205,14 +205,10 @@ export default function GateTestPage() {
         <main className="max-w-lg mx-auto px-4 pt-24 pb-20">
           <div className="bg-card rounded-2xl border p-8 text-center">
             <Clock className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">测试已锁定</h2>
+            <h2 className="text-xl font-bold mb-2">{t('gateTestLocked', lang)}</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <p className="text-sm text-muted-foreground mb-6">
-              锁定期内可以去知识树学习或请教老师同学
-            </p>
-            <Link href={`/play/${lessonId}`} className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors inline-block">
-              返回课时学习
-            </Link>
+            <p className="text-sm text-muted-foreground mb-6">{lang === 'zh' ? '锁定期内可以去知识树学习或请教老师同学' : 'Review the knowledge tree or ask for help during the lock period'}</p>
+            <Link href={`/play/${lessonId}`} className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors inline-block">{lang === 'zh' ? '返回课时学习' : 'Back to Lesson'}</Link>
           </div>
         </main>
       </div>
@@ -227,7 +223,7 @@ export default function GateTestPage() {
         <main className="max-w-lg mx-auto px-4 pt-24 pb-20 text-center">
           <AlertTriangle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
           <p className="text-muted-foreground mb-4">{error}</p>
-          <Link href={`/play/${lessonId}`} className="text-emerald-600 hover:underline">返回课时</Link>
+          <Link href={`/play/${lessonId}`} className="text-emerald-600 hover:underline">{lang === 'zh' ? '返回课时' : 'Back to Lesson'}</Link>
         </main>
       </div>
     )
@@ -243,44 +239,36 @@ export default function GateTestPage() {
             {result.passed ? (
               <>
                 <CheckCircle className="w-20 h-20 text-emerald-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">恭喜通关！</h2>
+                <h2 className="text-2xl font-bold mb-2">{lang === 'zh' ? '恭喜通关！' : 'Passed!'}</h2>
                 <div className="flex justify-center gap-1 mb-4">
                   {[1, 2, 3].map(s => (
                     <Star key={s} className={`w-8 h-8 ${s <= result.stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
                   ))}
                 </div>
-                <p className="text-muted-foreground mb-2">
-                  共答 {stats.questionsAsked} 题，正确 {stats.totalCorrect} 题（{stats.accuracy}%）
-                </p>
-                <p className="text-sm text-muted-foreground mb-6">下一课时已解锁，继续加油！</p>
+                <p className="text-muted-foreground mb-2">{lang === 'zh' ? `共答 ${stats.questionsAsked} 题，正确 ${stats.totalCorrect} 题（${stats.accuracy}%）` : `${stats.questionsAsked} answered, ${stats.totalCorrect} correct (${stats.accuracy}%)`}</p>
+                <p className="text-sm text-muted-foreground mb-6">{lang === 'zh' ? '下一课时已解锁，继续加油！' : 'Next lesson unlocked, keep going!'}</p>
               </>
             ) : (
               <>
                 <XCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">{lang === 'zh' ? '测试失败' : 'Test Failed'}</h2>
-                <p className="text-muted-foreground mb-2">
-                  答错 {stats.totalWrong} 题，累计答错3题
-                </p>
+                <p className="text-muted-foreground mb-2">{lang === 'zh' ? `答错 ${stats.totalWrong} 题，累计答错3题` : `${stats.totalWrong} wrong, 3 total`}</p>
                 {result.lockedUntil ? (
                   <>
                     <div className="flex items-center justify-center gap-2 text-amber-600 mb-4">
                       <Clock className="w-5 h-5" />
-                      <span className="font-medium">冷却 10 分钟</span>
+                      <span className="font-medium">{t('cooldown', lang)}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      建议去知识树查看视频链接学习，或请教老师同学
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-6">{lang === 'zh' ? '建议去知识树查看视频链接学习，或请教老师同学' : 'Review the knowledge tree or ask for help'}</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground mb-6">
-                    这是复习测试，不影响已通过状态
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">{t('reviewTest', lang)}</p>
                 )}
               </>
             )}
             <button onClick={handleBackToLesson}
               className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors">
-              返回课时
+              {lang === 'zh' ? '返回课时' : 'Back to Lesson'}
             </button>
           </div>
         </main>
@@ -373,7 +361,7 @@ export default function GateTestPage() {
         {isAnswered && !isCorrect && explanation && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
             <div className="font-medium text-amber-800 mb-1">
-              正确答案：{question.options.findIndex(o => o.id === correctOptionId) >= 0
+              {lang === 'zh' ? '正确答案：' : 'Answer: '}{question.options.findIndex(o => o.id === correctOptionId) >= 0
                 ? String.fromCharCode(65 + question.options.findIndex(o => o.id === correctOptionId)!)
                 : '?'}
             </div>
@@ -412,14 +400,14 @@ export default function GateTestPage() {
           {!isAnswered ? (
             <button onClick={handleSubmit} disabled={!selectedOption}
               className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-              提交答案
+              {lang === 'zh' ? '提交答案' : 'Submit'}
             </button>
           ) : isCorrect ? (
-            <span className="px-8 py-3 text-emerald-600 font-medium">✓ 正确！</span>
+            <span className="px-8 py-3 text-emerald-600 font-medium">{lang === 'zh' ? '✓ 正确！' : '✓ Correct!'}</span>
           ) : (
             <button onClick={handleNext}
               className="px-8 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">
-              {pendingFailure ? '继续' : '下一题'}
+              {pendingFailure ? t('continueBtn', lang) : t('nextQuestion', lang)}
             </button>
           )}
         </div>
