@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
 import { Plus, Users, Copy, Loader2, Trash2 } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 interface ClassData {
   id: string
@@ -21,6 +22,7 @@ export default function TeacherClassesPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const supabase = createClient()
+  const { lang } = useLang()
 
   const [classes, setClasses] = useState<ClassData[]>([])
   const [courses, setCourses] = useState<Course[]>([])
