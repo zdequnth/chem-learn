@@ -9,10 +9,12 @@ import Navbar from '@/components/Navbar'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, Search, Edit3, CheckCircle, XCircle } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 export default function TeacherQuestionsPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
   const supabase = createClient()
 
   const [courses, setCourses] = useState<Course[]>([])
