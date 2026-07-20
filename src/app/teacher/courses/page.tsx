@@ -101,12 +101,12 @@ export default function TeacherCoursesPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-2 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> 返回仪表盘
+              <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回仪表盘' : 'Back to Dashboard'}
             </Link>
-            <h1 className="text-2xl font-bold">课程管理</h1>
+            <h1 className="text-2xl font-bold">{t('courseMgmt', lang)}</h1>
           </div>
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-medium hover:from-emerald-600 hover:to-emerald-700 transition-colors">
-            <Plus className="w-4 h-4" /> 新建课程
+            <Plus className="w-4 h-4" /> {t('newCourse', lang)}
           </button>
         </div>
 
@@ -114,22 +114,22 @@ export default function TeacherCoursesPage() {
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowCreate(false)}>
             <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-              <h2 className="text-lg font-semibold mb-4">新建课程</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('newCourse', lang)}</h2>
               <div className="space-y-3">
                 <select value={newCourse.subject} onChange={e => setNewCourse({ ...newCourse, subject: e.target.value })}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  {[{k:'Chinese',n:'语文 📖'},{k:'Math',n:'数学 📐'},{k:'English',n:'英语 🌍'},{k:'Second foreign Language',n:'二外 🗣️'},{k:'Physics',n:'物理 ⚛️'},{k:'Chemistry',n:'化学 🧪'},{k:'Biology',n:'生物 🧬'},{k:'Humanities',n:'人文 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
+                  {[{k:'Chinese',n:lang==='zh'?'语文 📖':'Chinese 📖'},{k:'Math',n:lang==='zh'?'数学 📐':'Math 📐'},{k:'English',n:lang==='zh'?'英语 🌍':'English 🌍'},{k:'Second foreign Language',n:lang==='zh'?'二外 🗣️':'2nd Lang 🗣️'},{k:'Physics',n:lang==='zh'?'物理 ⚛️':'Physics ⚛️'},{k:'Chemistry',n:lang==='zh'?'化学 🧪':'Chemistry 🧪'},{k:'Biology',n:lang==='zh'?'生物 🧬':'Biology 🧬'},{k:'Humanities',n:lang==='zh'?'人文 📜':'Humanities 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
                 </select>
                 <input value={newCourse.name} onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
-                  placeholder="课程名称（必填）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder={t('courseName', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <input value={newCourse.grade_level} onChange={e => setNewCourse({ ...newCourse, grade_level: e.target.value })}
-                  placeholder="年级/级别（如 G10-H, AP）" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder={t('gradeLevel', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <textarea value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })}
-                  placeholder="课程描述" rows={3} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                  placeholder={t('courseDesc', lang)} rows={3} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={handleCreate} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">创建</button>
-                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium hover:bg-gray-200 transition-colors">取消</button>
+                <button onClick={handleCreate} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">{t('add', lang)}</button>
+                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium hover:bg-gray-200 transition-colors">{t('cancel', lang)}</button>
               </div>
             </div>
           </div>
@@ -140,8 +140,8 @@ export default function TeacherCoursesPage() {
         ) : courses.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">📭</div>
-            <h2 className="text-xl font-semibold mb-2">还没有课程</h2>
-            <p className="text-muted-foreground mb-4">点击上方按钮创建第一门课程</p>
+            <h2 className="text-xl font-semibold mb-2">{t('noCourses', lang)}</h2>
+            <p className="text-muted-foreground mb-4">{t('noCoursesHint', lang)}</p>
           </div>
         ) : (
           <div className="space-y-4">
