@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { ArrowLeft, CheckCircle, XCircle, Loader2, Star, Sprout } from 'lucide-react'
+import { useLang, t } from '@/lib/i18n'
 
 interface WqQuestion {
   id: string; wbId: string; stem: string; explanation: string
@@ -17,6 +18,7 @@ function WrongTestForm() {
   const router = useRouter()
   const sp = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [questions, setQuestions] = useState<WqQuestion[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -124,22 +126,22 @@ function WrongTestForm() {
           {acc >= 90 ? <CheckCircle className="w-20 h-20 text-emerald-400 mx-auto mb-4" /> :
            acc >= 60 ? <Star className="w-20 h-20 text-amber-400 mx-auto mb-4" /> :
            <Sprout className="w-20 h-20 text-red-400 mx-auto mb-4" />}
-          <h2 className="text-2xl font-bold mb-2">错题重测完成</h2>
-          <p className="text-muted-foreground mb-4">共 {stats.total} 题，答对 {stats.correct} 题，正确率 {acc}%</p>
+          <h2 className="text-2xl font-bold mb-2">{t('retestComplete', lang)}</h2>
+          <p className="text-muted-foreground mb-4">{lang === 'zh' ? `共 ${stats.total} 题，答对 ${stats.correct} 题，正确率 ${acc}%` : `${stats.total} total, ${stats.correct} correct, ${acc}%`}</p>
           <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto mb-6">
             <div className="bg-green-50 border border-green-200 rounded-xl p-3">
               <div className="text-2xl font-bold text-green-600">{stats.correct}</div>
-              <div className="text-xs text-green-600">✓ 已掌握</div>
+              <div className="text-xs text-green-600">{t('mastered', lang)}</div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
               <div className="text-2xl font-bold text-red-600">{stats.wrong}</div>
-              <div className="text-xs text-red-600">🌶️ 反复错误</div>
+              <div className="text-xs text-red-600">{t('retestRepeated', lang)}</div>
             </div>
           </div>
           <div className="flex gap-3 justify-center">
-            <Link href="/wrong-book" className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">返回错题本</Link>
+            <Link href="/wrong-book" className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">{t('backToWrongBook', lang)}</Link>
             <button onClick={() => { setDone(false); setCurrentIdx(0); setSelectedOption(null); setIsAnswered(false); setIsCorrect(false); setCorrectOptionId(null); setExplanation(null); setStats({ correct: 0, wrong: 0, total: stats.total }) }}
-              className="px-6 py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600">再来一轮</button>
+              className="px-6 py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600">{t('anotherRound', lang)}</button>
           </div>
         </main>
       </div>
@@ -151,19 +153,18 @@ function WrongTestForm() {
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 pt-24 pb-20">
         <Link href="/wrong-book" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> 返回错题本
+          <ArrowLeft className="w-4 h-4" /> {t('backToWrongBook', lang)}
         </Link>
 
-        {/* Filters */}
         <div className="flex items-center gap-3 mb-4">
           <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
             className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">全部课程</option>
+            <option value="">{t('allCourses', lang)}</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={selectedChapter} onChange={e => { setSelectedChapter(e.target.value); loadQuestions(e.target.value) }}
             className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">全部章节</option>
+            <option value="">{t('allChapters', lang)}</option>
             {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>
@@ -172,8 +173,8 @@ function WrongTestForm() {
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : questions.length === 0 ? (
           <div className="text-center py-20">
-            <h2 className="text-xl font-semibold mb-2">没有待重测的错题</h2>
-            <p className="text-muted-foreground">选中的课程/章节下所有错题已掌握</p>
+            <h2 className="text-xl font-semibold mb-2">{t('noUnresolved', lang)}</h2>
+            <p className="text-muted-foreground">{t('allMastered', lang)}</p>
           </div>
         ) : (
           <>
