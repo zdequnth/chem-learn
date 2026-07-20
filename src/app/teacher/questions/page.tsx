@@ -199,10 +199,10 @@ export default function TeacherQuestionsPage() {
               </button>
             )}
             <Link href={`/teacher/ai-generate?course=${selectedCourse}&chapter=${selectedChapter}&lesson=${selectedLesson}`} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition-colors">
-              🤖 AI 生成题目
+              {t('aiGenQuestions', lang)}
             </Link>
             <Link href="/teacher/import-questions" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:from-amber-600 hover:to-amber-700 transition-colors">
-              📄 导入题目
+              {t('importQuestions', lang)}
             </Link>
           </div>
         </div>
@@ -212,17 +212,17 @@ export default function TeacherQuestionsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">选择课程</option>
+              <option value="">{lang==='zh'?'选择课程':'Select Course'}</option>
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">选择章节</option>
+              <option value="">{lang==='zh'?'选择章节':'Select Chapter'}</option>
               {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">选择课时</option>
+              <option value="">{lang==='zh'?'选择课时':'Select Lesson'}</option>
               {filteredLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </select>
           </div>

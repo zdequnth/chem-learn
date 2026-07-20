@@ -88,12 +88,12 @@ export default function TeacherClassesPage() {
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold mb-1">班级管理</h1>
-            <p className="text-sm text-muted-foreground">创建班级并分享邀请码给学生加入</p>
+            <h1 className="text-2xl font-bold mb-1">{t('classes', lang) + (lang==='zh'?'管理':'')}</h1>
+            <p className="text-sm text-muted-foreground">{lang==='zh'?'创建班级并分享邀请码给学生加入':'Create classes and share invite codes with students'}</p>
           </div>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">
-            <Plus className="w-4 h-4" /> 新建班级
+            <Plus className="w-4 h-4" /> {lang==='zh'?'新建班级':'New Class'}
           </button>
         </div>
 
