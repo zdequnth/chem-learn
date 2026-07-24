@@ -21,18 +21,24 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
 
+  // Strip pre-rendered KaTeX HTML from input, keep only LaTeX
+  const cleanText = text
+    .replace(/<span[^>]*class="katex"[^>]*>[\s\S]*?<\/span>/g, ' ')
+    .replace(/<[^>]+>/g, '')
+
   const prompt = `你是一位化学教师。请将以下题目文本解析为结构化JSON。
 ${courseName ? '课程：' + courseName : ''}${chapterTitle ? ' 章节：' + chapterTitle : ''}${lessonTitle ? ' 课时：' + lessonTitle : ''}
 
 题目文本：
-${text}
+${cleanText}
 
 规则：
 1. 每道题包含 stem（题干）、4个 options（选项，含 content 和 isCorrect）、explanation（解析）、difficulty（1-5）
-2. 化学式必须用 \\ce{...} 包裹
+2. 化学式必须用 $\\ce{...}$ 包裹（重要！化学式和方程式要用 $\\ce{}$ 形式，不要用 \\( \\) 形式，不要输出HTML标签），纯文本和数字的公式用 $...$ 包裹
 3. 解析以"正确答案：X"开头
 4. 选项 content 不要带"A. "前缀
 5. 题号/分隔符（如 ---）忽略
+6. 注意：所有LaTeX公式（包括 \\( 和 \\) 格式的）一律转换为 $...$ 格式，绝对不要输出HTML标签
 
 输出纯JSON：{"questions":[{"stem":"...","options":[{"content":"...","isCorrect":false}...],"explanation":"正确答案：B。...","difficulty":3}]}`
 
