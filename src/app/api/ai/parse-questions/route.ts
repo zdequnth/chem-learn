@@ -4,7 +4,7 @@ import OpenAI from 'openai'
 
 const fixJson = (s: string): string => {
   return s
-    .replace(/(?<!\\)\\(?=[a-zA-Z])/g, '\\\\')
+    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
     .replace(/,(\s*[}\]])/g, '$1')
 }
 
