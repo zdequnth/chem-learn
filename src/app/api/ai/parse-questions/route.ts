@@ -3,9 +3,16 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const fixJson = (s: string): string => {
-  return s
-    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
-    .replace(/,(\s*[}\]])/g, '$1')
+  // Escape ALL backslashes first
+  let t = s.replace(/\\/g, '\\\\')
+  // Then fix the over-escaped valid JSON escapes: \" \\ \/ \b \f \n \r \t \u
+  t = t.replace(/\\\\\\"/g, '\\"').replace(/\\\\\\\\/g, '\\\\').replace(/\\\\\\//g, '\\/')
+  t = t.replace(/\\\\b(?=[^a-zA-Z])/g, '\\b').replace(/\\\\f(?=[^a-zA-Z])/g, '\\f')
+  t = t.replace(/\\\\n(?=[^a-zA-Z])/g, '\\n').replace(/\\\\r(?=[^a-zA-Z])/g, '\\r')
+  t = t.replace(/\\\\t(?=[^a-zA-Z])/g, '\\t').replace(/\\\\u/g, '\\u')
+  // Remove trailing commas
+  t = t.replace(/,(\s*[}\]])/g, '$1')
+  return t
 }
 
 export async function POST(request: Request) {
