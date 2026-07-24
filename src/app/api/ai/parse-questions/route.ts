@@ -21,10 +21,12 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
 
-  // Strip pre-rendered KaTeX HTML from input, keep only LaTeX
+  // Strip pre-rendered KaTeX HTML + normalize LaTeX delimiters
   const cleanText = text
     .replace(/<span[^>]*class="katex"[^>]*>[\s\S]*?<\/span>/g, ' ')
     .replace(/<[^>]+>/g, '')
+    .replace(/\\\(/g, '$').replace(/\\\)/g, '$')  // \(...\) → $...$
+    .replace(/\\\[/g, '$$$').replace(/\\\]/g, '$$$')  // \[...\] → $$...$$
 
   const prompt = `你是一位化学教师。请将以下题目文本解析为结构化JSON。
 ${courseName ? '课程：' + courseName : ''}${chapterTitle ? ' 章节：' + chapterTitle : ''}${lessonTitle ? ' 课时：' + lessonTitle : ''}
