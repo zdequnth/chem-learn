@@ -3,15 +3,9 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const fixJson = (s: string): string => {
-  // Escape all \ that are followed by LaTeX-like characters: letters, (, [
-  // Also escape \ that are followed by { (for \ce{}, \text{})
-  let t = s
-    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\{])/g, '\\\\')
+  return s
+    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
     .replace(/,(\s*[}\]])/g, '$1')
-  // Second pass: also escape standalone backslashes not handled above
-  // Handle edge case where \ appears before '=' or other non-letter chars
-  t = t.replace(/(?<!\\)\\(?![\\"/bfnrtu])/g, '\\\\')
-  return t
 }
 
 export async function POST(request: Request) {
