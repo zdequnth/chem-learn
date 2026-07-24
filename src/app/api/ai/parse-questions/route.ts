@@ -3,15 +3,14 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const fixJson = (s: string): string => {
-  // Escape ALL backslashes first
-  let t = s.replace(/\\/g, '\\\\')
-  // Then fix the over-escaped valid JSON escapes: \" \\ \/ \b \f \n \r \t \u
-  t = t.replace(/\\\\\\"/g, '\\"').replace(/\\\\\\\\/g, '\\\\').replace(/\\\\\\//g, '\\/')
-  t = t.replace(/\\\\b(?=[^a-zA-Z])/g, '\\b').replace(/\\\\f(?=[^a-zA-Z])/g, '\\f')
-  t = t.replace(/\\\\n(?=[^a-zA-Z])/g, '\\n').replace(/\\\\r(?=[^a-zA-Z])/g, '\\r')
-  t = t.replace(/\\\\t(?=[^a-zA-Z])/g, '\\t').replace(/\\\\u/g, '\\u')
-  // Remove trailing commas
-  t = t.replace(/,(\s*[}\]])/g, '$1')
+  // Escape all \ that are followed by LaTeX-like characters: letters, (, [
+  // Also escape \ that are followed by { (for \ce{}, \text{})
+  let t = s
+    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\{])/g, '\\\\')
+    .replace(/,(\s*[}\]])/g, '$1')
+  // Second pass: also escape standalone backslashes not handled above
+  // Handle edge case where \ appears before '=' or other non-letter chars
+  t = t.replace(/(?<!\\)\\(?![\\"/bfnrtu])/g, '\\\\')
   return t
 }
 
