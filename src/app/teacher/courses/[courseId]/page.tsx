@@ -663,8 +663,6 @@ export default function CourseDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
                 <button onClick={() => setShowBatchImport(true)}
                   className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">📄 批量导入</button>
-                <button onClick={openImportLesson}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 text-sm">📥 导入课时</button>
                 <button onClick={openImportChapter}
                   className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 text-sm">📥 导入章节</button>
               </div>
