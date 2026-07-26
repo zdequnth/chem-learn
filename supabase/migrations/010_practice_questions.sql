@@ -1,1 +1,0 @@
-ALTER TABLE public.questions ADD COLUMN IF NOT EXISTS is_practice BOOLEAN NOT NULL DEFAULT false;

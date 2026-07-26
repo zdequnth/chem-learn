@@ -141,23 +141,6 @@ export default function LessonHubPage() {
             )}
 
             {/* Actions */}
-
-            {/* Practice */}
-            {isLessonUnlocked && (
-              <button onClick={() => router.push(`/play/${lessonId}/gate-test?practice=true`)}
-                className="bg-card border rounded-2xl p-6 text-left hover:shadow-md hover:border-blue-300 transition-all group mb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Swords className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{lang === 'zh' ? '通关练习' : 'Practice'}</h3>
-                    <p className="text-sm text-muted-foreground">{lang === 'zh' ? '老师标注的练习题目，不计入通关成绩' : 'Teacher-designated practice questions, no grading'}</p>
-                  </div>
-                </div>
-              </button>
-            )}
-
             {/* Gate Test */}
             {isPassed ? (
               <div className="bg-card border border-emerald-200 rounded-2xl p-6 text-left">

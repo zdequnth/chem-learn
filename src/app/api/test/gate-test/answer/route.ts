@@ -9,32 +9,6 @@ export async function POST(request: Request) {
 
   const { sessionId, questionId, selectedOptionId } = await request.json()
 
-  // Practice mode: check answer, record wrong only, no session/progress
-  if (sessionId === 'practice') {
-    const [optsRes, qRes] = await Promise.all([
-      supabaseAdmin('question_options', { query: `?question_id=eq.${questionId}&is_correct=eq.true&select=id` }),
-      supabaseAdmin('questions', { query: `?id=eq.${questionId}&select=explanation,lesson_id` }),
-    ])
-    const correctOpt = optsRes.data?.[0]
-    const question = qRes.data?.[0]
-    const isCorrect = selectedOptionId === correctOpt?.id
-
-    if (!isCorrect && question) {
-      supabaseAdmin('lessons', { query: `?id=eq.${question.lesson_id}&select=chapter_id` }).then(async ({ data: lns }) => {
-        const chId = lns?.[0]?.chapter_id
-        if (chId) {
-          await supabaseAdmin('wrong_question_book', {
-            method: 'POST', body: { student_id: user.id, question_id: questionId, chapter_id: chId, last_wrong_at: new Date().toISOString(), wrong_count: 1, is_resolved: false },
-          }).catch(() => {})
-        }
-      }).catch(() => {})
-    }
-
-    let explanation = question?.explanation || null
-    if (explanation) explanation = explanation.replace(/^(正确答案：\s*[A-D][.。]?\s*|Answer:\s*[A-D][.。]?\s*)/i, '')
-    return NextResponse.json({ isCorrect, correctOptionId: correctOpt?.id || null, explanation, done: false, isPractice: true })
-  }
-
   // Read session
   const { data: sessions } = await supabaseAdmin('gate_test_sessions', {
     query: `?id=eq.${sessionId}&student_id=eq.${user.id}&select=*`,

@@ -7,25 +7,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { sessionId, lessonId, practice, askedIds: practiceAsked } = await request.json()
-
-  // Practice mode: no session, just fetch from practice pool
-  if (practice || sessionId === 'practice') {
-    let queryStr = `?lesson_id=eq.${lessonId}&question_type=eq.gate_test&is_approved=eq.true&is_practice=eq.true&select=id,stem,explanation,image_url,knowledge_point_id,lesson_id,difficulty`
-    const asked = (practiceAsked || [])
-    if (asked.length > 0) queryStr += `&id=not.in.(${asked.join(',')})`
-    queryStr += `&limit=50`
-
-    const { data: questions } = await supabaseAdmin('questions', { query: queryStr })
-    if (!questions || questions.length === 0) {
-      return NextResponse.json({ done: true, stats: { questionsAsked: asked.length } })
-    }
-    const q = questions[Math.floor(Math.random() * questions.length)]
-    const { data: opts } = await supabaseAdmin('question_options', {
-      query: `?question_id=eq.${q.id}&order=display_order&select=id,content,is_correct`,
-    })
-    return NextResponse.json({ done: false, question: { id: q.id, stem: q.stem, explanation: q.explanation, imageUrl: q.image_url, options: ((opts || []) as any[]).sort(() => Math.random() - 0.5).map((o: any) => ({ id: o.id, content: o.content })) }, stats: { questionsAsked: asked.length }, isPractice: true })
-  }
+  const { sessionId } = await request.json()
 
   const { data: sessions } = await supabaseAdmin('gate_test_sessions', {
     query: `?id=eq.${sessionId}&student_id=eq.${user.id}&select=*`,
@@ -34,12 +16,14 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   if (session.status !== 'in_progress') return NextResponse.json({ error: 'Session not active', status: session.status }, { status: 400 })
 
+  // Get asked question IDs
   const { data: asked } = await supabaseAdmin('gate_test_answers', {
     query: `?session_id=eq.${sessionId}&select=question_id`,
   })
   const askedIds = (asked || []).map((a: any) => a.question_id)
 
-  let queryStr = `?lesson_id=eq.${session.lesson_id}&question_type=eq.gate_test&is_approved=eq.true&is_practice=eq.false&select=id,stem,explanation,image_url,knowledge_point_id,lesson_id,difficulty`
+  // Build query string
+  let queryStr = `?lesson_id=eq.${session.lesson_id}&question_type=eq.gate_test&is_approved=eq.true&select=id,stem,explanation,image_url,knowledge_point_id,lesson_id,difficulty`
   if (askedIds.length > 0) {
     queryStr += `&id=not.in.(${askedIds.join(',')})`
   }
