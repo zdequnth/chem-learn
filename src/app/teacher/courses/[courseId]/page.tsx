@@ -718,6 +718,9 @@ export default function CourseDetailPage() {
                                   <span className="flex-1 text-sm">{l.title}</span>
                                 )}
                                 <span className="text-xs text-muted-foreground cursor-pointer shrink-0">知识点 ▸</span>
+                                <Link href={`/teacher/questions?course=${courseId}&chapter=${ch.id}&lesson=${l.id}`}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs text-purple-500 hover:text-purple-700 shrink-0" title="题库">📝</Link>
                                 {canEdit && <button onClick={e => { e.stopPropagation(); toggleKeyLesson(l.id, !!(l as any).is_key) }}
                                   className="p-0.5 hover:bg-red-50 rounded shrink-0" title="重点课时">
                                   <span className="text-xs">{((l as any).is_key) ? '❤️' : '🤍'}</span>
