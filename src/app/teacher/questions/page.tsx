@@ -259,7 +259,7 @@ function QuestionsContent() {
                       </button>
                       <button onClick={async () => {
                         await fetch(`/api/questions?id=${q.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: q.id, is_practice: !q.is_practice }) })
-                        fetchQuestions()
+                        fetch(`/api/questions?lessonId=${selectedLesson}`).then(r => r.json()).then(j => setQuestions(j.questions || []))
                       }} className={`p-1.5 rounded-lg transition-colors ${q.is_practice ? 'bg-blue-100 text-blue-500' : 'hover:bg-blue-50 text-gray-400'}`} title="练习题目">
                         📝
                       </button>
