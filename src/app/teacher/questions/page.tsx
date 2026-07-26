@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
@@ -11,8 +11,9 @@ import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, Search, Edit3, CheckCircle, XCircle } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
-export default function TeacherQuestionsPage() {
+function QuestionsContent() {
   const router = useRouter()
+  const sp = useSearchParams()
   const { user, profile, loading: authLoading } = useAuth()
   const { lang } = useLang()
   const supabase = createClient()
@@ -20,9 +21,9 @@ export default function TeacherQuestionsPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [allChapters, setAllChapters] = useState<Chapter[]>([])
   const [allLessons, setAllLessons] = useState<Lesson[]>([])
-  const [selectedCourse, setSelectedCourse] = useState('')
-  const [selectedChapter, setSelectedChapter] = useState('')
-  const [selectedLesson, setSelectedLesson] = useState('')
+  const [selectedCourse, setSelectedCourse] = useState(sp.get('course') || '')
+  const [selectedChapter, setSelectedChapter] = useState(sp.get('chapter') || '')
+  const [selectedLesson, setSelectedLesson] = useState(sp.get('lesson') || '')
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showManualAdd, setShowManualAdd] = useState(false)
@@ -351,5 +352,17 @@ export default function TeacherQuestionsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function TeacherQuestionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <QuestionsContent />
+    </Suspense>
   )
 }
