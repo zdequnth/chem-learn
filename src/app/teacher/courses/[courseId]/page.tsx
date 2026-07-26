@@ -69,6 +69,14 @@ export default function CourseDetailPage() {
   const [importChapterId, setImportChapterId] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [importCourses, setImportCourses] = useState<any[]>([])
+  // Lesson import
+  const [showImportLesson, setShowImportLesson] = useState(false)
+  const [importLessonCourseId, setImportLessonCourseId] = useState('')
+  const [importLessonChapters, setImportLessonChapters] = useState<any[]>([])
+  const [importLessonChapterId, setImportLessonChapterId] = useState('')
+  const [importLessonLessons, setImportLessonLessons] = useState<any[]>([])
+  const [importLessonId, setImportLessonId] = useState('')
+  const [importLessonBusy, setImportLessonBusy] = useState(false)
 
   const openImportChapter = async () => {
     setShowImportChapter(true)
@@ -85,6 +93,36 @@ export default function CourseDetailPage() {
     const r = await fetch(`/api/student/course-data?courseId=${cid}`)
     const j = await r.json()
     setImportChapters(j.chapters || [])
+  }
+
+  const openImportLesson = async () => {
+    setShowImportLesson(true); setImportLessonChapterId(''); setImportLessonId('')
+    const res = await fetch('/api/courses'); const json = await res.json()
+    setImportCourses(json.courses || [])
+  }
+  const loadImportLessonChapters = async (cid: string) => {
+    setImportLessonCourseId(cid); setImportLessonChapterId(''); setImportLessonLessons([])
+    if (!cid) { setImportLessonChapters([]); return }
+    const r = await fetch(`/api/student/course-data?courseId=${cid}`)
+    const j = await r.json(); setImportLessonChapters(j.chapters || [])
+  }
+  const loadImportChapterLessons = async (chId: string) => {
+    setImportLessonChapterId(chId); setImportLessonId('')
+    if (!chId) { setImportLessonLessons([]); return }
+    const r = await fetch(`/api/student/course-data?courseId=${importLessonCourseId}`)
+    const j = await r.json(); setImportLessonLessons((j.lessons || []).filter((l: any) => l.chapter_id === chId))
+  }
+  const handleImportLesson = async (targetChapterId: string) => {
+    if (!importLessonId || importLessonBusy) return
+    setImportLessonBusy(true)
+    const res = await fetch('/api/lessons/copy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceLessonId: importLessonId, targetChapterId }),
+    })
+    const json = await res.json()
+    setImportLessonBusy(false); setShowImportLesson(false)
+    alert(`导入完成：${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`)
+    fetchData()
   }
 
   const handleImportChapter = async () => {
@@ -624,6 +662,8 @@ export default function CourseDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
                 <button onClick={() => setShowBatchImport(true)}
                   className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">📄 批量导入</button>
+                <button onClick={openImportLesson}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 text-sm">📥 导入课时</button>
                 <button onClick={openImportChapter}
                   className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 text-sm">📥 导入章节</button>
               </div>
@@ -784,6 +824,44 @@ export default function CourseDetailPage() {
               </button>
               <button onClick={() => setShowImportChapter(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Lesson Modal */}
+      {showImportLesson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowImportLesson(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入课时</h3>
+            <div className="space-y-3">
+              <select value={importLessonCourseId} onChange={e => loadImportLessonChapters(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">选择源课程</option>
+                {importCourses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {importLessonChapters.length > 0 && (
+                <select value={importLessonChapterId} onChange={e => loadImportChapterLessons(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">选择源章节</option>
+                  {importLessonChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
+                </select>
+              )}
+              {importLessonLessons.length > 0 && (
+                <select value={importLessonId} onChange={e => setImportLessonId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">选择源课时</option>
+                  {importLessonLessons.map((l: any) => <option key={l.id} value={l.id}>{l.title}</option>)}
+                </select>
+              )}
+              <p className="text-xs text-muted-foreground">目标章节：选择展开的章节，点击下方按钮导入</p>
+              {importLessonChapterId && importLessonId && chapters.filter((ch: any) => ch.expanded).map((ch: any) => (
+                <button key={ch.id} onClick={() => handleImportLesson(ch.id)} disabled={importLessonBusy}
+                  className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 text-sm">
+                  {importLessonBusy ? '导入中...' : `导入到：${ch.title}`}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowImportLesson(false)} className="mt-3 px-4 py-2 bg-gray-200 rounded-lg text-sm w-full">取消</button>
           </div>
         </div>
       )}
