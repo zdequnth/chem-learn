@@ -35,13 +35,12 @@ ${cleanText}
 
 规则：
 1. 每道题包含 stem、options（4个，含 content 和 isCorrect）、explanation、difficulty（1-5）
-2. 化学式、上下角标保持原文格式（如 P₄O₁₀、H₂O、Ca²⁺ 等Unicode字符直接保留，不要转换）
-3. 解析以"正确答案：X"开头
-4. 选项 content 不要带"A. "前缀
-5. 题号/分隔符忽略
-6. 绝对不要输出任何HTML标签（包括<span>、<div>、<math>等）
-7. 绝对不要使用KaTeX或LaTeX格式（不要用$...$、$$...$$、\\(...\\)、\\ce{}等）
-8. 化学式用纯文本表示，如 Fe2O3、H2O、P4O10
+2. 题目中已有的LaTeX公式（$...$ 或 \\(...\\) 格式）原样保留在 stem/options/explanation 中
+3. 普通文本中的上下角标保持原文（如 P₄O₁₀、H₂O）
+4. 解析以"正确答案：X"开头
+5. 选项 content 不要带"A. "前缀
+6. 题号/分隔符忽略
+7. 绝对不要输出任何HTML标签（<span>、<div>、<math>等）
 
 输出纯JSON（不要markdown代码块）：{"questions":[{"stem":"...","options":[{"content":"...","isCorrect":false}...],"explanation":"正确答案：B。...","difficulty":3}]}`
 
