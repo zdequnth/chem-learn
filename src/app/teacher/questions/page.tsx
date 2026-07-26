@@ -249,12 +249,19 @@ function QuestionsContent() {
                       <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">难度 {q.difficulty}</span>
                       {q.is_ai_generated && <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full">AI</span>}
                       {!q.is_approved && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">待批准</span>}
+                      {q.is_practice && <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">练习</span>}
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleApprove(q.id, q.is_approved)}
                         className={`p-1.5 rounded-lg transition-colors ${q.is_approved ? 'hover:bg-amber-100 text-green-500' : 'hover:bg-green-100 text-amber-500'}`}
                         title={q.is_approved ? '取消批准' : '批准'}>
                         {q.is_approved ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      </button>
+                      <button onClick={async () => {
+                        await fetch(`/api/questions?id=${q.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: q.id, is_practice: !q.is_practice }) })
+                        fetchQuestions()
+                      }} className={`p-1.5 rounded-lg transition-colors ${q.is_practice ? 'bg-blue-100 text-blue-500' : 'hover:bg-blue-50 text-gray-400'}`} title="练习题目">
+                        📝
                       </button>
                       <button onClick={() => handleDelete(q.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="删除">
                         <XCircle className="w-4 h-4" />

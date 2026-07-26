@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
   const body = await request.json()
-  const { id, is_approved, lesson_id } = body
+  const { id, is_approved, is_practice, lesson_id } = body
 
   // New question creation
   if (lesson_id) {
@@ -77,9 +77,13 @@ export async function POST(request: Request) {
     }
   }
 
+  const patchBody: any = {}
+  if (is_approved !== undefined) patchBody.is_approved = is_approved
+  if (is_practice !== undefined) patchBody.is_practice = is_practice
+
   const { error } = await supabaseAdmin('questions', {
     method: 'PATCH',
-    body: { is_approved: is_approved },
+    body: patchBody,
     query: `?id=eq.${id}`,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
