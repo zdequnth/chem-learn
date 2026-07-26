@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
@@ -25,9 +25,11 @@ interface GateTestStats {
   accuracy: number
 }
 
-export default function GateTestPage() {
+function GateTestContent() {
   const { lessonId } = useParams<{ lessonId: string }>()
   const router = useRouter()
+  const sp = useSearchParams()
+  const isPractice = sp.get('practice') === 'true'
   const { user, loading: authLoading } = useAuth()
 
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -45,6 +47,7 @@ export default function GateTestPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lockedMinutes, setLockedMinutes] = useState(0)
+  const [practiceAskedIds, setPracticeAskedIds] = useState<string[]>([])
   const [initialLocked, setInitialLocked] = useState(false)
   const [questionNumber, setQuestionNumber] = useState(0)
   const [prefetchedQuestion, setPrefetchedQuestion] = useState<any>(null)
@@ -66,7 +69,7 @@ export default function GateTestPage() {
     const res = await fetch('/api/test/gate-test/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lessonId }),
+      body: JSON.stringify({ lessonId, practice: isPractice }),
     })
     const data = await res.json()
 
@@ -104,7 +107,7 @@ export default function GateTestPage() {
     const res = await fetch('/api/test/gate-test/next', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid || sessionId }),
+      body: JSON.stringify({ sessionId: sid || sessionId, lessonId, practice: isPractice, askedIds: practiceAskedIds }),
     })
     const data = await res.json()
 
@@ -126,10 +129,15 @@ export default function GateTestPage() {
     setExplanation(null)
     setLoading(false)
 
+    // Track asked IDs for practice mode
+    if (isPractice && data.question) {
+      setPracticeAskedIds(prev => [...prev, data.question.id])
+    }
+
     // Background prefetch: immediately start loading next question while student reads this one
     fetch('/api/test/gate-test/next', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sessionId }),
+      body: JSON.stringify({ sessionId: sessionId, lessonId, practice: isPractice, askedIds: isPractice ? practiceAskedIds : undefined }),
     }).then(r => r.json()).then(d => {
       if (!d.done) setPrefetchedQuestion(d.question)
     }).catch(() => {})
