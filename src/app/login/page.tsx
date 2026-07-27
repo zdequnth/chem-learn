@@ -130,7 +130,7 @@ function LoginForm() {
             {isSignup && (
               <>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} required
-                  placeholder={t('yourName', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                  placeholder={lang === 'zh' ? '中文名+英文名，如 张三Jack' : 'Full Name, e.g. Jack Zhang'} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setRole('student')}
                     className={`flex-1 py-2 rounded-lg text-sm ${role === 'student' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' : 'bg-gray-50 text-gray-500'}`}>
