@@ -40,27 +40,36 @@ export async function GET(request: Request) {
     }
 
     const sortedChapters = (chapters || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
-    const sortedLessons = (lessons || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
 
-    // First visit: unlock first lesson of the course
-    const hasAnyProgress = progress.length > 0
-    if (!hasAnyProgress) {
-      const firstLesson = sortedLessons[0]
-      if (firstLesson) {
-        await supabaseAdmin('student_progress', {
-          method: 'POST',
-          body: { student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked' },
-        })
-        progress.push({ student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
-      }
+    // sort_order is numbered per-chapter (restarts at 0), so a global sort would
+    // interleave chapters and make "the first lesson" nondeterministic. Group
+    // lessons per chapter and sort within each chapter instead.
+    const lessonsByChapter = new Map<string, any[]>()
+    for (const l of (lessons || [])) {
+      if (!lessonsByChapter.has(l.chapter_id)) lessonsByChapter.set(l.chapter_id, [])
+      lessonsByChapter.get(l.chapter_id)!.push(l)
+    }
+    for (const list of lessonsByChapter.values()) list.sort((a: any, b: any) => a.sort_order - b.sort_order)
+    const firstLessonOfChapter = (chapterId: string) => (lessonsByChapter.get(chapterId) || [])[0]
+
+    // The course's first lesson (first chapter's first lesson) is always the
+    // starting point: unlock it whenever it has no record. On first visit this
+    // initializes it; it also repairs students whose record was never created.
+    const firstLesson = firstLessonOfChapter(sortedChapters[0]?.id)
+    if (firstLesson && !progress.find((p: any) => p.lesson_id === firstLesson.id)) {
+      await supabaseAdmin('student_progress', {
+        method: 'POST',
+        body: { student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked' },
+      })
+      progress.push({ student_id: user.id, lesson_id: firstLesson.id, status: 'unlocked', stars_earned: 0, attempt_count: 0 })
     }
 
     // For each chapter (except first), unlock first lesson if all lessons in previous chapter are passed
     for (let i = 1; i < sortedChapters.length; i++) {
       const prevChapter = sortedChapters[i - 1]
       const thisChapter = sortedChapters[i]
-      const prevLessons = sortedLessons.filter((l: any) => l.chapter_id === prevChapter.id)
-      const thisFirstLesson = sortedLessons.find((l: any) => l.chapter_id === thisChapter.id)
+      const prevLessons = lessonsByChapter.get(prevChapter.id) || []
+      const thisFirstLesson = firstLessonOfChapter(thisChapter.id)
 
       if (prevLessons.length > 0 && thisFirstLesson) {
         const allPrevPassed = prevLessons.every((l: any) =>
@@ -78,7 +87,7 @@ export async function GET(request: Request) {
 
     // Handle newly added lessons: unlock if its predecessor in the chapter is passed
     for (const ch of sortedChapters) {
-      const chLessons = sortedLessons.filter((l: any) => l.chapter_id === ch.id).sort((a: any, b: any) => a.sort_order - b.sort_order)
+      const chLessons = lessonsByChapter.get(ch.id) || []
       for (let j = 0; j < chLessons.length; j++) {
         const lesson = chLessons[j]
         const hasRecord = progress.find((p: any) => p.lesson_id === lesson.id)
