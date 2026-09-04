@@ -16,6 +16,30 @@ interface ParsedQuestion {
   difficulty: number
 }
 
+// Coerce an AI-parsed item into a renderable shape, or null if it's unusable.
+// Prevents a single malformed item (missing options, non-string fields) from
+// crashing the preview render.
+function normalizeParsed(item: any): ParsedQuestion | null {
+  if (!item || typeof item !== 'object') return null
+  const stem = typeof item.stem === 'string' ? item.stem.trim() : item.stem != null ? String(item.stem).trim() : ''
+  if (!stem) return null
+  const rawOptions: any[] = Array.isArray(item.options) ? item.options : []
+  const options = rawOptions
+    .map((o: any) => ({
+      content: o && typeof o.content === 'string' ? o.content : o && o.content != null ? String(o.content) : '',
+      isCorrect: !!(o && (o.isCorrect === true || o.is_correct === true)),
+    }))
+    .filter((o) => o.content.trim().length > 0)
+  if (options.length < 2 || !options.some((o) => o.isCorrect)) return null
+  const difficulty = Number(item.difficulty)
+  return {
+    stem,
+    options,
+    explanation: item.explanation == null ? '' : String(item.explanation),
+    difficulty: Number.isFinite(difficulty) ? Math.min(5, Math.max(1, Math.round(difficulty))) : 3,
+  }
+}
+
 function ImportForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -76,15 +100,39 @@ function ImportForm() {
     setQuestions([])
     setSaved(false)
 
-    const res = await fetch('/api/ai/parse-questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: markdownText.trim(), ...courseNames }),
-    })
-    const json = await res.json()
-    if (json.error) { alert('解析失败：' + json.error) }
-    else { setQuestions(json.questions || []) }
-    setParsing(false)
+    try {
+      const res = await fetch('/api/ai/parse-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: markdownText.trim(), ...courseNames }),
+      })
+      const json = await res.json()
+      if (json.error) { alert('解析失败：' + json.error); return }
+
+      const raw = Array.isArray(json.questions) ? json.questions : []
+      const kept: ParsedQuestion[] = []
+      let skipped = 0
+      for (const item of raw) {
+        const n = normalizeParsed(item)
+        if (n) kept.push(n)
+        else skipped++
+      }
+      setQuestions(kept)
+
+      const msgs: string[] = []
+      if (Array.isArray(json.failed) && json.failed.length > 0) {
+        const snippet = typeof json.failed[0] === 'string' ? `「${json.failed[0].slice(0, 50)}…」` : ''
+        msgs.push(`有 ${json.failed.length} 段题目未能解析，已跳过${snippet ? `（从${snippet}开始）` : ''}。可把该段附近删掉或改一下再试。`)
+      }
+      if (skipped > 0) {
+        msgs.push(`解析到 ${raw.length} 道，其中 ${skipped} 道格式异常，已自动跳过。`)
+      }
+      if (msgs.length > 0) alert(msgs.join('\n'))
+    } catch {
+      alert('解析失败，请稍后重试。若反复失败，可能是题目数量过多，建议分两次导入。')
+    } finally {
+      setParsing(false)
+    }
   }
 
   const handleDeleteQuestion = (index: number) => {
