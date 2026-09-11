@@ -388,7 +388,15 @@ function AnalyticsContent() {
                                 : <span className="text-red-500">{lang === 'zh' ? '未通过' : 'Not passed'}</span>}
                             </td>
                             <td className="py-2 text-muted-foreground">
-                              {d.durations.length > 0 ? d.durations.map((s) => fmtSeconds(s)).join('、') : '—'}
+                              {d.durations.length > 0 ? d.durations.map((s, idx) => {
+                                const isLast = idx === d.durations.length - 1
+                                const highlight = d.passed && isLast
+                                return (
+                                  <span key={idx} className={highlight ? 'text-red-500 font-medium' : ''}>
+                                    {fmtSeconds(s)}{isLast ? '' : '、'}
+                                  </span>
+                                )
+                              }) : '—'}
                             </td>
                           </tr>
                         ))}

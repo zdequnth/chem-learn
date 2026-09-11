@@ -214,6 +214,7 @@ export async function GET(request: Request) {
   const perStudentLesson: SL[] = []
   for (const [key, rows] of byStudentLesson) {
     const [studentId, lessonId] = key.split('|')
+    rows.sort((a: any, b: any) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
     const durations: number[] = []
     for (const r of rows) {
       const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
