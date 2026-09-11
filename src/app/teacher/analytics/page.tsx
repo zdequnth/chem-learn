@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml } from '@/components/KatexSpan'
-import { Loader2, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react'
+import { Loader2, ArrowLeft, ChevronDown, ChevronRight, Printer } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 interface QStat {
   id: string; lessonId: string; lessonTitle: string; chapterTitle: string
-  questionType: string; stem: string; knowledgePointId: string | null
+  chapterOrder: number; questionType: string; stem: string; knowledgePointId: string | null
   attempts: number; correct: number; rate: number | null; wrongStudents: number
 }
 interface KpStat {
@@ -60,6 +60,7 @@ function AnalyticsContent() {
   const [kpStats, setKpStats] = useState<KpStat[]>([])
   const [lessons, setLessons] = useState<LessonStat[]>([])
   const [openLesson, setOpenLesson] = useState('')
+  const [openWrong, setOpenWrong] = useState(false)
   const [detail, setDetail] = useState<DetailRow[] | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
@@ -128,6 +129,24 @@ function AnalyticsContent() {
       return ra - rb
     })
 
+  // group ranked questions by chapter, in course chapter order
+  const wrongByChapter = (() => {
+    const map = new Map<string, { chapter: string; order: number; items: QStat[] }>()
+    for (const q of rankedQuestions) {
+      const key = q.chapterTitle || '（未分章）'
+      let g = map.get(key)
+      if (!g) { g = { chapter: key, order: q.chapterOrder ?? 0, items: [] }; map.set(key, g) }
+      g.items.push(q)
+    }
+    return [...map.values()].sort((a, b) => a.order - b.order)
+  })()
+
+  const exportWrong = () => {
+    setOpenWrong(true)
+    // let React paint the expanded list, then print; .print-expand also forces it in print CSS
+    setTimeout(() => window.print(), 120)
+  }
+
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
   }
@@ -136,7 +155,7 @@ function AnalyticsContent() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 pt-24 pb-20">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+        <Link href="/dashboard" className="no-print inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回工作台' : 'Back'}
         </Link>
         <h1 className="text-2xl font-bold mb-1">{t('analytics', lang)}</h1>
@@ -145,7 +164,7 @@ function AnalyticsContent() {
         </p>
 
         {/* Scope switch */}
-        <div className="bg-card rounded-2xl border p-4 mb-6 flex flex-wrap items-center gap-3">
+        <div className="no-print bg-card rounded-2xl border p-4 mb-6 flex flex-wrap items-center gap-3">
           <div className="flex rounded-lg border overflow-hidden">
             {(['course', 'class'] as const).map((s) => (
               <button key={s} onClick={() => setScope(s)}
@@ -186,7 +205,7 @@ function AnalyticsContent() {
           <div className="space-y-8">
 
             {/* Panel 1: weak knowledge points */}
-            <section className="bg-card rounded-2xl border p-6">
+            <section className="no-print bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-1">🎯 {lang === 'zh' ? '薄弱知识点' : 'Weak Knowledge Points'}</h2>
               <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '按正确率从低到高，优先复习排在前面的' : 'Lowest correct-rate first'}</p>
               {weakKps.length === 0 ? (
@@ -217,35 +236,58 @@ function AnalyticsContent() {
               )}
             </section>
 
-            {/* Panel 2: high-wrong questions */}
+            {/* Panel 2: high-wrong questions (collapsible, chapter-grouped, printable) */}
             <section className="bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-1">🌶️ {lang === 'zh' ? '高错题（教师版错题本）' : 'Most-missed Questions'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '正确率最低的题排在前面；"答错人数"为曾答错过该题的学生数' : 'Lowest correct-rate first'}</p>
-              {rankedQuestions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无作答数据' : 'No answers yet'}</p>
-              ) : (
-                <div className="space-y-2">
-                  {rankedQuestions.slice(0, 50).map((q) => (
-                    <div key={q.id} className="flex items-start gap-3 border rounded-xl p-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm line-clamp-2"><KatexHtml text={q.stem} /></div>
-                        <div className="text-xs text-muted-foreground mt-1">{q.chapterTitle} · {q.lessonTitle}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className={`text-sm font-semibold ${q.rate === null ? 'text-muted-foreground' : rateClass(q.rate)}`}>
-                          {q.rate === null ? '—' : `${q.rate}%`}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
-                        {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'wrong'}</div>}
+              <div className="flex items-start justify-between gap-3">
+                <button onClick={() => setOpenWrong(v => !v)} className="keep-print flex items-center gap-2 text-left">
+                  {openWrong ? <ChevronDown className="w-5 h-5 shrink-0 no-print" /> : <ChevronRight className="w-5 h-5 shrink-0 no-print" />}
+                  <span className="text-lg font-semibold">🌶️ {lang === 'zh' ? '高错题（教师版错题本）' : 'Most-missed Questions'}</span>
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{rankedQuestions.length}</span>
+                </button>
+                {rankedQuestions.length > 0 && (
+                  <button onClick={exportWrong}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 no-print">
+                    <Printer className="w-4 h-4" /> {lang === 'zh' ? '导出 PDF' : 'Export PDF'}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 mb-4">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '按章节汇总；正确率最低的题排在前面，"答错人数"为曾答错过该题的学生数' : 'Grouped by chapter, lowest correct-rate first'}</p>
+
+              <div className={`${openWrong ? '' : 'hidden'} print-expand space-y-6`}>
+                {rankedQuestions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无作答数据' : 'No answers yet'}</p>
+                ) : (
+                  wrongByChapter.map((g) => (
+                    <div key={g.chapter} className="print-chapter-break">
+                      <h3 className="text-md font-semibold mb-2 flex items-center gap-1">
+                        <ChevronRight className="w-4 h-4" /> {g.chapter}
+                        <span className="text-sm text-muted-foreground font-normal">({g.items.length} 题)</span>
+                      </h3>
+                      <div className="space-y-2">
+                        {g.items.map((q) => (
+                          <div key={q.id} className="flex items-start gap-3 border rounded-xl p-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm"><KatexHtml text={q.stem} /></div>
+                              <div className="text-xs text-muted-foreground mt-1">{q.lessonTitle}</div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <div className={`text-sm font-semibold ${q.rate === null ? 'text-muted-foreground' : rateClass(q.rate)}`}>
+                                {q.rate === null ? '—' : `${q.rate}%`}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
+                              {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'wrong'}</div>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </section>
 
             {/* Panel 3: attempts & time */}
-            <section className="bg-card rounded-2xl border p-6">
+            <section className="no-print bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-1">⏱️ {lang === 'zh' ? '通关尝试与用时' : 'Attempts & Time'}</h2>
               <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '点击课时查看每个学生的尝试次数与每次用时' : 'Click a lesson for per-student detail'}</p>
               {lessons.filter((l) => l.attempted > 0).length === 0 ? (

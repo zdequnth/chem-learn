@@ -146,5 +146,6 @@
   .text-muted-foreground { color: #6b7280 !important; }
   .print-chapter-break { page-break-before: always; }
   .print-chapter-break:first-child { page-break-before: avoid; }
+  .print-expand { display: block !important; }
   @page { margin: 1.5cm; }
 }

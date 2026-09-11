@@ -88,6 +88,7 @@ export async function GET(request: Request) {
   const lessonIds = lessons.map((l: any) => l.id)
   const lessonTitle = new Map<string, string>(lessons.map((l: any) => [l.id, l.title]))
   const chapterTitle = new Map<string, string>(chapters.map((c: any) => [c.id, c.title]))
+  const chapterSort = new Map<string, number>(chapters.map((c: any) => [c.id, c.sort_order]))
   const lessonChapter = new Map<string, string>(lessons.map((l: any) => [l.id, l.chapter_id]))
 
   if (lessonIds.length === 0) {
@@ -147,6 +148,7 @@ export async function GET(request: Request) {
       lessonId: q.lesson_id,
       lessonTitle: lessonTitle.get(q.lesson_id) || '',
       chapterTitle: chapterTitle.get(lessonChapter.get(q.lesson_id) || '') || '',
+      chapterOrder: chapterSort.get(lessonChapter.get(q.lesson_id) || '') ?? 0,
       questionType: q.question_type,
       stem: q.stem,
       knowledgePointId: q.knowledge_point_id || null,
