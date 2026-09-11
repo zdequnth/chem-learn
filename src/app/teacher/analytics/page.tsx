@@ -324,7 +324,7 @@ function AnalyticsContent() {
             {/* Panel 3: attempts & time */}
             <section className="no-print bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-1">⏱️ {lang === 'zh' ? '通关尝试与用时' : 'Attempts & Time'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '点击课时查看每个学生的尝试次数与每次用时；"是否通过"依据学生进度，与课堂管理一致' : 'Click a lesson for per-student detail (pass status follows student progress)'}</p>
+              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点击课时查看每个学生的尝试次数与每次用时' : 'Pass rate = passed / all students; click a lesson for per-student detail'}</p>
               {lessons.filter((l) => l.attempted > 0).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无通关记录' : 'No attempts yet'}</p>
               ) : (

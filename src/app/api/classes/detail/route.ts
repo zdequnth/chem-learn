@@ -71,8 +71,10 @@ export async function GET(request: Request) {
       allChapters = []
     }
 
+    // Only count progress for lessons that belong to this class's course
+    const courseLessonIds = new Set(allLessons.map((l: any) => l.id))
     students = (profiles || []).map((p: any) => {
-      const studentProgress = (progress || []).filter((sp: any) => sp.student_id === p.id)
+      const studentProgress = (progress || []).filter((sp: any) => sp.student_id === p.id && courseLessonIds.has(sp.lesson_id))
       const passedCount = studentProgress.filter((sp: any) => sp.status === 'passed').length
       const totalLessons = (allLessons || []).length
       const percent = totalLessons > 0 ? Math.round((passedCount / totalLessons) * 100) : 0

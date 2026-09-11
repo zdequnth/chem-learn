@@ -202,6 +202,15 @@ export async function GET(request: Request) {
   for (const p of progress) {
     if (p.status === 'passed' && p.passed_at) passedAtMap.set(`${p.student_id}|${p.lesson_id}`, p.passed_at)
   }
+  // Students (within scope) who passed each lesson — the pass-rate numerator.
+  const scopeSet = new Set(studentIds)
+  const passedByLesson = new Map<string, Set<string>>()
+  for (const p of progress) {
+    if (p.status !== 'passed' || !scopeSet.has(p.student_id)) continue
+    const set = passedByLesson.get(p.lesson_id) || new Set<string>()
+    set.add(p.student_id)
+    passedByLesson.set(p.lesson_id, set)
+  }
 
   // Per (student, lesson): only *completed* test sessions count as attempts, so
   // the attempt count always equals the number of recorded durations.
@@ -254,15 +263,16 @@ export async function GET(request: Request) {
 
   const lessonStats = lessons.map((l: any) => {
     const rows = perStudentLesson.filter((r) => r.lessonId === l.id)
-    const passedRows = rows.filter((r) => r.passed)
     const durations = rows.flatMap((r) => r.durations)
+    const passedCount = passedByLesson.get(l.id)?.size || 0
+    const totalStudents = studentIds.length
     return {
       id: l.id,
       title: l.title,
       chapterTitle: chapterTitle.get(l.chapter_id) || '',
       attempted: rows.length,
-      passed: passedRows.length,
-      passRate: rows.length ? Math.round((passedRows.length / rows.length) * 100) : null,
+      passed: passedCount,
+      passRate: totalStudents > 0 ? Math.round((passedCount / totalStudents) * 100) : null,
       avgAttempts: rows.length ? Math.round((rows.reduce((a, r) => a + r.attempts, 0) / rows.length) * 10) / 10 : null,
       medianSeconds: median(durations),
       avgSeconds: mean(durations),
