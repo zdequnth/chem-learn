@@ -2,18 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const fixJson = (s: string): string => {
-  let t = s
-  t = t.replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
-  t = t.replace(/,(\s*[}\]])/g, '$1')
-  t = t.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_m, inner) => {
-    const cleaned = inner.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-      .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-    return '"' + cleaned + '"'
-  })
-  return t
-}
-
 async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
   const completion = await client.chat.completions.create({
     model: 'deepseek-chat',
@@ -22,13 +10,15 @@ async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
       { role: 'user', content: prompt },
     ],
     temperature: 0.8, max_tokens: 4096,
+    response_format: { type: 'json_object' },
   })
   let raw = completion.choices[0]?.message?.content || ''
   raw = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-  try { return JSON.parse(fixJson(raw)).questions || [] }
+  // JSON mode returns parseable JSON; parse directly so real newlines survive.
+  try { return JSON.parse(raw).questions || [] }
   catch {
     const match = raw.match(/\{[\s\S]*\}/)
-    if (match) { try { return JSON.parse(fixJson(match[0])).questions || [] } catch { return [] } }
+    if (match) { try { return JSON.parse(match[0]).questions || [] } catch { return [] } }
     return []
   }
 }
@@ -62,7 +52,7 @@ export async function POST(request: Request) {
 
   for (let i = 0; i < batches; i++) {
     const batchCount = Math.min(BATCH_SIZE, (count || 30) - i * BATCH_SIZE)
-    const batchPrompt = `你是一位经验丰富的${cfg.role}。请用中文生成 ${batchCount} 道单选题（4个选项）。${topic ? '课程主题：' + topic : ''}难度：中等偏上。${cfg.rules}每题配详细解析，选项有干扰性。解析必须以"正确答案：X"开头，然后才是详细解释。不要在选项内容前加"A. "等字母前缀。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"正确答案：B。详细解析...","difficulty":3}]}`
+    const batchPrompt = `你是一位经验丰富的${cfg.role}。请用中文生成 ${batchCount} 道单选题（4个选项）。${topic ? '课程主题：' + topic : ''}难度：中等偏上。${cfg.rules}每题配详细解析，选项有干扰性。解析必须以"正确答案：X"开头，然后才是详细解释。不要在选项内容前加"A. "等字母前缀。解析如需分段换行，用 \\n 表示。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"正确答案：B。详细解析...","difficulty":3}]}`
     const questions = await generateBatch(client, batchPrompt)
     allQuestions.push(...questions)
   }

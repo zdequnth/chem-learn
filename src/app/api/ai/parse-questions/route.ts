@@ -9,12 +9,6 @@ export const maxDuration = 60
 // output well below its token cap, which is where it becomes unreliable.
 const MAX_CHARS_PER_BATCH = 3500
 
-const fixJson = (s: string): string => {
-  return s
-    .replace(/(?<!\\)\\(?=[a-zA-Z()\[\]])/g, '\\\\')
-    .replace(/,(\s*[}\]])/g, '$1')
-}
-
 /**
  * Split pasted text into chunks small enough for one reliable LLM call each.
  * Splits on blank lines first; an oversized paragraph is further split at the
@@ -69,7 +63,7 @@ ${text}
 
 规则：
 1. 每道题包含 stem、options（4个，含 content 和 isCorrect）、explanation、difficulty（1-5）
-2. 题目中已有的LaTeX公式（$...$ 或 \\(...\\) 格式）原样保留在 stem/options/explanation 中
+2. 题目中已有的LaTeX公式（$...$ 或 \\(...\\) 格式）原样保留在 stem/options/explanation 中；JSON 字符串里的反斜杠写成双反斜杠（例如 \\ce、\\text）
 3. 普通文本中的上下角标保持原文（如 P₄O₁₀、H₂O）
 4. 必须输出题目文本中的全部题目，数量与输入一致，不可省略、合并或跳过任何一道
 5. 题干、选项、解析严格保持原有语言，禁止翻译（例如英文解析不要翻译成中文）
@@ -77,6 +71,7 @@ ${text}
 7. 选项 content 不要带"A. "前缀
 8. 题号/分隔符忽略
 9. 绝对不要输出任何HTML标签（<span>、<div>、<math>等）
+10. stem/explanation 中需要换行或分点的地方，用 \\n 表示换行，保持原有分段，不要挤成一行
 
 输出纯JSON（不要markdown代码块）：{"questions":[{"stem":"...","options":[{"content":"...","isCorrect":false}...],"explanation":"Answer: B. ...","difficulty":3}]}`
 }
@@ -91,19 +86,23 @@ async function parseChunk(client: OpenAI, prompt: string): Promise<{ ok: boolean
       ],
       temperature: 0.2,
       max_tokens: 8192,
+      response_format: { type: 'json_object' },
     })
 
     let raw = completion.choices[0]?.message?.content || ''
     raw = raw.replace(/<[^>]+>/g, ' ')
     raw = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
 
+    // JSON mode returns parseable JSON, so parse it directly — a regex "fix"
+    // used to escape LaTeX backslashes but also mangled real newlines into
+    // the literal characters "\n".
     let parsed: any
     try {
-      parsed = JSON.parse(fixJson(raw))
+      parsed = JSON.parse(raw)
     } catch {
       const match = raw.match(/\{[\s\S]*\}/)
       if (!match) throw new Error('AI未返回有效JSON')
-      parsed = JSON.parse(fixJson(match[0]))
+      parsed = JSON.parse(match[0])
     }
     return { ok: true, questions: Array.isArray(parsed?.questions) ? parsed.questions : [] }
   } catch {
