@@ -194,9 +194,16 @@ export async function GET(request: Request) {
     }
   })
 
-  // Per (student, lesson): attempts up to first pass, and durations
+  // A student's pass comes from student_progress — the same source 课堂管理 uses,
+  // so the two views agree.
+  const progress = await fetchAllIn('student_progress', 'lesson_id', lessonIds, 'student_id,lesson_id,status')
+  const passedSet = new Set(progress.filter((p: any) => p.status === 'passed').map((p: any) => `${p.student_id}|${p.lesson_id}`))
+
+  // Per (student, lesson): only *completed* test sessions count as attempts, so
+  // the attempt count always equals the number of recorded durations.
   const byStudentLesson = new Map<string, any[]>()
   for (const s of sessions) {
+    if (!s.completed_at) continue
     const key = `${s.student_id}|${s.lesson_id}`
     const arr = byStudentLesson.get(key)
     if (arr) arr.push(s)
@@ -207,18 +214,12 @@ export async function GET(request: Request) {
   const perStudentLesson: SL[] = []
   for (const [key, rows] of byStudentLesson) {
     const [studentId, lessonId] = key.split('|')
-    rows.sort((a: any, b: any) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-    const firstPassed = rows.findIndex((r: any) => r.status === 'passed')
-    const count = firstPassed >= 0 ? firstPassed + 1 : rows.length
-    const used = rows.slice(0, count)
     const durations: number[] = []
-    for (const r of used) {
-      if (r.completed_at && r.started_at) {
-        const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
-        if (sec >= 0) durations.push(sec)
-      }
+    for (const r of rows) {
+      const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
+      if (sec >= 0) durations.push(sec)
     }
-    perStudentLesson.push({ studentId, lessonId, attempts: count, passed: firstPassed >= 0, durations })
+    perStudentLesson.push({ studentId, lessonId, attempts: rows.length, passed: passedSet.has(key), durations })
   }
 
   const median = (nums: number[]) => {
