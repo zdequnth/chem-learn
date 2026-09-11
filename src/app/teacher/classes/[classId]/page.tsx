@@ -219,7 +219,7 @@ export default function ClassDetailPage() {
                               <div className="flex-1 bg-gray-100 rounded-full h-2">
                                 <div className="bg-blue-400 h-2 rounded-full transition-all" style={{ width: `${cp.total > 0 ? (cp.passed / cp.total) * 100 : 0}%` }} />
                               </div>
-                              <span className="text-xs text-muted-foreground w-16 text-right shrink-0">{cp.passed}/{cp.total} · {cp.percent}%</span>
+                              <span className="text-xs text-muted-foreground w-16 text-right shrink-0">{cp.passed}/{cp.total}</span>
                             </div>
                           ))}
                         </div>

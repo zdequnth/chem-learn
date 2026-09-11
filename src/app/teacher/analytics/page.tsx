@@ -77,14 +77,31 @@ function AnalyticsContent() {
     fetch('/api/courses').then((r) => r.json()).then((j) => {
       const list = (j.courses || []) as { id: string; name: string }[]
       setCourses(list)
-      if (list.length > 0) setCourseId((prev) => prev || list[0].id)
+      if (list.length > 0) setCourseId((prev) => (list.some((c) => c.id === prev) ? prev : list[0].id))
     })
     fetch('/api/classes').then((r) => r.json()).then((j) => {
       const list = (j.classes || []) as { id: string; name: string }[]
       setClasses(list)
-      if (list.length > 0) setClassId((prev) => prev || list[0].id)
+      if (list.length > 0) setClassId((prev) => (list.some((c) => c.id === prev) ? prev : list[0].id))
     })
   }, [profile])
+
+  // Remember the last selected scope/course/class/filter across navigation
+  useEffect(() => {
+    const s = localStorage.getItem('analytics.scope')
+    const c = localStorage.getItem('analytics.courseId')
+    const k = localStorage.getItem('analytics.classId')
+    const r = localStorage.getItem('analytics.rateFilter')
+    if (s === 'class' || s === 'course') setScope(s)
+    if (c) setCourseId(c)
+    if (k) setClassId(k)
+    if (r === '80' || r === '50' || r === '30' || r === 'none') setRateFilter(r)
+  }, [])
+
+  useEffect(() => { localStorage.setItem('analytics.scope', scope) }, [scope])
+  useEffect(() => { if (courseId) localStorage.setItem('analytics.courseId', courseId) }, [courseId])
+  useEffect(() => { if (classId) localStorage.setItem('analytics.classId', classId) }, [classId])
+  useEffect(() => { localStorage.setItem('analytics.rateFilter', rateFilter) }, [rateFilter])
 
   const activeId = scope === 'course' ? courseId : classId
 

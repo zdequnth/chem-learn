@@ -90,6 +90,16 @@ function QuestionsContent() {
     fetchCourses()
   }, [profile])
 
+  // Remember the last selected course/chapter/lesson across navigation
+  useEffect(() => {
+    setSelectedCourse((prev) => prev || localStorage.getItem('qbank.course') || '')
+    setSelectedChapter((prev) => prev || localStorage.getItem('qbank.chapter') || '')
+    setSelectedLesson((prev) => prev || localStorage.getItem('qbank.lesson') || '')
+  }, [])
+  useEffect(() => { if (selectedCourse) localStorage.setItem('qbank.course', selectedCourse) }, [selectedCourse])
+  useEffect(() => { if (selectedChapter) localStorage.setItem('qbank.chapter', selectedChapter) }, [selectedChapter])
+  useEffect(() => { if (selectedLesson) localStorage.setItem('qbank.lesson', selectedLesson) }, [selectedLesson])
+
   const fetchCourses = async () => {
     const res = await fetch('/api/courses')
     const json = await res.json()
