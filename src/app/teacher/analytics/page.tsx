@@ -121,8 +121,9 @@ function AnalyticsContent() {
 
   // weak knowledge points first (only ones with a rate)
   const weakKps = kpStats.filter((k) => k.rate !== null).sort((a, b) => (a.rate as number) - (b.rate as number))
+  // 错题本：只保留正确率低于 80% 的题（正确率高的题没必要展示）
   const rankedQuestions = questions
-    .filter((q) => q.attempts > 0)
+    .filter((q) => q.attempts > 0 && !(q.rate !== null && q.rate >= 80))
     .sort((a, b) => {
       const ra = a.rate === null ? 999 : a.rate
       const rb = b.rate === null ? 999 : b.rate
@@ -251,11 +252,11 @@ function AnalyticsContent() {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1 mb-4">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '按章节汇总；正确率最低的题排在前面，"答错人数"为曾答错过该题的学生数' : 'Grouped by chapter, lowest correct-rate first'}</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-4">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '仅显示正确率低于 80% 的题，按章节汇总、正确率从低到高排列' : 'Only questions below 80% correct, grouped by chapter'}</p>
 
               <div className={`${openWrong ? '' : 'hidden'} print-expand space-y-6`}>
                 {rankedQuestions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无作答数据' : 'No answers yet'}</p>
+                  <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无需要关注的错题（正确率低于 80% 的题会显示在这里）' : 'No questions below 80% correct'}</p>
                 ) : (
                   wrongByChapter.map((g) => (
                     <div key={g.chapter} className="print-chapter-break">
