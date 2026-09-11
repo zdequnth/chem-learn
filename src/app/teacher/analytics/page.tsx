@@ -12,7 +12,7 @@ import { useLang, t } from '@/lib/i18n'
 interface QStat {
   id: string; lessonId: string; lessonTitle: string; chapterTitle: string
   chapterOrder: number; questionType: string; stem: string; knowledgePointId: string | null
-  attempts: number; correct: number; rate: number | null; wrongStudents: number
+  attempts: number; correct: number; wrong: number; rate: number | null; wrongStudents: number
 }
 interface KpStat {
   id: string; lessonId: string; lessonTitle: string; title: string
@@ -275,7 +275,8 @@ function AnalyticsContent() {
                                 {q.rate === null ? '—' : `${q.rate}%`}
                               </div>
                               <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
-                              {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'wrong'}</div>}
+                              {q.wrong > 0 && <div className="text-xs text-orange-500">{q.wrong} {lang === 'zh' ? '次答错' : 'wrong'}</div>}
+                              {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'ppl'}</div>}
                             </div>
                           </div>
                         ))}

@@ -154,6 +154,7 @@ export async function GET(request: Request) {
       knowledgePointId: q.knowledge_point_id || null,
       attempts,
       correct,
+      wrong: attempts - correct,
       rate: rateOf(correct, attempts),
       wrongStudents: st ? st.wrongStudents.size : 0,
     }
