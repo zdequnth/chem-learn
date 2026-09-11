@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
@@ -44,6 +44,7 @@ function AnalyticsContent() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const { lang } = useLang()
+  const sp = useSearchParams()
 
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
@@ -86,11 +87,14 @@ function AnalyticsContent() {
     })
   }, [profile])
 
-  // Remember the last selected scope/course/class/filter across navigation
+  // Restore from URL params (deep links) first, then last-saved selection
   useEffect(() => {
-    const s = localStorage.getItem('analytics.scope')
-    const c = localStorage.getItem('analytics.courseId')
-    const k = localStorage.getItem('analytics.classId')
+    const urlScope = sp.get('scope')
+    const urlCourse = sp.get('courseId')
+    const urlClass = sp.get('classId')
+    const s = urlScope || localStorage.getItem('analytics.scope')
+    const c = urlCourse || localStorage.getItem('analytics.courseId')
+    const k = urlClass || localStorage.getItem('analytics.classId')
     const r = localStorage.getItem('analytics.rateFilter')
     if (s === 'class' || s === 'course') setScope(s)
     if (c) setCourseId(c)

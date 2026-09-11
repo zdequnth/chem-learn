@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 export default function DashboardPage() {
@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
+  const [teacherClasses, setTeacherClasses] = useState<any[]>([])
 
   const role = profile?.role || (user?.user_metadata as any)?.role || 'student'
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -107,6 +108,16 @@ export default function DashboardPage() {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [user, isTeacher])
+
+  // Teacher overview: their classes (for counts + quick links)
+  useEffect(() => {
+    if (!user || !isTeacher) return
+    fetch('/api/classes').then(r => r.json()).then(json => {
+      if (!json.error) setTeacherClasses(json.classes || [])
+    }).catch(() => {})
+  }, [user, isTeacher])
+
+  const totalStudents = teacherClasses.reduce((a: number, c: any) => a + (c.student_count || 0), 0)
 
   const toggleFavorite = async (courseId: string) => {
     const isFav = favorites.includes(courseId)
@@ -274,22 +285,65 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Teacher course grid */}
+          {/* Teacher overview */}
           {isTeacher && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...courses].map((course: any) => (
-                <Link key={course.id} href={`/teacher/courses/${course.id}`}
-                  className="bg-card rounded-2xl p-6 border shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl">{course.icon || '🧪'}</div>
-                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1">{course.name}</h3>
-                  {course.grade_level && <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full font-medium mb-2">{course.grade_level}</span>}
-                  {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{course.description}</p>}
-                  <div className="text-sm text-muted-foreground mt-2">{course.is_published ? '🟢 已发布' : '⚪ 未发布'}</div>
+            <div className="space-y-8">
+              {/* Counts */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-card rounded-2xl border p-5 text-center">
+                  <div className="text-3xl font-bold text-emerald-600">{courses.length}</div>
+                  <div className="text-sm text-muted-foreground mt-1">课程</div>
+                </div>
+                <div className="bg-card rounded-2xl border p-5 text-center">
+                  <div className="text-3xl font-bold text-blue-600">{teacherClasses.length}</div>
+                  <div className="text-sm text-muted-foreground mt-1">班级</div>
+                </div>
+                <div className="bg-card rounded-2xl border p-5 text-center">
+                  <div className="text-3xl font-bold text-purple-600">{totalStudents}</div>
+                  <div className="text-sm text-muted-foreground mt-1">学生（按班级合计）</div>
+                </div>
+              </div>
+
+              {/* Quick links */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Link href="/teacher/courses" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                  <div className="text-2xl mb-2">📚</div>
+                  <div className="font-semibold group-hover:text-emerald-600">课程管理</div>
+                  <div className="text-xs text-muted-foreground mt-1">课程、章节、课时与题库</div>
                 </Link>
-              ))}
+                <Link href="/teacher/analytics" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                  <div className="text-2xl mb-2">📊</div>
+                  <div className="font-semibold group-hover:text-emerald-600">学情分析</div>
+                  <div className="text-xs text-muted-foreground mt-1">薄弱知识点、高错题、尝试与用时</div>
+                </Link>
+                <Link href="/teacher/classes" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                  <div className="text-2xl mb-2">🏫</div>
+                  <div className="font-semibold group-hover:text-emerald-600">班级管理</div>
+                  <div className="text-xs text-muted-foreground mt-1">学生进度、邀请码</div>
+                </Link>
+              </div>
+
+              {/* Per-course quick entry to analytics */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">学情速览 · 按课程查看</h3>
+                <div className="space-y-2">
+                  {[...courses].map((course: any) => (
+                    <div key={course.id} className="bg-card rounded-xl border p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xl">{course.icon || '🧪'}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{course.name}</div>
+                          <div className="text-xs text-muted-foreground">{course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? '已发布' : '未发布'}</div>
+                        </div>
+                      </div>
+                      <Link href={`/teacher/analytics?scope=course&courseId=${course.id}`}
+                        className="shrink-0 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-600 rounded-lg font-medium hover:bg-emerald-100 transition-colors">
+                        查看学情 →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           </>
