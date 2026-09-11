@@ -49,11 +49,13 @@ export async function POST(request: Request) {
   const question = questionsRes.data?.[0]
   const isCorrect = selectedOptionId === correctOpt?.id
 
-  // Record answer (fire-and-forget, non-blocking for response)
-  supabaseAdmin('gate_test_answers', {
+  // Record the answer and WAIT for it before picking the next question, so the
+  // just-answered question is reliably excluded from the "asked" set (otherwise
+  // a race can re-serve it).
+  await supabaseAdmin('gate_test_answers', {
     method: 'POST',
     body: { session_id: sessionId, question_id: questionId, selected_option_id: selectedOptionId, is_correct: isCorrect },
-  }).catch(() => {})
+  })
 
   const oldCC = session.consecutive_correct || 0
   const oldTC = session.total_correct || 0
