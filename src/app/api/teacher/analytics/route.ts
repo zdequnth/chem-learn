@@ -111,6 +111,13 @@ export async function GET(request: Request) {
   // Content
   const questions = await fetchAllIn('questions', 'lesson_id', lessonIds, 'id,lesson_id,knowledge_point_id,stem,question_type')
   const knowledgePoints = await fetchAllIn('knowledge_points', 'lesson_id', lessonIds, 'id,lesson_id,title,sort_order')
+  const questionOptions = await fetchAllIn('question_options', 'question_id', questions.map((q: any) => q.id), 'id,question_id,content,is_correct,display_order')
+  const optionsByQuestion = new Map<string, any[]>()
+  for (const o of questionOptions) {
+    const arr = optionsByQuestion.get(o.question_id)
+    if (arr) arr.push(o)
+    else optionsByQuestion.set(o.question_id, [o])
+  }
 
   // Sessions in scope (only this course's lessons)
   const lessonIdSet = new Set(lessonIds)
@@ -151,6 +158,9 @@ export async function GET(request: Request) {
       chapterOrder: chapterSort.get(lessonChapter.get(q.lesson_id) || '') ?? 0,
       questionType: q.question_type,
       stem: q.stem,
+      options: (optionsByQuestion.get(q.id) || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((o: any) => ({ id: o.id, content: o.content, isCorrect: o.is_correct })),
       knowledgePointId: q.knowledge_point_id || null,
       attempts,
       correct,

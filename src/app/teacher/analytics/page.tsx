@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import { KatexHtml } from '@/components/KatexSpan'
+import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, ArrowLeft, ChevronDown, ChevronRight, Printer } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 interface QStat {
   id: string; lessonId: string; lessonTitle: string; chapterTitle: string
   chapterOrder: number; questionType: string; stem: string; knowledgePointId: string | null
+  options: { id: string; content: string; isCorrect: boolean }[]
   attempts: number; correct: number; wrong: number; rate: number | null; wrongStudents: number
 }
 interface KpStat {
@@ -61,6 +62,7 @@ function AnalyticsContent() {
   const [lessons, setLessons] = useState<LessonStat[]>([])
   const [openLesson, setOpenLesson] = useState('')
   const [openWrong, setOpenWrong] = useState(false)
+  const [rateFilter, setRateFilter] = useState<'80' | '50' | '30' | 'none'>('80')
   const [detail, setDetail] = useState<DetailRow[] | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
@@ -121,9 +123,13 @@ function AnalyticsContent() {
 
   // weak knowledge points first (only ones with a rate)
   const weakKps = kpStats.filter((k) => k.rate !== null).sort((a, b) => (a.rate as number) - (b.rate as number))
-  // 错题本：只保留正确率低于 80% 的题（正确率高的题没必要展示）
+  // 错题本：按所选档位过滤正确率（≥ 阈值的不算错题），或只看无数据的题
   const rankedQuestions = questions
-    .filter((q) => q.attempts > 0 && !(q.rate !== null && q.rate >= 80))
+    .filter((q) => {
+      if (q.attempts <= 0) return false
+      if (rateFilter === 'none') return q.rate === null
+      return q.rate !== null && q.rate < Number(rateFilter)
+    })
     .sort((a, b) => {
       const ra = a.rate === null ? 999 : a.rate
       const rb = b.rate === null ? 999 : b.rate
@@ -252,7 +258,23 @@ function AnalyticsContent() {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1 mb-4">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '仅显示正确率低于 80% 的题，按章节汇总、正确率从低到高排列' : 'Only questions below 80% correct, grouped by chapter'}</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '按章节汇总，正确率从低到高排列；点右上角"导出 PDF"可打印' : 'Grouped by chapter, lowest correct-rate first'}</p>
+
+              {/* 正确率档位过滤 */}
+              <div className="no-print flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-xs text-muted-foreground">{lang === 'zh' ? '正确率：' : 'Rate:'}</span>
+                {([['80', '<80%'], ['50', '<50%'], ['30', '<30%']] as const).map(([v, label]) => (
+                  <button key={v} onClick={() => setRateFilter(v)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${rateFilter === v ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
+                    {label}
+                  </button>
+                ))}
+                <button onClick={() => setRateFilter('none')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${rateFilter === 'none' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
+                  {lang === 'zh' ? '— 无数据' : '— no data'}
+                </button>
+                <span className="text-xs text-muted-foreground">({rankedQuestions.length})</span>
+              </div>
 
               <div className={`${openWrong ? '' : 'hidden'} print-expand space-y-6`}>
                 {rankedQuestions.length === 0 ? (
@@ -266,19 +288,30 @@ function AnalyticsContent() {
                       </h3>
                       <div className="space-y-2">
                         {g.items.map((q) => (
-                          <div key={q.id} className="flex items-start gap-3 border rounded-xl p-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm"><KatexHtml text={q.stem} /></div>
-                              <div className="text-xs text-muted-foreground mt-1">{q.lessonTitle}</div>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <div className={`text-sm font-semibold ${q.rate === null ? 'text-muted-foreground' : rateClass(q.rate)}`}>
-                                {q.rate === null ? '—' : `${q.rate}%`}
+                          <div key={q.id} className="border rounded-xl p-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm"><KatexHtml text={q.stem} /></div>
+                                <div className="text-xs text-muted-foreground mt-1">{q.lessonTitle}</div>
                               </div>
-                              <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
-                              {q.wrong > 0 && <div className="text-xs text-orange-500">{q.wrong} {lang === 'zh' ? '次答错' : 'wrong'}</div>}
-                              {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'ppl'}</div>}
+                              <div className="shrink-0 text-right">
+                                <div className={`text-sm font-semibold ${q.rate === null ? 'text-muted-foreground' : rateClass(q.rate)}`}>
+                                  {q.rate === null ? '—' : `${q.rate}%`}
+                                </div>
+                                <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
+                                {q.wrong > 0 && <div className="text-xs text-orange-500">{q.wrong} {lang === 'zh' ? '次答错' : 'wrong'}</div>}
+                                {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'ppl'}</div>}
+                              </div>
                             </div>
+                            {q.options.length > 0 && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-2">
+                                {q.options.map((opt, j) => (
+                                  <span key={opt.id} className={`text-xs px-2 py-1 rounded ${opt.isCorrect ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                                    {opt.isCorrect ? '✓ ' : ''}{String.fromCharCode(65 + j)}. <KatexHtml text={cleanOption(opt.content)} />
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
