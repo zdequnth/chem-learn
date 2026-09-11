@@ -25,7 +25,7 @@ interface LessonStat {
   avgAttempts: number | null; medianSeconds: number | null; avgSeconds: number | null
 }
 interface DetailRow {
-  studentId: string; name: string; attempts: number; passed: boolean; durations: number[]
+  studentId: string; name: string; attempts: number; passed: boolean; durations: number[]; passIndex: number
 }
 
 function rateClass(rate: number) {
@@ -390,7 +390,7 @@ function AnalyticsContent() {
                             <td className="py-2 text-muted-foreground">
                               {d.durations.length > 0 ? d.durations.map((s, idx) => {
                                 const isLast = idx === d.durations.length - 1
-                                const highlight = d.passed && isLast
+                                const highlight = d.passed && idx === d.passIndex
                                 return (
                                   <span key={idx} className={highlight ? 'text-red-500 font-medium' : ''}>
                                     {fmtSeconds(s)}{isLast ? '' : '、'}

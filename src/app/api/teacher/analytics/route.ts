@@ -196,8 +196,12 @@ export async function GET(request: Request) {
 
   // A student's pass comes from student_progress — the same source 课堂管理 uses,
   // so the two views agree.
-  const progress = await fetchAllIn('student_progress', 'lesson_id', lessonIds, 'student_id,lesson_id,status')
+  const progress = await fetchAllIn('student_progress', 'lesson_id', lessonIds, 'student_id,lesson_id,status,passed_at')
   const passedSet = new Set(progress.filter((p: any) => p.status === 'passed').map((p: any) => `${p.student_id}|${p.lesson_id}`))
+  const passedAtMap = new Map<string, string>()
+  for (const p of progress) {
+    if (p.status === 'passed' && p.passed_at) passedAtMap.set(`${p.student_id}|${p.lesson_id}`, p.passed_at)
+  }
 
   // Per (student, lesson): only *completed* test sessions count as attempts, so
   // the attempt count always equals the number of recorded durations.
@@ -210,7 +214,7 @@ export async function GET(request: Request) {
     else byStudentLesson.set(key, [s])
   }
 
-  interface SL { studentId: string; lessonId: string; attempts: number; passed: boolean; durations: number[] }
+  interface SL { studentId: string; lessonId: string; attempts: number; passed: boolean; durations: number[]; passIndex: number }
   const perStudentLesson: SL[] = []
   for (const [key, rows] of byStudentLesson) {
     const [studentId, lessonId] = key.split('|')
@@ -220,7 +224,24 @@ export async function GET(request: Request) {
       const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
       if (sec >= 0) durations.push(sec)
     }
-    perStudentLesson.push({ studentId, lessonId, attempts: rows.length, passed: passedSet.has(key), durations })
+    const passed = passedSet.has(key)
+    // Which attempt first passed: the session whose completion is closest to the
+    // recorded pass time (passed_at). -1 when not passed / unknown.
+    let passIndex = -1
+    if (passed) {
+      const at = passedAtMap.get(key)
+      if (at) {
+        const target = new Date(at).getTime()
+        let best = Infinity
+        rows.forEach((r: any, i: number) => {
+          const d = Math.abs(new Date(r.completed_at).getTime() - target)
+          if (d < best) { best = d; passIndex = i }
+        })
+      } else {
+        passIndex = rows.length - 1
+      }
+    }
+    perStudentLesson.push({ studentId, lessonId, attempts: rows.length, passed, durations, passIndex })
   }
 
   const median = (nums: number[]) => {
@@ -259,6 +280,7 @@ export async function GET(request: Request) {
         attempts: r.attempts,
         passed: r.passed,
         durations: r.durations,
+        passIndex: r.passIndex,
       }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'))
   }
