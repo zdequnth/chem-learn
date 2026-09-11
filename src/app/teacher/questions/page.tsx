@@ -11,6 +11,13 @@ import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, Search, Edit3, CheckCircle, XCircle } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
+function rateBadgeClass(rate: number | null) {
+  if (rate === null) return 'bg-gray-100 text-gray-500'
+  if (rate >= 80) return 'bg-emerald-50 text-emerald-700'
+  if (rate >= 60) return 'bg-amber-50 text-amber-700'
+  return 'bg-red-50 text-red-600'
+}
+
 function QuestionsContent() {
   const router = useRouter()
   const sp = useSearchParams()
@@ -37,6 +44,7 @@ function QuestionsContent() {
   })
   const [manualSaving, setManualSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [rateById, setRateById] = useState<Record<string, { rate: number | null; attempts: number }>>({})
 
   const handlePasteImage = async (e: React.ClipboardEvent, field: 'stem' | 'explanation') => {
     const items = e.clipboardData?.items
@@ -111,6 +119,19 @@ function QuestionsContent() {
       setQuestions(json.questions || [])
     })
   }, [selectedLesson])
+
+  // Per-question correct rate (course-wide), refreshed when the course changes
+  useEffect(() => {
+    if (!selectedCourse) { setRateById({}); return }
+    fetch(`/api/teacher/analytics?scope=course&courseId=${selectedCourse}`)
+      .then(r => r.json())
+      .then(json => {
+        const map: Record<string, { rate: number | null; attempts: number }> = {}
+        for (const q of (json.questions || [])) map[q.id] = { rate: q.rate, attempts: q.attempts }
+        setRateById(map)
+      })
+      .catch(() => setRateById({}))
+  }, [selectedCourse])
 
   const handleApprove = async (id: string, current: boolean) => {
     await fetch('/api/questions', {
@@ -247,6 +268,11 @@ function QuestionsContent() {
                         q.question_type === 'gate_test' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                       }`}>{q.question_type === 'gate_test' ? '关卡' : 'BOSS'}</span>
                       <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">难度 {q.difficulty}</span>
+                      {rateById[q.id] && rateById[q.id].attempts > 0 && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${rateBadgeClass(rateById[q.id].rate)}`}>
+                          正确率 {rateById[q.id].rate === null ? '—' : `${rateById[q.id].rate}%`} · {rateById[q.id].attempts}次
+                        </span>
+                      )}
                       {q.is_ai_generated && <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full">AI</span>}
                       {!q.is_approved && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">待批准</span>}
                     </div>

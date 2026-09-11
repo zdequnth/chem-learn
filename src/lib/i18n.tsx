@@ -8,6 +8,7 @@ const translations: Record<string, Record<string, string>> = {
   wrongBook: { zh: '错题本', en: 'Wrong Book' },
   courseMgmt: { zh: '课程管理', en: 'Courses' },
   questionBank: { zh: '题库', en: 'Q-Bank' },
+  analytics: { zh: '学情分析', en: 'Analytics' },
   classes: { zh: '班级', en: 'Classes' },
   userMgmt: { zh: '用户管理', en: 'Users' },
   settings: { zh: '设置', en: 'Settings' },
