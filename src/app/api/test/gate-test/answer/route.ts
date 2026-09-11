@@ -17,6 +17,24 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   if (session.status !== 'in_progress') return NextResponse.json({ error: 'Session not active' }, { status: 400 })
 
+  // Idempotency: a repeat submission of the same question in the same session
+  // (button spam / key-repeat) must not insert another answer or re-count it.
+  const { data: existingAnswer } = await supabaseAdmin('gate_test_answers', {
+    query: `?session_id=eq.${sessionId}&question_id=eq.${questionId}&select=id&limit=1`,
+  })
+  if (existingAnswer && existingAnswer.length > 0) {
+    return NextResponse.json({
+      duplicate: true,
+      stats: {
+        questionsAsked: session.questions_asked || 0,
+        consecutiveCorrect: session.consecutive_correct || 0,
+        totalCorrect: session.total_correct || 0,
+        totalWrong: session.total_wrong || 0,
+        accuracy: session.questions_asked ? Math.round(((session.total_correct || 0) / session.questions_asked) * 100) : 0,
+      },
+    })
+  }
+
   // Parallel: check answer + get question
   const [optsRes, questionsRes] = await Promise.all([
     supabaseAdmin('question_options', {

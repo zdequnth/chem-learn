@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
@@ -51,6 +51,8 @@ export default function GateTestPage() {
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
   const [pendingFailure, setPendingFailure] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const { lang } = useLang()
 
   useEffect(() => {
@@ -150,31 +152,43 @@ export default function GateTestPage() {
   }, [isAnswered, isCorrect, done])
 
   const handleSubmit = async () => {
+    // Synchronous guard: block double-clicks / key-repeat before the state updates.
+    if (submittingRef.current) return
     if (!selectedOption || isAnswered || !sessionId || !question) return
+    submittingRef.current = true
+    setSubmitting(true)
 
-    const res = await fetch('/api/test/gate-test/answer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, questionId: question.id, selectedOptionId: selectedOption }),
-    })
-    const data = await res.json()
+    try {
+      const res = await fetch('/api/test/gate-test/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, questionId: question.id, selectedOptionId: selectedOption }),
+      })
+      const data = await res.json()
 
-    setIsAnswered(true)
-    setIsCorrect(data.isCorrect)
-    setCorrectOptionId(data.correctOptionId)
-    setExplanation(data.explanation)
-    setStats(data.stats)
-    setPrefetchedQuestion(data.nextQuestion || null)
+      // Server reported this question was already answered in this session — ignore.
+      if (data.duplicate) return
 
-    if (data.done) {
-      if (data.passed) {
-        setDone(true)
-        setResult({ passed: true, stars: data.stars, lockedUntil: data.lockedUntil })
-      } else {
-        // Show explanation first, delay failure result until student clicks "next"
-        setPendingFailure(true)
-        setResult({ passed: false, stars: 0, lockedUntil: data.lockedUntil })
+      setIsAnswered(true)
+      setIsCorrect(data.isCorrect)
+      setCorrectOptionId(data.correctOptionId)
+      setExplanation(data.explanation)
+      setStats(data.stats)
+      setPrefetchedQuestion(data.nextQuestion || null)
+
+      if (data.done) {
+        if (data.passed) {
+          setDone(true)
+          setResult({ passed: true, stars: data.stars, lockedUntil: data.lockedUntil })
+        } else {
+          // Show explanation first, delay failure result until student clicks "next"
+          setPendingFailure(true)
+          setResult({ passed: false, stars: 0, lockedUntil: data.lockedUntil })
+        }
       }
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
     }
   }
 
@@ -398,9 +412,9 @@ export default function GateTestPage() {
         {/* Actions */}
         <div className="flex justify-center">
           {!isAnswered ? (
-            <button onClick={handleSubmit} disabled={!selectedOption}
+            <button onClick={handleSubmit} disabled={!selectedOption || submitting}
               className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-              {lang === 'zh' ? '提交答案' : 'Submit'}
+              {submitting ? (lang === 'zh' ? '提交中...' : 'Submitting...') : (lang === 'zh' ? '提交答案' : 'Submit')}
             </button>
           ) : isCorrect ? (
             <span className="px-8 py-3 text-emerald-600 font-medium">{lang === 'zh' ? '✓ 正确！' : '✓ Correct!'}</span>
