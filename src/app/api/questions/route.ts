@@ -121,21 +121,30 @@ export async function PUT(request: Request) {
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Replace options. Answers reference options via selected_option_id (FK, no
-  // cascade), so those references must be released first — otherwise the DELETE
-  // silently fails and the new options pile up on top of the old ones.
-  // is_correct is stored on the answer, so analytics history is preserved.
+  // Update options in place where possible (never delete-all-then-insert-all,
+  // which left the question with zero options if a request was interrupted).
+  // Answers reference options via selected_option_id (FK, no cascade), so their
+  // references are released only for options that are actually removed.
   if (Array.isArray(options)) {
-    await supabaseAdmin('gate_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
-    await supabaseAdmin('boss_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
-    const del = await supabaseAdmin('question_options', { method: 'DELETE', query: `?question_id=eq.${id}` })
-    if (del.error) return NextResponse.json({ error: '更新选项失败: ' + del.error.message }, { status: 500 })
-    let order = 0
-    for (const opt of options) {
-      await supabaseAdmin('question_options', {
-        method: 'POST',
-        body: { question_id: id, content: opt.content, is_correct: opt.isCorrect === true, display_order: order++ },
-      })
+    const { data: existing } = await supabaseAdmin('question_options', { query: `?question_id=eq.${id}&order=display_order&select=id` })
+    const ex = existing || []
+
+    if (ex.length > options.length) {
+      await supabaseAdmin('gate_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
+      await supabaseAdmin('boss_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
+      const extra = ex.slice(options.length).map((o: any) => o.id)
+      if (extra.length > 0) {
+        await supabaseAdmin('question_options', { method: 'DELETE', query: `?id=in.(${extra.join(',')})` })
+      }
+    }
+
+    for (let i = 0; i < options.length; i++) {
+      const payload = { content: options[i].content, is_correct: options[i].isCorrect === true, display_order: i }
+      if (ex[i]) {
+        await supabaseAdmin('question_options', { method: 'PATCH', body: payload, query: `?id=eq.${ex[i].id}` })
+      } else {
+        await supabaseAdmin('question_options', { method: 'POST', body: { question_id: id, ...payload } })
+      }
     }
   }
   return NextResponse.json({ success: true })
