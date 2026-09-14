@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     // Check if retake (already passed) — don't lock
     const { data: pc } = await supabaseAdmin('student_progress', {
-      query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=status`,
+      query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=id,status`,
     })
     const isRetake = pc?.[0]?.status === 'passed'
 
@@ -51,6 +51,16 @@ export async function POST(request: Request) {
         locked_until: passed || isRetake ? null : new Date(Date.now() + 10 * 60 * 1000).toISOString() },
       query: `?id=eq.${sessionId}`,
     })
+
+    // Passing by "questions exhausted" must record progress too (awaited)
+    if (passed && !isRetake) {
+      const body = { status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString() }
+      if (pc?.[0]) {
+        await supabaseAdmin('student_progress', { method: 'PATCH', body, query: `?id=eq.${pc[0].id}` })
+      } else {
+        await supabaseAdmin('student_progress', { method: 'POST', body: { student_id: user.id, lesson_id: session.lesson_id, ...body } })
+      }
+    }
 
     return NextResponse.json({
       done: true, passed, stars,

@@ -96,36 +96,37 @@ export async function POST(request: Request) {
   })
   if (patchResult.error) console.error('Failed to update session:', patchResult.error)
 
-  // Fire-and-forget: update student progress if passed
+  // Update student progress if passed. Awaited: a fire-and-forget write can be
+  // lost when the serverless function is frozen right after the response, which
+  // left a passed lesson stuck as "unlocked" (and the next lesson locked).
   if (passed) {
-    supabaseAdmin('student_progress', {
+    const { data: existing } = await supabaseAdmin('student_progress', {
       query: `?student_id=eq.${user.id}&lesson_id=eq.${session.lesson_id}&select=id,status`,
-    }).then(async ({ data: existing }) => {
-      const current = existing?.[0]
-      if (current && current.status !== 'passed') {
-        await supabaseAdmin('student_progress', {
-          method: 'PATCH',
-          body: { status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: (session.attempt_count || 0) + 1 },
-          query: `?id=eq.${current.id}`,
-        })
-      } else if (!current) {
-        await supabaseAdmin('student_progress', {
-          method: 'POST',
-          body: { student_id: user.id, lesson_id: session.lesson_id, status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: 1 },
-        })
-      }
-    }).catch(() => {})
+    })
+    const current = existing?.[0]
+    if (current && current.status !== 'passed') {
+      await supabaseAdmin('student_progress', {
+        method: 'PATCH',
+        body: { status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: (session.attempt_count || 0) + 1 },
+        query: `?id=eq.${current.id}`,
+      })
+    } else if (!current) {
+      await supabaseAdmin('student_progress', {
+        method: 'POST',
+        body: { student_id: user.id, lesson_id: session.lesson_id, status: 'passed', stars_earned: Math.max(stars, 1), passed_at: new Date().toISOString(), attempt_count: 1 },
+      })
+    }
   }
 
-  // Fire-and-forget: wrong question book
+  // Wrong question book (awaited for the same reason as the progress update)
   if (!isCorrect && question) {
-    supabaseAdmin('lessons', {
+    const { data: lessons } = await supabaseAdmin('lessons', {
       query: `?id=eq.${question.lesson_id}&select=chapter_id`,
-    }).then(async ({ data: lessons }) => {
-      const chapterId = lessons?.[0]?.chapter_id
-      if (!chapterId) return
+    })
+    const chapterId = lessons?.[0]?.chapter_id
+    if (chapterId) {
       const { data: existingWq } = await supabaseAdmin('wrong_question_book', {
-        query: `?student_id=eq.${user.id}&question_id=eq.${questionId}&select=id`,
+        query: `?student_id=eq.${user.id}&question_id=eq.${questionId}&select=id,wrong_count`,
       })
       if (existingWq && existingWq.length > 0) {
         await supabaseAdmin('wrong_question_book', {
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
           body: { student_id: user.id, question_id: questionId, chapter_id: chapterId, last_wrong_at: new Date().toISOString(), wrong_count: 1, is_resolved: false },
         })
       }
-    }).catch(() => {})
+    }
   }
 
   // Strip AI's "正确答案：X" prefix from explanation
