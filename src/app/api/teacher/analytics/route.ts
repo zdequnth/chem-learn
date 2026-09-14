@@ -109,7 +109,7 @@ export async function GET(request: Request) {
   const nameById = new Map<string, string>(profiles.map((p: any) => [p.id, p.display_name]))
 
   // Content
-  const questions = await fetchAllIn('questions', 'lesson_id', lessonIds, 'id,lesson_id,knowledge_point_id,stem,question_type')
+  const questions = await fetchAllIn('questions', 'lesson_id', lessonIds, 'id,lesson_id,knowledge_point_id,stem,question_type,image_url')
   const knowledgePoints = await fetchAllIn('knowledge_points', 'lesson_id', lessonIds, 'id,lesson_id,title,sort_order')
   const questionOptions = await fetchAllIn('question_options', 'question_id', questions.map((q: any) => q.id), 'id,question_id,content,is_correct,display_order')
   const optionsByQuestion = new Map<string, any[]>()
@@ -158,6 +158,7 @@ export async function GET(request: Request) {
       chapterOrder: chapterSort.get(lessonChapter.get(q.lesson_id) || '') ?? 0,
       questionType: q.question_type,
       stem: q.stem,
+      imageUrl: q.image_url || null,
       options: (optionsByQuestion.get(q.id) || [])
         .sort((a: any, b: any) => a.display_order - b.display_order)
         .map((o: any) => ({ id: o.id, content: o.content, isCorrect: o.is_correct })),

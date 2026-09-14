@@ -11,7 +11,7 @@ import { useLang, t } from '@/lib/i18n'
 
 interface QStat {
   id: string; lessonId: string; lessonTitle: string; chapterTitle: string
-  chapterOrder: number; questionType: string; stem: string; knowledgePointId: string | null
+  chapterOrder: number; questionType: string; stem: string; imageUrl: string | null; knowledgePointId: string | null
   options: { id: string; content: string; isCorrect: boolean }[]
   attempts: number; correct: number; wrong: number; rate: number | null; wrongStudents: number
 }
@@ -312,6 +312,7 @@ function AnalyticsContent() {
                           <div key={q.id} className="border rounded-xl p-3">
                             <div className="flex items-start gap-3">
                               <div className="flex-1 min-w-0">
+                                {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
                                 <div className="text-sm"><KatexHtml text={q.stem} /></div>
                                 <div className="text-xs text-muted-foreground mt-1">{q.lessonTitle}</div>
                               </div>

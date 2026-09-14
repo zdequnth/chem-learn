@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   // Fetch questions
   const qIds = [...new Set((records || []).map((r: any) => r.question_id))]
   const { data: questions } = await supabaseAdmin('questions', {
-    query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,lesson_id`,
+    query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,lesson_id,image_url`,
   })
   const qMap = new Map((questions || []).map((q: any) => [q.id, q] as const))
 
@@ -74,6 +74,7 @@ export async function GET(request: Request) {
       is_resolved: r.is_resolved,
       is_repeated_wrong: r.is_repeated_wrong || false,
       question_stem: q?.stem || '',
+      question_image: q?.image_url || '',
       question_explanation: q?.explanation || '',
       correct_answer: correctOpt?.content || '',
       all_options: opts.map((o: any) => ({ id: o.id, content: o.content, isCorrect: o.is_correct })),

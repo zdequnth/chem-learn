@@ -355,6 +355,7 @@ function QuestionsContent() {
                       </button>
                     </div>
                   </div>
+                  {q.image_url && <img src={q.image_url} alt="" className="mb-2 rounded-lg max-h-40 border" />}
                   <p className="text-sm mb-2"><KatexHtml text={q.stem} /></p>
                   <div className="grid grid-cols-2 gap-1">
                     {(q.options || []).map((opt: any, j: number) => (
