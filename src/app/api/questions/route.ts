@@ -121,9 +121,15 @@ export async function PUT(request: Request) {
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Replace options
+  // Replace options. Answers reference options via selected_option_id (FK, no
+  // cascade), so those references must be released first — otherwise the DELETE
+  // silently fails and the new options pile up on top of the old ones.
+  // is_correct is stored on the answer, so analytics history is preserved.
   if (Array.isArray(options)) {
-    await supabaseAdmin('question_options', { method: 'DELETE', query: `?question_id=eq.${id}` })
+    await supabaseAdmin('gate_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
+    await supabaseAdmin('boss_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
+    const del = await supabaseAdmin('question_options', { method: 'DELETE', query: `?question_id=eq.${id}` })
+    if (del.error) return NextResponse.json({ error: '更新选项失败: ' + del.error.message }, { status: 500 })
     let order = 0
     for (const opt of options) {
       await supabaseAdmin('question_options', {
