@@ -161,7 +161,7 @@ function QuestionsContent() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除此题？')) return
+    if (!confirm('确定删除此题？该题的历史作答记录也会一并删除。')) return
     await fetch(`/api/questions?id=${id}`, { method: 'DELETE' })
     fetch(`/api/questions?lessonId=${selectedLesson}`).then(r => r.json()).then(json => {
       setQuestions(json.questions || [])
@@ -277,7 +277,7 @@ function QuestionsContent() {
             )}
             {questions.length > 0 && (
               <button onClick={async () => {
-                if (!confirm(`确定删除此课时的全部 ${questions.length} 道题目？不可恢复！`)) return
+                if (!confirm(`确定删除此课时的全部 ${questions.length} 道题目？含历史作答记录，不可恢复！`)) return
                 await fetch(`/api/questions?lessonId=${selectedLesson}`, { method: 'DELETE' })
                 setQuestions([])
               }}

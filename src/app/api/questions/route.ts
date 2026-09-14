@@ -16,6 +16,18 @@ async function checkLessonAccess(userId: string, lessonId: string): Promise<bool
   return (cc || []).length > 0
 }
 
+// The answer tables reference questions WITHOUT ON DELETE CASCADE, so rows must
+// be removed first or the question delete fails with a foreign-key violation
+// (which only happens once students have answered the question).
+async function deleteQuestionDependents(questionIds: string[]) {
+  if (questionIds.length === 0) return
+  for (let i = 0; i < questionIds.length; i += 150) {
+    const list = questionIds.slice(i, i + 150).join(',')
+    await supabaseAdmin('gate_test_answers', { method: 'DELETE', query: `?question_id=in.(${list})` })
+    await supabaseAdmin('boss_test_answers', { method: 'DELETE', query: `?question_id=in.(${list})` })
+  }
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -136,6 +148,8 @@ export async function DELETE(request: Request) {
     if (!await checkLessonAccess(user.id, lessonId)) {
       return NextResponse.json({ error: '无权操作' }, { status: 403 })
     }
+    const { data: qs } = await supabaseAdmin('questions', { query: `?lesson_id=eq.${lessonId}&select=id` })
+    await deleteQuestionDependents((qs || []).map((q: any) => q.id))
     const { error } = await supabaseAdmin('questions', {
       method: 'DELETE',
       query: `?lesson_id=eq.${lessonId}`,
@@ -151,6 +165,7 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: '无权操作' }, { status: 403 })
       }
     }
+    await deleteQuestionDependents([id])
     const { error } = await supabaseAdmin('questions', {
       method: 'DELETE',
       query: `?id=eq.${id}`,
