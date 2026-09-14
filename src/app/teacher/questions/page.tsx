@@ -162,10 +162,10 @@ function QuestionsContent() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除此题？该题的历史作答记录也会一并删除。')) return
-    await fetch(`/api/questions?id=${id}`, { method: 'DELETE' })
-    fetch(`/api/questions?lessonId=${selectedLesson}`).then(r => r.json()).then(json => {
-      setQuestions(json.questions || [])
-    })
+    const res = await fetch(`/api/questions?id=${id}`, { method: 'DELETE' })
+    const json = await res.json().catch(() => ({} as any))
+    if (!res.ok || json.error) { alert('删除失败：' + (json.error || ('HTTP ' + res.status))); return }
+    refetchQuestions()
   }
 
   const closeModal = () => {
