@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
+import AnswerFx from '@/components/AnswerFx'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { ArrowLeft, CheckCircle, XCircle, Clock, Loader2, Star, AlertTriangle } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
@@ -52,6 +53,7 @@ export default function GateTestPage() {
   const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
   const [pendingFailure, setPendingFailure] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [fx, setFx] = useState<{ kind: 'correct' | 'wrong'; variant: number } | null>(null)
   const submittingRef = useRef(false)
   const { lang } = useLang()
 
@@ -89,6 +91,7 @@ export default function GateTestPage() {
   }
 
   const fetchNextQuestion = async (sid?: string) => {
+    setFx(null) // clear any answer feedback when moving to the next question
     // Use prefetched question if available
     if (prefetchedQuestion && !sid) {
       setQuestion(prefetchedQuestion)
@@ -175,6 +178,7 @@ export default function GateTestPage() {
       setExplanation(data.explanation)
       setStats(data.stats)
       setPrefetchedQuestion(data.nextQuestion || null)
+      setFx({ kind: data.isCorrect ? 'correct' : 'wrong', variant: Math.floor(Math.random() * 2) })
 
       if (data.done) {
         if (data.passed) {
@@ -307,6 +311,7 @@ export default function GateTestPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      {fx && <AnswerFx kind={fx.kind} variant={fx.variant} />}
       <main className="max-w-3xl mx-auto px-4 pt-24 pb-20">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-4">
