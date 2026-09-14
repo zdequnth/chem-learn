@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { pickWeightedQuestion } from '@/lib/gate-pick'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -69,8 +70,8 @@ export async function POST(request: Request) {
     })
   }
 
-  // Pick random question
-  const question = questions[Math.floor(Math.random() * questions.length)]
+  // Pick a question, preferring ones the student hasn't done (then past wrongs)
+  const question = await pickWeightedQuestion(user.id, session.lesson_id, questions)
 
   // Get options
   const { data: options } = await supabaseAdmin('question_options', {

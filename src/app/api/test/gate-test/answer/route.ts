@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { pickWeightedQuestion } from '@/lib/gate-pick'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -175,7 +176,7 @@ export async function POST(request: Request) {
     if (askedIds.length > 0) qs += `&id=not.in.(${askedIds.join(',')})`
     const { data: available } = await supabaseAdmin('questions', { query: qs })
     if (available && available.length > 0) {
-      const q = available[Math.floor(Math.random() * available.length)]
+      const q = await pickWeightedQuestion(user.id, session.lesson_id, available)
       const { data: opts } = await supabaseAdmin('question_options', {
         query: `?question_id=eq.${q.id}&order=display_order&select=id,content,is_correct`,
       })
