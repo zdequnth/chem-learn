@@ -18,6 +18,18 @@ function rateBadgeClass(rate: number | null) {
   return 'bg-red-50 text-red-600'
 }
 
+// Pull a trailing "![...](url)" image out of the explanation for editing.
+function splitExplanationImage(text: string): { text: string; image: string } {
+  const m = text.match(/\n?!\[[^\]]*\]\(([^)]+)\)\s*$/)
+  if (m && m.index !== undefined) return { text: text.slice(0, m.index).trim(), image: m[1] }
+  return { text, image: '' }
+}
+
+const EMPTY_FORM = {
+  stem: '', explanation: '', difficulty: 3, question_type: 'gate_test',
+  options: ['', '', '', ''], correctIndex: 0, imageUrl: '', explanationImage: '',
+}
+
 function QuestionsContent() {
   const router = useRouter()
   const sp = useSearchParams()
@@ -35,13 +47,7 @@ function QuestionsContent() {
   const [loading, setLoading] = useState(true)
   const [showManualAdd, setShowManualAdd] = useState(false)
   const [editQuestion, setEditQuestion] = useState<any>(null)
-  const [manualForm, setManualForm] = useState({
-    stem: '', explanation: '', difficulty: 3, question_type: 'gate_test',
-    options: ['', '', '', ''],
-    correctIndex: 0,
-    imageUrl: '',
-    explanationImage: '',
-  })
+  const [manualForm, setManualForm] = useState(EMPTY_FORM)
   const [manualSaving, setManualSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [rateById, setRateById] = useState<Record<string, { rate: number | null; attempts: number }>>({})
@@ -162,45 +168,94 @@ function QuestionsContent() {
     })
   }
 
-  const handleManualAdd = async () => {
-    if (!manualForm.stem.trim() && !manualForm.imageUrl) return alert('请输入题目内容或粘贴图片')
-    if (manualForm.options.some(o => !o.trim())) return alert('请填写所有4个选项')
-    setManualSaving(true)
-    try {
-      const imageUrl = manualForm.imageUrl || null
-      const body = {
-        questions: [{
-          stem: manualForm.stem.trim(),
-          explanation: manualForm.explanation.trim() + (manualForm.explanationImage ? `\n![解析图](${manualForm.explanationImage})` : ''),
-          difficulty: manualForm.difficulty,
-          image_url: imageUrl,
-          question_type: manualForm.question_type,
-          lesson_id: selectedLesson,
-          is_approved: true,
-          is_ai_generated: false,
-          options: manualForm.options.filter(o => o.trim()).map((content: string, i: number) => ({
-            content: content.trim(),
-            isCorrect: i === manualForm.correctIndex,
-          })),
-        }],
-      }
-      const res = await fetch('/api/questions/save-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (json.error) alert('保存失败: ' + json.error)
-      else alert('保存成功！')
-    } catch (e: any) {
-      alert('异常: ' + (e?.message || '未知'))
-    }
-    setManualSaving(false)
+  const closeModal = () => {
     setShowManualAdd(false)
-    setManualForm({ stem: '', explanation: '', difficulty: 3, question_type: 'gate_test', options: ['', '', '', ''], correctIndex: 0, imageUrl: '', explanationImage: '' })
+    setEditQuestion(null)
+    setManualForm(EMPTY_FORM)
+  }
+
+  const refetchQuestions = () => {
     fetch(`/api/questions?lessonId=${selectedLesson}`).then(r => r.json()).then(json => {
       setQuestions(json.questions || [])
     })
+  }
+
+  const openEditQuestion = (q: any) => {
+    const opts = (q.options || []).map((o: any) => o.content)
+    while (opts.length < 4) opts.push('')
+    const ci = (q.options || []).findIndex((o: any) => o.is_correct)
+    const { text, image } = splitExplanationImage(q.explanation || '')
+    setManualForm({
+      stem: q.stem || '',
+      explanation: text,
+      difficulty: q.difficulty || 3,
+      question_type: q.question_type || 'gate_test',
+      options: opts.slice(0, 4),
+      correctIndex: ci >= 0 ? ci : 0,
+      imageUrl: q.image_url || '',
+      explanationImage: image,
+    })
+    setEditQuestion(q)
+    setShowManualAdd(true)
+  }
+
+  const handleSaveQuestion = async () => {
+    if (!manualForm.stem.trim() && !manualForm.imageUrl) return alert('请输入题目内容或粘贴图片')
+    const rows = manualForm.options.map(o => o.trim())
+    if (!rows[manualForm.correctIndex]) return alert('正确答案对应的选项不能为空')
+    const options = rows.map((content, i) => ({ content, isCorrect: i === manualForm.correctIndex })).filter(o => o.content)
+    if (options.length < 2) return alert('至少填写 2 个选项')
+
+    setManualSaving(true)
+    try {
+      const explanation = manualForm.explanation.trim() + (manualForm.explanationImage ? `\n![解析图](${manualForm.explanationImage})` : '')
+      let json: any
+      if (editQuestion) {
+        const res = await fetch('/api/questions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editQuestion.id,
+            stem: manualForm.stem.trim(),
+            explanation,
+            difficulty: manualForm.difficulty,
+            image_url: manualForm.imageUrl || null,
+            options,
+          }),
+        })
+        json = await res.json()
+        if (json.error) { alert('保存失败: ' + json.error); setManualSaving(false); return }
+        alert('已保存修改！')
+      } else {
+        const res = await fetch('/api/questions/save-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            questions: [{
+              stem: manualForm.stem.trim(),
+              explanation,
+              difficulty: manualForm.difficulty,
+              image_url: manualForm.imageUrl || null,
+              question_type: manualForm.question_type,
+              lesson_id: selectedLesson,
+              is_approved: true,
+              is_ai_generated: false,
+              options,
+            }],
+          }),
+        })
+        json = await res.json()
+        if (json.error) { alert('保存失败: ' + json.error); setManualSaving(false); return }
+        alert('保存成功！')
+      }
+    } catch (e: any) {
+      alert('异常: ' + (e?.message || '未知'))
+      setManualSaving(false)
+      return
+    }
+    setManualSaving(false)
+    closeModal()
+    refetchQuestions()
   }
 
   if (authLoading || !profile) {
@@ -215,7 +270,7 @@ function QuestionsContent() {
           <h1 className="text-2xl font-bold">题库管理</h1>
           <div className="flex items-center gap-2">
             {selectedLesson && (
-              <button onClick={() => setShowManualAdd(true)}
+              <button onClick={() => { setEditQuestion(null); setManualForm(EMPTY_FORM); setShowManualAdd(true) }}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors">
                 ✏️ 手动添加
               </button>
@@ -287,6 +342,9 @@ function QuestionsContent() {
                       {!q.is_approved && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">待批准</span>}
                     </div>
                     <div className="flex items-center gap-1">
+                      <button onClick={() => openEditQuestion(q)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400 transition-colors" title="编辑">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
                       <button onClick={() => handleApprove(q.id, q.is_approved)}
                         className={`p-1.5 rounded-lg transition-colors ${q.is_approved ? 'hover:bg-amber-100 text-green-500' : 'hover:bg-green-100 text-amber-500'}`}
                         title={q.is_approved ? '取消批准' : '批准'}>
@@ -318,11 +376,11 @@ function QuestionsContent() {
         )}
       </main>
 
-      {/* Manual Add Modal */}
+      {/* Manual Add / Edit Modal */}
       {showManualAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowManualAdd(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={closeModal}>
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">手动添加题目</h2>
+            <h2 className="text-lg font-semibold mb-4">{editQuestion ? '编辑题目' : '手动添加题目'}</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <select value={manualForm.question_type} onChange={e => setManualForm({ ...manualForm, question_type: e.target.value })}
@@ -376,11 +434,11 @@ function QuestionsContent() {
                 </div>
               )}
               <div className="flex gap-3">
-                <button onClick={handleManualAdd} disabled={manualSaving}
+                <button onClick={handleSaveQuestion} disabled={manualSaving}
                   className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                  {manualSaving ? '保存中...' : '保存题目'}
+                  {manualSaving ? '保存中...' : (editQuestion ? '保存修改' : '保存题目')}
                 </button>
-                <button onClick={() => setShowManualAdd(false)}
+                <button onClick={closeModal}
                   className="flex-1 py-2.5 bg-accent rounded-lg font-medium">取消</button>
               </div>
             </div>

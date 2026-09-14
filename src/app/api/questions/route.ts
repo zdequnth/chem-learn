@@ -86,6 +86,43 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true })
 }
 
+// Update an existing question (stem/options/answer/explanation/difficulty/image)
+export async function PUT(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const body = await request.json()
+  const { id, stem, explanation, difficulty, image_url, options } = body
+  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+
+  const { data: q } = await supabaseAdmin('questions', { query: `?id=eq.${id}&select=lesson_id` })
+  if (!q?.[0]) return NextResponse.json({ error: '题目不存在' }, { status: 404 })
+  if (!await checkLessonAccess(user.id, q[0].lesson_id)) {
+    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+  }
+
+  const { error } = await supabaseAdmin('questions', {
+    method: 'PATCH',
+    body: { stem, explanation, difficulty, image_url: image_url || null },
+    query: `?id=eq.${id}`,
+  })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Replace options
+  if (Array.isArray(options)) {
+    await supabaseAdmin('question_options', { method: 'DELETE', query: `?question_id=eq.${id}` })
+    let order = 0
+    for (const opt of options) {
+      await supabaseAdmin('question_options', {
+        method: 'POST',
+        body: { question_id: id, content: opt.content, is_correct: opt.isCorrect === true, display_order: order++ },
+      })
+    }
+  }
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
