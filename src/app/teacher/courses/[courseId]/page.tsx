@@ -971,14 +971,25 @@ export default function CourseDetailPage() {
                 <div className="bg-white border rounded-xl p-4"><h3 className="font-semibold text-lg mb-3">{modalTitle || '(未命名)'}</h3>
                   {modalDesc ? <div className="text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground">暂无描述</p>}
                   {modalResources.length > 0 && (
-                    <div className="mt-3 border rounded-lg p-3 bg-blue-50 border-blue-200">
-                      <div className="text-xs font-medium text-blue-800 mb-1">📎 学习资源</div>
-                      {modalResources.map((r, i) => {
-                        const icon = r.type === 'pdf' ? '📄' : r.type === 'web' ? '🌐' : '🎬'
+                    <div className="mt-3 space-y-3">
+                      {[
+                        { key: 'pdf', label: 'PDF 资料', icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600' },
+                        { key: 'video', label: '视频讲解', icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600' },
+                        { key: 'web', label: '网页演示', icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700' },
+                      ].map(g => {
+                        const items = modalResources.filter(r => r.type === g.key)
+                        if (items.length === 0) return null
                         return (
-                          <div key={i} className="text-sm text-blue-600 mb-1">
-                            <span>{icon} {r.title || r.url || '(未填网址)'}</span>
-                            {r.note && <span className="block text-xs text-muted-foreground pl-5">{r.note}</span>}
+                          <div key={g.key} className={`border rounded-lg p-3 ${g.box}`}>
+                            <div className={`text-xs font-medium mb-2 ${g.head}`}>{g.label} {g.icon}</div>
+                            <div className="space-y-2">
+                              {items.map((r, i) => (
+                                <div key={i} className={`text-sm ${g.link}`}>
+                                  {r.title || r.url || '(未填网址)'}
+                                  {r.note && <span className="block text-xs text-muted-foreground mt-0.5">{r.note}</span>}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )
                       })}

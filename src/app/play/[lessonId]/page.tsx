@@ -120,28 +120,34 @@ export default function LessonHubPage() {
                       <h3 className="font-medium mb-1">{kp.title}</h3>
                       {kp.description && <div className="text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
-                        <div className="mt-3 border rounded-lg p-3 bg-blue-50 border-blue-200">
-                          <div className="text-sm font-medium text-blue-800 mb-1">📎 学习资源</div>
-                          <div className="space-y-1">
-                            {videoLinks[kp.id].map(vl => {
-                              const isPdf = vl.platform === 'pdf'
-                              const isWeb = vl.platform === 'web'
-                              const icon = isPdf ? '📄' : isWeb ? '🌐' : '🎬'
-                              const fallback = isPdf ? 'PDF 资料' : isWeb ? '网页/演示' : '观看视频'
-                              return (
-                                <a key={vl.id} href={vl.url} target="_blank" rel="noopener noreferrer" className="block">
-                                  <span className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
-                                    <span>{icon}</span>
-                                    {vl.title || fallback}
-                                    {vl.platform && !isPdf && !isWeb && vl.platform !== 'other' && (
-                                      <span className="text-xs px-1.5 py-0.5 bg-blue-100 rounded">{vl.platform}</span>
-                                    )}
-                                  </span>
-                                  {vl.note && <span className="block text-xs text-muted-foreground mt-0.5 pl-6">{vl.note}</span>}
-                                </a>
-                              )
-                            })}
-                          </div>
+                        <div className="mt-3 space-y-3">
+                          {[
+                            { key: 'pdf', label: 'PDF 资料', icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600 hover:text-red-700', plat: 'bg-red-100' },
+                            { key: 'video', label: '视频讲解', icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600 hover:text-blue-700', plat: 'bg-blue-100' },
+                            { key: 'web', label: '网页演示', icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700 hover:text-emerald-800', plat: 'bg-emerald-100' },
+                          ].map(g => {
+                            const typeOf = (vl: any) => vl.platform === 'pdf' ? 'pdf' : vl.platform === 'web' ? 'web' : 'video'
+                            const items = videoLinks[kp.id].filter((vl: any) => typeOf(vl) === g.key).sort((a: any, b: any) => a.sort_order - b.sort_order)
+                            if (items.length === 0) return null
+                            return (
+                              <div key={g.key} className={`border rounded-lg p-3 ${g.box}`}>
+                                <div className={`text-sm font-medium mb-2 ${g.head}`}>{g.label} {g.icon}</div>
+                                <div className="space-y-3">
+                                  {items.map((vl: any) => (
+                                    <a key={vl.id} href={vl.url} target="_blank" rel="noopener noreferrer" className="block">
+                                      <span className={`flex items-center gap-2 text-sm ${g.link}`}>
+                                        {vl.title || g.label}
+                                        {g.key === 'video' && vl.platform && vl.platform !== 'other' && (
+                                          <span className={`text-xs px-1.5 py-0.5 rounded ${g.plat}`}>{vl.platform}</span>
+                                        )}
+                                      </span>
+                                      {vl.note && <span className="block text-xs text-muted-foreground mt-0.5">{vl.note}</span>}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
