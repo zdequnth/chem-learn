@@ -52,12 +52,12 @@ export async function POST(request: Request) {
 
     // Video links
     const { data: vls } = await supabaseAdmin('video_links', {
-      query: `?knowledge_point_id=eq.${kp.id}&select=title,url,platform,sort_order`,
+      query: `?knowledge_point_id=eq.${kp.id}&select=title,url,platform,note,sort_order`,
     })
     for (const vl of (vls || [])) {
       await supabaseAdmin('video_links', {
         method: 'POST',
-        body: { knowledge_point_id: newKpId, title: vl.title, url: vl.url, platform: vl.platform, sort_order: vl.sort_order },
+        body: { knowledge_point_id: newKpId, title: vl.title, url: vl.url, platform: vl.platform, note: vl.note, sort_order: vl.sort_order },
       })
       videoCopies++
     }

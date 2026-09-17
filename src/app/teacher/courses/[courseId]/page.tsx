@@ -50,11 +50,11 @@ export default function CourseDetailPage() {
   const [modalLessonId, setModalLessonId] = useState('')
   const [modalTitle, setModalTitle] = useState('')
   const [modalDesc, setModalDesc] = useState('')
-  const [modalPdfTitle, setModalPdfTitle] = useState('')
-  const [modalPdfUrl, setModalPdfUrl] = useState('')
-  const [modalVideos, setModalVideos] = useState<{ id: string; title: string; url: string; platform: string }[]>([])
+  const [modalResources, setModalResources] = useState<{ type: string; title: string; url: string; note: string }[]>([])
+  const [modalVlType, setModalVlType] = useState('video')
   const [modalVlTitle, setModalVlTitle] = useState('')
   const [modalVlUrl, setModalVlUrl] = useState('')
+  const [modalVlNote, setModalVlNote] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
   // Inline rename
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
@@ -232,28 +232,43 @@ export default function CourseDetailPage() {
   const openKpModal = (kp: any, lessonId: string) => {
     setModalKp(kp); setModalLessonId(lessonId)
     setModalTitle(kp.title || '')
-    const desc = kp.description || ''
+    let desc = kp.description || ''
+    const res: { type: string; title: string; url: string; note: string }[] = []
+    // A PDF previously saved as a [pdf:...]...[/pdf] tag becomes a resource
     const m = desc.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
-    setModalPdfTitle(m ? (m[1] || '') : '')
-    setModalPdfUrl(m ? (m[2] || '') : '')
-    setModalDesc(m ? desc.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim() : desc)
+    if (m) {
+      res.push({ type: 'pdf', title: m[1] || 'PDF 资料', url: (m[2] || '').trim(), note: '' })
+      desc = desc.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim()
+    }
+    setModalDesc(desc)
     const vs = (kpData[lessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === kp.id)
-    setModalVideos(vs.map((v: any) => ({ id: v.id, title: v.title, url: v.url, platform: v.platform || 'other' })))
+    for (const v of vs) {
+      const type = v.platform === 'pdf' ? 'pdf' : v.platform === 'web' ? 'web' : 'video'
+      res.push({ type, title: v.title || '', url: v.url, note: v.note || '' })
+    }
+    setModalResources(res)
+  }
+  const updateResource = (i: number, patch: any) => {
+    setModalResources(modalResources.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  }
+  const platformFor = (r: { type: string; url: string }) => {
+    if (r.type === 'pdf') return 'pdf'
+    if (r.type === 'web') return 'web'
+    return r.url.includes('bilibili') ? 'bilibili' : r.url.includes('youtube') ? 'youtube' : 'video'
   }
   const handleModalSave = async () => {
     if (!modalKp) return; setModalSaving(true)
-    let pdfTag = ''
-    if (modalPdfUrl.trim()) pdfTag = '[pdf:' + (modalPdfTitle || 'PDF 资料') + ']' + modalPdfUrl.trim() + '[/pdf]'
-    const desc = pdfTag ? (modalDesc.trim() + '\n' + pdfTag) : modalDesc.trim()
     await fetch(`/api/knowledge-points?id=${modalKp.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: modalTitle, description: desc || null }),
+      body: JSON.stringify({ title: modalTitle, description: modalDesc.trim() || null }),
     })
     const evs = (kpData[modalLessonId]?.videoLinks || []).filter((vl: any) => vl.knowledge_point_id === modalKp.id)
     for (const v of evs) await fetch(`/api/video-links?id=${v.id}`, { method: 'DELETE' }).catch(() => {})
-    for (const v of modalVideos) {
+    let order = 0
+    for (const r of modalResources) {
+      if (!r.url.trim()) continue
       await fetch('/api/video-links', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledge_point_id: modalKp.id, title: v.title || '视频链接', url: v.url, platform: v.platform || 'other' }),
+        body: JSON.stringify({ knowledge_point_id: modalKp.id, title: r.title || '链接', url: r.url.trim(), platform: platformFor(r), note: r.note.trim() || null, sort_order: order++ }),
       }).catch(() => {})
     }
     setModalKp(null); setModalSaving(false)
@@ -261,10 +276,10 @@ export default function CourseDetailPage() {
     const json = await res.json()
     setKpData({ ...kpData, [modalLessonId]: { kps: json.kps || [], videoLinks: json.videoLinks || [] } })
   }
-  const addModalVideo = () => {
+  const addModalResource = () => {
     if (!modalVlUrl.trim()) return
-    setModalVideos([...modalVideos, { id: '', title: modalVlTitle || '视频链接', url: modalVlUrl, platform: modalVlUrl.includes('bilibili') ? 'bilibili' : 'other' }])
-    setModalVlTitle(''); setModalVlUrl('')
+    setModalResources([...modalResources, { type: modalVlType, title: modalVlTitle, url: modalVlUrl.trim(), note: modalVlNote }])
+    setModalVlTitle(''); setModalVlUrl(''); setModalVlNote('')
   }
 
   const startRenameChapter = (ch: Chapter) => {
@@ -439,14 +454,19 @@ export default function CourseDetailPage() {
   const handleAddKP = async (lessonId: string) => {
     const title = (newKpTitle[lessonId] || '').trim()
     if (!title) return
-    let desc = (newKpDesc[lessonId] || '').trim()
+    const desc = (newKpDesc[lessonId] || '').trim()
     const pdfUrl = (newKpPdf[lessonId] || '').trim()
-    if (pdfUrl) desc = desc + '\n[pdf]' + pdfUrl + '[/pdf]'
-    await fetch('/api/knowledge-points', {
+    const created = await fetch('/api/knowledge-points', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lesson_id: lessonId, title, description: desc || null }),
-    })
+    }).then(r => r.json()).catch(() => null)
+    if (pdfUrl && created?.id) {
+      await fetch('/api/video-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knowledge_point_id: created.id, title: 'PDF 资料', url: pdfUrl, platform: 'pdf' }),
+      }).catch(() => {})
+    }
     setNewKpTitle({ ...newKpTitle, [lessonId]: '' })
     setNewKpDesc({ ...newKpDesc, [lessonId]: '' })
     setNewKpPdf({ ...newKpPdf, [lessonId]: '' })
@@ -912,22 +932,59 @@ export default function CourseDetailPage() {
                     rows={12} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" placeholder="Markdown / Ctrl+V 贴图 / 换行分段" />
                     <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')') }; i.click() }}
                       className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片"><Image className="w-4 h-4 text-gray-500" /></button></div></div>
-                <div><label className="block text-sm font-medium mb-1">PDF 链接</label>
-                  <div className="flex gap-2"><input value={modalPdfTitle} onChange={e => setModalPdfTitle(e.target.value)} placeholder="标题（如：课程讲义）" className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-                  <input value={modalPdfUrl} onChange={e => setModalPdfUrl(e.target.value)} placeholder="https://example.com/file.pdf" className="flex-[2] px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" /></div></div>
-                <div><label className="block text-sm font-medium mb-1">视频链接</label>
-                  {modalVideos.map((v, i) => (<div key={i} className="flex items-center gap-2 mb-1 text-sm"><span className="text-muted-foreground truncate w-24">{v.title}</span><span className="text-blue-600 truncate flex-1">{v.url}</span><button onClick={() => setModalVideos(modalVideos.filter((_, j) => j !== i))} className="text-red-400">✕</button></div>))}
-                  <div className="flex gap-2 mt-2"><input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)} placeholder="标题" className="w-24 px-2 py-1 text-sm border rounded" />
-                  <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addModalVideo() }} placeholder="B站/YouTube链接" className="flex-1 px-2 py-1 text-sm border rounded" />
-                  <button onClick={addModalVideo} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">+</button></div></div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">学习资源（视频 / 网页演示 / PDF，可加备注）</label>
+                  {modalResources.map((r, i) => (
+                    <div key={i} className="border rounded-lg p-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <select value={r.type} onChange={e => updateResource(i, { type: e.target.value })}
+                          className="px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
+                          <option value="video">🎬 视频</option>
+                          <option value="web">🌐 网页/演示</option>
+                          <option value="pdf">📄 PDF</option>
+                        </select>
+                        <input value={r.title} onChange={e => updateResource(i, { title: e.target.value })} placeholder="标题"
+                          className="w-32 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
+                        <input value={r.url} onChange={e => updateResource(i, { url: e.target.value })} placeholder="网址"
+                          className="flex-1 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
+                        <button onClick={() => setModalResources(modalResources.filter((_, j) => j !== i))} className="text-red-400 px-1" title="删除">✕</button>
+                      </div>
+                      <input value={r.note} onChange={e => updateResource(i, { note: e.target.value })} placeholder="备注（可选）：简单介绍一下这个资源"
+                        className="w-full mt-1 px-2 py-1 text-xs border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <select value={modalVlType} onChange={e => setModalVlType(e.target.value)}
+                      className="px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
+                      <option value="video">🎬 视频</option>
+                      <option value="web">🌐 网页/演示</option>
+                      <option value="pdf">📄 PDF</option>
+                    </select>
+                    <input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)} placeholder="标题" className="w-28 px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addModalResource() }} placeholder="网址（B站/YouTube、PhET 等网页、PDF 链接）" className="flex-1 min-w-[10rem] px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlNote} onChange={e => setModalVlNote(e.target.value)} placeholder="备注（可选）" className="w-40 px-2 py-1 text-sm border rounded" />
+                    <button onClick={addModalResource} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+                  </div>
+                </div>
               </div>
               <div className="flex-1 p-6 bg-gray-50 min-w-0"><h4 className="text-sm font-medium text-muted-foreground mb-3">学生端预览</h4>
                 <div className="bg-white border rounded-xl p-4"><h3 className="font-semibold text-lg mb-3">{modalTitle || '(未命名)'}</h3>
                   {modalDesc ? <div className="text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground">暂无描述</p>}
-                  {modalPdfUrl && <div className="mt-3"><KatexHtml text={`[pdf:${modalPdfTitle || 'PDF 资料'}]${modalPdfUrl}[/pdf]`} /></div>}
+                  {modalResources.length > 0 && (
+                    <div className="mt-3 border rounded-lg p-3 bg-blue-50 border-blue-200">
+                      <div className="text-xs font-medium text-blue-800 mb-1">📎 学习资源</div>
+                      {modalResources.map((r, i) => {
+                        const icon = r.type === 'pdf' ? '📄' : r.type === 'web' ? '🌐' : '🎬'
+                        return (
+                          <div key={i} className="text-sm text-blue-600 mb-1">
+                            <span>{icon} {r.title || r.url || '(未填网址)'}</span>
+                            {r.note && <span className="block text-xs text-muted-foreground pl-5">{r.note}</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                {modalVideos.length > 0 && (<div className="bg-white border rounded-xl p-4 mt-3"><h4 className="text-sm font-medium mb-2">🎬 视频</h4>
-                  {modalVideos.map((v, i) => (<a key={i} href={v.url} target="_blank" className="block text-sm text-blue-600 hover:underline mb-1">▶ {v.title || v.url}</a>))}</div>)}
               </div>
             </div>
           </div>

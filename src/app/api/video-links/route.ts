@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   }
   const { data, error } = await supabaseAdmin('video_links', {
     method: 'POST',
-    body: { knowledge_point_id: body.knowledge_point_id, title: body.title, url: body.url, platform: body.platform || 'bilibili', sort_order: body.sort_order || 0 },
+    body: { knowledge_point_id: body.knowledge_point_id, title: body.title, url: body.url, platform: body.platform || 'bilibili', note: body.note || null, sort_order: body.sort_order || 0 },
     query: '?select=*',
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

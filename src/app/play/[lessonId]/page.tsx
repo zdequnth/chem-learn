@@ -121,17 +121,27 @@ export default function LessonHubPage() {
                       {kp.description && <div className="text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
                         <div className="mt-3 border rounded-lg p-3 bg-blue-50 border-blue-200">
-                          <div className="text-sm font-medium text-blue-800 mb-1">🎬 视频讲解</div>
-                          {videoLinks[kp.id].map(vl => (
-                            <a key={vl.id} href={vl.url} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
-                              <Video className="w-3.5 h-3.5" />
-                              {vl.title || '观看视频'}
-                              {vl.platform && vl.platform !== 'other' && (
-                                <span className="text-xs px-1.5 py-0.5 bg-blue-100 rounded">{vl.platform}</span>
-                              )}
-                            </a>
-                          ))}
+                          <div className="text-sm font-medium text-blue-800 mb-1">📎 学习资源</div>
+                          <div className="space-y-1">
+                            {videoLinks[kp.id].map(vl => {
+                              const isPdf = vl.platform === 'pdf'
+                              const isWeb = vl.platform === 'web'
+                              const icon = isPdf ? '📄' : isWeb ? '🌐' : '🎬'
+                              const fallback = isPdf ? 'PDF 资料' : isWeb ? '网页/演示' : '观看视频'
+                              return (
+                                <a key={vl.id} href={vl.url} target="_blank" rel="noopener noreferrer" className="block">
+                                  <span className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
+                                    <span>{icon}</span>
+                                    {vl.title || fallback}
+                                    {vl.platform && !isPdf && !isWeb && vl.platform !== 'other' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-blue-100 rounded">{vl.platform}</span>
+                                    )}
+                                  </span>
+                                  {vl.note && <span className="block text-xs text-muted-foreground mt-0.5 pl-6">{vl.note}</span>}
+                                </a>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

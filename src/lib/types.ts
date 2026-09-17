@@ -177,6 +177,7 @@ export interface VideoLink {
   title: string
   url: string
   platform: string
+  note: string | null
   sort_order: number
   created_at: string
 }
@@ -186,6 +187,7 @@ export interface VideoLinkInsert {
   title: string
   url: string
   platform?: string
+  note?: string | null
   sort_order?: number
 }
 
@@ -193,6 +195,7 @@ export interface VideoLinkUpdate {
   title?: string
   url?: string
   platform?: string
+  note?: string | null
   sort_order?: number
 }
 
