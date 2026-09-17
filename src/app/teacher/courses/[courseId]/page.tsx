@@ -938,16 +938,16 @@ export default function CourseDetailPage() {
                     <div key={i} className="border rounded-lg p-2 mb-2">
                       <div className="flex items-center gap-2">
                         <select value={r.type} onChange={e => updateResource(i, { type: e.target.value })}
-                          className="px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
+                          className="shrink-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
                           <option value="video">🎬 视频</option>
                           <option value="web">🌐 网页/演示</option>
                           <option value="pdf">📄 PDF</option>
                         </select>
                         <input value={r.title} onChange={e => updateResource(i, { title: e.target.value })} placeholder="标题"
-                          className="w-32 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-32 shrink-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
                         <input value={r.url} onChange={e => updateResource(i, { url: e.target.value })} placeholder="网址"
-                          className="flex-1 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
-                        <button onClick={() => setModalResources(modalResources.filter((_, j) => j !== i))} className="text-red-400 px-1" title="删除">✕</button>
+                          className="flex-1 min-w-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
+                        <button onClick={() => setModalResources(modalResources.filter((_, j) => j !== i))} className="shrink-0 text-red-400 px-1" title="删除">✕</button>
                       </div>
                       <input value={r.note} onChange={e => updateResource(i, { note: e.target.value })} placeholder="备注（可选）：简单介绍一下这个资源"
                         className="w-full mt-1 px-2 py-1 text-xs border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
