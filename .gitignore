@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only personal documents (repo is public — keep these out)
+/docs/AI+学程实验室项目申报表*.md
+/docs/关于开展AI+学程实验室.md
