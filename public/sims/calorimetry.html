@@ -5,40 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>量热法模拟实验 — 溶解热 / 中和热 (AP Chemistry Calorimetry)</title>
 <meta name="description" content="AP Chemistry 量热法交互模拟：咖啡杯热量计测定溶解热与中和热，含操作误差分析与外推法拓展。">
-<meta name="theme-color" content="#0d141d">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d141d'/%3E%3Cpath d='M11 9 h10 l-2 15 h-6 z' fill='none' stroke='%237fd0ff' stroke-width='2'/%3E%3Cpath d='M12.07 17 h7.86 l-0.93 7 h-6 z' fill='%23ff8a6b'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#eef1f6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23eef1f6'/%3E%3Cpath d='M11 9 h10 l-2 15 h-6 z' fill='none' stroke='%231f6fb8' stroke-width='2'/%3E%3Cpath d='M12.07 17 h7.86 l-0.93 7 h-6 z' fill='%23d9532f'/%3E%3C/svg%3E">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    background: #0d141d;
-    color: #dce6f2;
+    background: #eef1f6;
+    color: #1e2b3a;
     padding: 18px;
     min-width: 1200px;
   }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; color: #7fd0ff; }
-  .subtitle { font-size: 12px; color: #8ba1b8; margin-bottom: 14px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; color: #0d5f9e; }
+  .subtitle { font-size: 12px; color: #6b7f94; margin-bottom: 14px; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   /* 两列等高，末块面板撑满剩余高度——否则实验跑完前右列会留一个空洞 */
   .col > .panel:last-child { flex: 1 1 auto; }
   .full { margin-top: 14px; }
   .panel {
-    background: #16202e;
-    border: 1px solid #26364a;
+    background: #ffffff;
+    border: 1px solid #dde3ec;
     border-radius: 10px;
     padding: 12px;
   }
-  .panel h2 { font-size: 14px; color: #9fc7e8; margin-bottom: 10px; font-weight: 600; }
+  .panel h2 { font-size: 14px; color: #16679f; margin-bottom: 10px; font-weight: 600; }
   canvas { display: block; border-radius: 6px; }
-  #lab { background: linear-gradient(#1b2837, #141e2b); width: 100%; max-width: 780px; }
-  #graph { background: #101a26; width: 100%; }
+  #lab { background: linear-gradient(#f4f8fc, #e9eff7); width: 100%; max-width: 780px; }
+  #graph { background: #fbfcfe; width: 100%; }
   /* 上限同时约束宽和高：小图高度是按宽度 0.62 倍算的，不封顶会在宽屏上撑成巨图 */
-  .errGraph { background: #101a26; width: 100%; max-width: 540px; }
+  .errGraph { background: #fbfcfe; width: 100%; max-width: 540px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-  label { font-size: 14px; color: #b8c9dc; }
+  label { font-size: 14px; color: #3d5270; }
   select, input[type=number] {
-    background: #0e1723; color: #e4eefb; border: 1px solid #33506e;
+    background: #ffffff; color: #1e2b3a; border: 1px solid #c3cedb;
     border-radius: 6px; padding: 6px 9px; font-size: 14px; width: 96px;
   }
   select { width: auto; }
@@ -46,79 +46,80 @@
     background: #1f6fb8; color: #fff; border: none; border-radius: 6px;
     padding: 8px 17px; font-size: 14px; cursor: pointer; transition: background .15s;
   }
-  button:hover { background: #2a86d6; }
-  button:disabled { background: #33465c; cursor: not-allowed; }
-  button.ghost { background: #26364a; }
-  button.ghost:hover { background: #31465e; }
-  button.speed { background: #26364a; padding: 5px 10px; }
-  button.speed.active { background: #1f6fb8; }
+  button:hover { background: #1667ab; }
+  button:disabled { background: #c6d0dc; color: #7d8b9c; cursor: not-allowed; }
+  button.ghost { background: #e7ecf3; color: #2c3e52; }
+  button.ghost:hover { background: #d8e0ea; }
+  button.speed { background: #e7ecf3; color: #2c3e52; padding: 5px 10px; }
+  button.speed:hover { background: #d8e0ea; }
+  button.speed.active { background: #1f6fb8; color: #fff; }
   .readout {
     display: flex; gap: 18px; margin-top: 10px; font-size: 13px;
   }
   .readout .box {
-    background: #0e1723; border: 1px solid #2a3d55; border-radius: 8px;
+    background: #f7fafd; border: 1px solid #e0e6ee; border-radius: 8px;
     padding: 8px 14px; text-align: center; min-width: 110px;
   }
   .readout .box .val { font-size: 22px; font-weight: 700; font-family: Consolas, monospace; }
-  .readout .box .cap { font-size: 12px; color: #8ba1b8; margin-top: 2px; }
-  #tempVal.hot { color: #ff8a6b; } #tempVal.cold { color: #6bc5ff; } #tempVal.neutral { color: #a5e3a0; }
-  #status { font-size: 13px; color: #ffd479; min-height: 18px; margin-top: 8px; }
+  .readout .box .cap { font-size: 12px; color: #6b7f94; margin-top: 2px; }
+  #tempVal.hot { color: #d9532f; } #tempVal.cold { color: #1f7fc4; } #tempVal.neutral { color: #2e7d32; }
+  #status { font-size: 13px; color: #a8730a; min-height: 18px; margin-top: 8px; }
   /* ---- 误差分析 ---- */
   .flawRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .flaw {
-    background: #1c2a3c; color: #b8c9dc; border: 1px solid #2a3d55;
+    background: #eef2f7; color: #3d5270; border: 1px solid #d8dfe8;
     border-radius: 16px; padding: 5px 14px; font-size: 13px; cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
   }
-  .flaw:hover { background: #24374e; }
-  .flaw.active { background: #1f6fb8; border-color: #4a9de0; color: #fff; font-weight: 600; }
-  .errLegend { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: #8ba1b8; margin-bottom: 10px; }
+  .flaw:hover { background: #e2e9f2; }
+  .flaw.active { background: #1f6fb8; border-color: #1f6fb8; color: #fff; font-weight: 600; }
+  .errLegend { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: #5d7085; margin-bottom: 10px; }
   .errLegend span { display: flex; align-items: center; gap: 7px; }
   .errLegend .ln { display: inline-block; width: 24px; height: 0; border-top: 2px solid; }
-  .errLegend .ln.dashed { border-top-style: dashed; border-color: #8fb4d6; }
-  .errLegend .ln.ctrl { border-color: #9fb3c8; }
-  .errLegend .ln.act { border-color: #ff8a6b; border-top-width: 3px; }
+  .errLegend .ln.dashed { border-top-style: dashed; border-color: #7b8ea3; }
+  .errLegend .ln.ctrl { border-color: #54637a; }
+  .errLegend .ln.act { border-color: #d9532f; border-top-width: 3px; }
   .errLegend .sw { display: inline-block; width: 17px; height: 12px; border-radius: 2px; }
-  .errLegend .sw.light { background: linear-gradient(rgba(255,138,107,0.12), rgba(255,138,107,0.12)), #101a26; }
-  .errLegend .sw.dark { background: linear-gradient(rgba(255,138,107,0.40), rgba(255,138,107,0.40)), #101a26; }
+  .errLegend .sw.light { background: linear-gradient(rgba(217,83,47,0.14), rgba(217,83,47,0.14)), #fbfcfe; }
+  .errLegend .sw.dark { background: linear-gradient(rgba(217,83,47,0.42), rgba(217,83,47,0.42)), #fbfcfe; }
   .errGrid { display: grid; grid-template-columns: minmax(0,560px) minmax(0,560px) minmax(300px,1fr); gap: 12px; align-items: start; }
-  .errCard { background: #0e1723; border: 1px solid #2a3d55; border-radius: 8px; padding: 10px; }
-  .errCard h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #c9dcf0; }
-  .errCard h3 .tag { font-size: 11px; font-weight: 400; color: #8ba1b8; margin-left: 6px; }
+  .errCard { background: #f7fafd; border: 1px solid #e0e6ee; border-radius: 8px; padding: 10px; }
+  .errCard h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #2b3d52; }
+  .errCard h3 .tag { font-size: 11px; font-weight: 400; color: #6b7f94; margin-left: 6px; }
   .verdict { font-size: 13px; line-height: 1.75; }
-  .verdict .line { padding: 4px 0; border-bottom: 1px dashed #24344a; }
+  .verdict .line { padding: 4px 0; border-bottom: 1px dashed #e4eaf1; }
   .verdict .line:last-of-type { border-bottom: none; }
-  .verdict .kExo { color: #ff9c8a; font-weight: 600; }
-  .verdict .kEndo { color: #6bc5ff; font-weight: 600; }
+  .verdict .kExo { color: #c0392b; font-weight: 600; }
+  .verdict .kEndo { color: #1f7fc4; font-weight: 600; }
   .verdict .pct { font-family: Consolas, monospace; font-weight: 700; }
   .verdict .rule {
-    margin-top: 8px; padding: 9px 11px; background: #12213a; border-left: 3px solid #7fd0ff;
-    border-radius: 6px; color: #cfe6ff; font-size: 12.5px; line-height: 1.7;
+    margin-top: 8px; padding: 9px 11px; background: #e8f2fb; border-left: 3px solid #2b8fd6;
+    border-radius: 6px; color: #1c3d5a; font-size: 12.5px; line-height: 1.7;
   }
-  .verdict .mech { font-size: 12px; color: #7a8fa8; margin-bottom: 8px; }
+  .verdict .mech { font-size: 12px; color: #6b7f94; margin-bottom: 8px; }
   /* ---- 外推法拓展（从属） ---- */
-  details.extrap { margin-top: 10px; border-top: 1px solid #24344a; padding-top: 8px; }
+  details.extrap { margin-top: 10px; border-top: 1px solid #e4eaf1; padding-top: 8px; }
   details.extrap > summary {
-    font-size: 12px; color: #7a8fa8; cursor: pointer; list-style: none; user-select: none;
+    font-size: 12px; color: #6b7f94; cursor: pointer; list-style: none; user-select: none;
   }
   details.extrap > summary::-webkit-details-marker { display: none; }
   details.extrap > summary::before { content: "▸ "; }
   details.extrap[open] > summary::before { content: "▾ "; }
-  details.extrap > summary:hover { color: #9fc7e8; }
-  details.extrap .body { font-size: 12px; color: #8ba1b8; line-height: 1.7; margin-top: 8px; }
+  details.extrap > summary:hover { color: #16679f; }
+  details.extrap .body { font-size: 12px; color: #5d7085; line-height: 1.7; margin-top: 8px; }
   details.extrap table { border-collapse: collapse; margin-top: 6px; font-size: 12px; font-family: Consolas, monospace; }
-  details.extrap td { border: 1px solid #2a3d55; padding: 2px 8px; text-align: right; }
-  .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8ba1b8; cursor: pointer; }
+  details.extrap td { border: 1px solid #dde3ec; padding: 2px 8px; text-align: right; }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5d7085; cursor: pointer; }
   .chk input { accent-color: #1f6fb8; cursor: pointer; }
   .h2row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
   .h2row h2 { margin-bottom: 0; }
   #results { font-size: 14px; line-height: 1.75; }
-  #results .formula { font-family: Consolas, monospace; background: #0e1723; padding: 2px 6px; border-radius: 4px; color: #a5e3a0; }
+  #results .formula { font-family: Consolas, monospace; background: #eef3f8; padding: 2px 6px; border-radius: 4px; color: #2c6e49; }
   #results table { border-collapse: collapse; margin-top: 8px; font-size: 12px; font-family: Consolas, monospace; }
-  #results td, #results th { border: 1px solid #2a3d55; padding: 2px 8px; text-align: right; }
-  #results th { color: #9fc7e8; }
-  #results .err-good { color: #a5e3a0; } #results .err-warn { color: #ffd479; } #results .err-bad { color: #ff9c8a; }
-  .hint { font-size: 13px; color: #7a8fa8; margin-top: 8px; line-height: 1.65; }
+  #results td, #results th { border: 1px solid #dde3ec; padding: 2px 8px; text-align: right; }
+  #results th { color: #16679f; }
+  #results .err-good { color: #2e7d32; } #results .err-warn { color: #a8730a; } #results .err-bad { color: #c0392b; }
+  .hint { font-size: 13px; color: #5d7085; margin-top: 8px; line-height: 1.65; }
   .fieldgroup { display: flex; gap: 16px; flex-wrap: wrap; }
   .fieldgroup label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 </style>
@@ -134,8 +135,8 @@
       <canvas id="lab"></canvas>
       <div class="readout">
         <div class="box"><div class="val neutral" id="tempVal">--.-</div><div class="cap">温度 T / °C</div></div>
-        <div class="box"><div class="val" id="timeVal" style="color:#dce6f2">0</div><div class="cap">时间 t / s</div></div>
-        <div class="box"><div class="val" id="dtVal" style="color:#dce6f2">--</div><div class="cap">ΔT / °C</div></div>
+        <div class="box"><div class="val" id="timeVal" style="color:#1e2b3a">0</div><div class="cap">时间 t / s</div></div>
+        <div class="box"><div class="val" id="dtVal" style="color:#1e2b3a">--</div><div class="cap">ΔT / °C</div></div>
       </div>
       <div id="status">选择实验并点击「开始实验」。</div>
     </div>
@@ -151,17 +152,17 @@
       <div class="row">
         <button id="startBtn">▶ 开始实验</button>
         <button id="resetBtn" class="ghost">↺ 重置</button>
-        <span style="font-size:13px;color:#8ba1b8">速度：</span>
+        <span style="font-size:13px;color:#5d7085">速度：</span>
         <button class="speed" data-sp="1">1×</button>
         <button class="speed active" data-sp="4">4×</button>
         <button class="speed" data-sp="10">10×</button>
       </div>
       <div class="hint" id="theoryHint"></div>
       <div class="hint">
-        <b style="color:#9fc7e8">实验原理</b><br>
+        <b style="color:#16679f">实验原理</b><br>
         溶质溶解或酸碱中和时释放/吸收的热量被溶液与热量计吸收：<br>
-        <span class="formula" style="font-family:Consolas,monospace;color:#a5e3a0">q<sub>soln</sub> = m × c × ΔT</span>（c ≈ 4.18 J·g⁻¹·°C⁻¹）<br>
-        <span class="formula" style="font-family:Consolas,monospace;color:#a5e3a0">ΔH = −q<sub>soln</sub> / n</span>（kJ/mol，放热为负）<br>
+        <span class="formula" style="font-family:Consolas,monospace;color:#2c6e49">q<sub>soln</sub> = m × c × ΔT</span>（c ≈ 4.18 J·g⁻¹·°C⁻¹）<br>
+        <span class="formula" style="font-family:Consolas,monospace;color:#2c6e49">ΔH = −q<sub>soln</sub> / n</span>（kJ/mol，放热为负）<br>
         热量计并非完全绝热，温度曲线达峰后会缓慢回落，故实测读数通常比真实值偏低。
       </div>
     </div>
@@ -226,15 +227,15 @@
 /* ================= 实验配置 ================= */
 const EXPERIMENTS = {
   naoh:   { name: "NaOH 溶解（放热）",  type: "dissolve", solute: "NaOH",   mm: 40.00, dH: -44.5,
-            defaultMass: 5.0, maxMass: 12, color: "rgba(150,200,255,0.55)", solid: "#f4f4f4" },
+            defaultMass: 5.0, maxMass: 12, color: "rgba(90,150,215,0.42)", solid: "#cfd6de" },
   nacl:   { name: "NaCl 溶解（微弱吸热）", type: "dissolve", solute: "NaCl",   mm: 58.44, dH: +3.9,
-            defaultMass: 5.0, maxMass: 20, color: "rgba(150,200,255,0.55)", solid: "#ffffff" },
+            defaultMass: 5.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#dfe5eb" },
   nh4no3: { name: "NH₄NO₃ 溶解（吸热）", type: "dissolve", solute: "NH₄NO₃", mm: 80.04, dH: +25.7,
-            defaultMass: 8.0, maxMass: 20, color: "rgba(170,215,255,0.55)", solid: "#eef2f5" },
+            defaultMass: 8.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#d2dae3" },
   kno3:   { name: "KNO₃ 溶解（吸热）",   type: "dissolve", solute: "KNO₃",   mm: 101.10, dH: +34.9,
-            defaultMass: 8.0, maxMass: 20, color: "rgba(170,215,255,0.55)", solid: "#f2f2f2" },
+            defaultMass: 8.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#cdd5dd" },
   neutral:{ name: "HCl + NaOH 中和（放热）", type: "neutralize", dH: -57.3,
-            color: "rgba(150,200,255,0.55)" },
+            color: "rgba(90,150,215,0.42)" },
 };
 const C_WATER = 4.18;      // J·g⁻¹·°C⁻¹
 const RUN_TIME = 150;      // 模拟时长（秒）
@@ -360,7 +361,7 @@ function renderInputs() {
   }
   html += `<label>初温 T₀ / °C<input type="number" id="in_t0" value="22.0" min="15" max="30" step="0.5"></label>`;
   inputFields.innerHTML = html;
-  theoryHint.innerHTML = `<b style="color:#9fc7e8">理论值</b> ΔH<sub>${e.type==="dissolve"?"soln":"neut"}</sub>` +
+  theoryHint.innerHTML = `<b style="color:#16679f">理论值</b> ΔH<sub>${e.type==="dissolve"?"soln":"neut"}</sub>` +
     ` = <b>${e.dH > 0 ? "+" : ""}${e.dH} kJ/mol</b>` +
     (e.type === "dissolve" ? `（${e.solute}，摩尔质量 ${e.mm} g/mol）` : "（强酸强碱中和，每摩尔 H₂O）");
 }
@@ -515,8 +516,8 @@ function drawLab(now) {
   c.clearRect(0, 0, LAB_W, LAB_H);
 
   // 桌面
-  c.fillStyle = "#233246"; c.fillRect(0, TABLE_Y, LAB_W, 38);
-  c.fillStyle = "#1b2837"; c.fillRect(0, TABLE_Y + 38, LAB_W, LAB_H - TABLE_Y - 38);
+  c.fillStyle = "#cdbfa6"; c.fillRect(0, TABLE_Y, LAB_W, 38);
+  c.fillStyle = "#e9eff7"; c.fillRect(0, TABLE_Y + 38, LAB_W, LAB_H - TABLE_Y - 38);
 
   // 以下全部沿用旧的 456×430 坐标系，靠这一层变换映射到新画布
   c.save();
@@ -526,14 +527,14 @@ function drawLab(now) {
 
   // 外杯（换成玻璃烧杯时改为半透明）
   const glass = S.flaw === "glass";
-  c.fillStyle = glass ? "rgba(190,220,240,0.14)" : "#efe9d8";
+  c.fillStyle = glass ? "rgba(120,170,215,0.20)" : "#f0e9d6";
   c.beginPath();
   c.moveTo(CUP.x1, CUP.top); c.lineTo(CUP.x2, CUP.top);
   c.lineTo(CUP.x2 - 22, CUP.bot); c.lineTo(CUP.x1 + 22, CUP.bot);
   c.closePath(); c.fill();
-  c.strokeStyle = glass ? "#9fc7e8" : "#c9c2ac"; c.lineWidth = glass ? 2.5 : 2; c.stroke();
+  c.strokeStyle = glass ? "#16679f" : "#b0a88f"; c.lineWidth = glass ? 2.5 : 2; c.stroke();
   // 内杯
-  c.fillStyle = glass ? "rgba(190,220,240,0.10)" : "#f8f4e6";
+  c.fillStyle = glass ? "rgba(120,170,215,0.14)" : "#faf7ec";
   c.beginPath();
   c.moveTo(CUP.x1 + CUP.inset, CUP.top + 8); c.lineTo(CUP.x2 - CUP.inset, CUP.top + 8);
   c.lineTo(CUP.x2 - CUP.inset - 12, CUP.bot - 8); c.lineTo(CUP.x1 + CUP.inset + 12, CUP.bot - 8);
@@ -552,19 +553,20 @@ function drawLab(now) {
     c.fillRect(wt.l, ty, wt.r - wt.l, 2.5);
   }
 
-  // 溶质颗粒
+  // 溶质颗粒（浅色背景下白色固体要描边才看得见）
   for (const p of S.particles) {
     c.globalAlpha = Math.max(p.life, 0);
     c.fillStyle = p.color;
-    c.beginPath(); c.arc(p.x, p.y, p.r, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(88,104,122,0.6)"; c.lineWidth = 0.9;
+    c.beginPath(); c.arc(p.x, p.y, p.r, 0, Math.PI * 2); c.fill(); c.stroke();
   }
   c.globalAlpha = 1;
 
   // 杯盖（带两个孔）；选择「不盖盖子」则不画
   if (S.flaw !== "nolid") {
-    c.fillStyle = "#e2dbc4";
+    c.fillStyle = "#e6dfc8";
     c.fillRect(CUP.x1 - 10, CUP.top - 14, CUP.x2 - CUP.x1 + 20, 16);
-    c.fillStyle = "#141e2b";
+    c.fillStyle = "#cdd6e2";
     c.fillRect(198, CUP.top - 15, 18, 18);   // 温度计孔
     c.fillRect(268, CUP.top - 15, 14, 18);   // 搅拌器孔
   }
@@ -577,12 +579,12 @@ function drawLab(now) {
   if (S.phase === "add") drawSpatula(c);
 
   // 标签
-  c.fillStyle = "#8ba1b8"; c.font = "11px sans-serif";
+  c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
   c.fillText(glass ? "玻璃烧杯（导热）" : "泡沫塑料杯 ×2（近似绝热）", CUP.x1 - 4, CUP.bot + 22);
   c.fillText("温度计", 150, 46);
   c.fillText("搅拌器", 256, 46);
   if (S.flaw === "nolid") {
-    c.fillStyle = "#ff9c8a";
+    c.fillStyle = "#c0392b";
     c.fillText("未盖杯盖", CUP.x2 - 46, CUP.top + 6);
   }
 
@@ -625,7 +627,7 @@ function drawHeatFlow(c) {
   if (S.flaw === "none") return;
   const fl = FLAWS[S.flaw];
   const exo = S.expt.dH < 0;                      // 反应本身放热/吸热，与是否已开始无关
-  const col = exo ? "#ff8a6b" : "#6bc5ff";
+  const col = exo ? "#d9532f" : "#1f7fc4";
   const cx = SCENE_OX;
   const cupTop = TABLE_Y - (PIVOT.y - CUP.top) * SCENE_Z;
   const halfW = (CUP.x2 - CUP.x1) / 2 * SCENE_Z;
@@ -642,15 +644,15 @@ function drawHeatFlow(c) {
 
   // 右下角说明卡（避开杯体收窄后的位置）
   const bx = 442, by = 296, bw = 162, bh = 152;
-  c.fillStyle = "rgba(14,23,35,0.88)";
+  c.fillStyle = "rgba(255,255,255,0.95)";
   roundRectPath(c, bx, by, bw, bh, 8); c.fill();
   c.strokeStyle = col; c.lineWidth = 1.5;
   roundRectPath(c, bx, by, bw, bh, 8); c.stroke();
   c.fillStyle = col; c.font = "bold 14px sans-serif";
   c.fillText(exo ? "热量散失到环境" : "环境热量传入溶液", bx + 12, by + 26);
-  c.fillStyle = "#c9dcf0"; c.font = "12px sans-serif";
+  c.fillStyle = "#2b3d52"; c.font = "12px sans-serif";
   c.fillText("操作：" + fl.name, bx + 12, by + 48);
-  c.fillStyle = "#8ba1b8"; c.font = "11px sans-serif";
+  c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
   wrapText(c, fl.mech, bx + 12, by + 70, bw - 24, 15);
   c.fillStyle = col; c.font = "bold 12px sans-serif";
   c.fillText(exo ? "→ 实测 ΔT 偏小" : "→ 实测 |ΔT| 偏小", bx + 12, by + 136);
@@ -662,19 +664,19 @@ function drawThermometer(c) {
   const T = currentDisplayT();
   const frac = Math.min(Math.max((T - 0) / 60, 0), 1);   // 0–60 °C 量程
   // 玻璃管
-  c.fillStyle = "rgba(220,235,245,0.35)";
+  c.fillStyle = "rgba(255,255,255,0.75)";
   c.fillRect(x - 5, top, 10, bottom - top);
-  c.strokeStyle = "#9fb3c8"; c.lineWidth = 1.5;
+  c.strokeStyle = "#54637a"; c.lineWidth = 1.5;
   c.strokeRect(x - 5, top, 10, bottom - top);
   // 液泡
   c.beginPath(); c.arc(x, bottom, 11, 0, Math.PI * 2);
-  c.fillStyle = "#d33"; c.fill(); c.stroke();
+  c.fillStyle = "#b02a2a"; c.fill(); c.stroke();
   // 红色液柱
   const colTop = bottom - frac * (bottom - top - 6);
-  c.fillStyle = "#e04040";
+  c.fillStyle = "#d93a3a";
   c.fillRect(x - 2.5, colTop, 5, bottom - colTop);
   // 刻度
-  c.fillStyle = "#8ba1b8"; c.font = "9px sans-serif";
+  c.fillStyle = "#5d7085"; c.font = "9px sans-serif";
   for (let t = 0; t <= 60; t += 10) {
     const y = bottom - (t / 60) * (bottom - top - 6);
     c.fillRect(x + 6, y, 4, 1);
@@ -688,13 +690,13 @@ function drawStirrer(c, now) {
   c.save();
   c.translate(275, 60);
   c.rotate(ang);
-  c.strokeStyle = "#c9d6e4"; c.lineWidth = 5; c.lineCap = "round";
+  c.strokeStyle = "#8fa3b8"; c.lineWidth = 5; c.lineCap = "round";
   c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 278); c.stroke();
   c.lineWidth = 3.5;
   c.beginPath(); c.ellipse(0, 284, 13, 6, 0, 0, Math.PI * 2); c.stroke();
   c.restore();
   // 顶部手柄
-  c.fillStyle = "#7a8fa8"; c.fillRect(263, 48, 24, 14);
+  c.fillStyle = "#6b7f94"; c.fillRect(263, 48, 24, 14);
 }
 
 function drawPouring(c) {
@@ -702,7 +704,7 @@ function drawPouring(c) {
   const bx = 60, by = 60, tilt = -0.7;
   c.save();
   c.translate(bx + 45, by + 30); c.rotate(tilt);
-  c.fillStyle = "rgba(190,215,235,0.30)"; c.strokeStyle = "#9fb3c8"; c.lineWidth = 2;
+  c.fillStyle = "rgba(150,185,220,0.28)"; c.strokeStyle = "#54637a"; c.lineWidth = 2;
   c.beginPath(); c.rect(-28, -34, 56, 68); c.fill(); c.stroke();
   c.fillStyle = S.expt.color;
   const h = 60 * (1 - prog * 0.8);
@@ -714,7 +716,7 @@ function drawPouring(c) {
     c.lineWidth = 5; c.lineCap = "round";
     c.beginPath(); c.moveTo(140, 78); c.lineTo(228, liquidTopY() + 4); c.stroke();
   }
-  c.fillStyle = "#8ba1b8"; c.font = "11px sans-serif";
+  c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
   c.fillText(S.phase === "pour1"
     ? (S.expt.type === "dissolve" ? "蒸馏水" : "HCl 溶液")
     : "NaOH 溶液", 40, 40);
@@ -723,11 +725,11 @@ function drawPouring(c) {
 function drawSpatula(c) {
   const prog = Math.min(S.phaseT / 2.0, 1);
   const x = 200 + prog * 30, y = 95 + prog * 12;
-  c.strokeStyle = "#aab8c6"; c.lineWidth = 4; c.lineCap = "round";
+  c.strokeStyle = "#8b9aab"; c.lineWidth = 4; c.lineCap = "round";
   c.beginPath(); c.moveTo(x - 70, y - 24); c.lineTo(x, y); c.stroke();
   c.fillStyle = S.expt.solid;
   c.beginPath(); c.ellipse(x + 6, y - 3, 15, 6, 0, 0, Math.PI * 2); c.fill();
-  c.fillStyle = "#8ba1b8"; c.font = "11px sans-serif";
+  c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
   c.fillText(S.expt.solute + " 固体", x - 66, y - 34);
 }
 
@@ -749,7 +751,8 @@ function updateReadout() {
 
 /* ================= 温度曲线 ================= */
 const GRAPH_H = 420;            // 纵轴拉高，避免曲线被压扁
-const TMAX_COL = "#ff8a6b";     // 最高温度标注 / ΔT 标注统一用的颜色
+const TMAX_COL = "#d9532f";     // 最高温度标注 / ΔT 标注统一用的颜色
+const DATA_COL = "#1f6fb8";     // 实测温度曲线（浅色背景下黄色会看不见，改用深蓝）
 function drawGraph() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W = Math.max(320, graph.clientWidth), H = GRAPH_H;
@@ -776,7 +779,7 @@ function drawGraph() {
   const Y = T => MT + (1 - (T - tLo) / (tHi - tLo)) * ph;
 
   // 网格与坐标轴
-  c.strokeStyle = "#22344a"; c.fillStyle = "#7a8fa8"; c.font = "11px sans-serif"; c.lineWidth = 1;
+  c.strokeStyle = "#e4eaf1"; c.fillStyle = "#6b7f94"; c.font = "11px sans-serif"; c.lineWidth = 1;
   for (let t = 0; t <= RUN_TIME; t += 30) {
     c.beginPath(); c.moveTo(X(t), MT); c.lineTo(X(t), MT + ph); c.stroke();
     c.fillText(t + "", X(t) - 4, MT + ph + 16);
@@ -790,10 +793,10 @@ function drawGraph() {
   c.fillText("T / °C", 0, 0); c.restore();
 
   // T0 基线
-  c.strokeStyle = "#5a6f88"; c.setLineDash([5, 4]);
+  c.strokeStyle = "#9aa8b8"; c.setLineDash([5, 4]);
   c.beginPath(); c.moveTo(ML, Y(S.T0)); c.lineTo(ML + pw, Y(S.T0)); c.stroke();
   c.setLineDash([]);
-  c.fillStyle = "#8ba1b8"; c.fillText("T₀ = " + S.T0.toFixed(1), ML + pw - 76, Y(S.T0) - 5);
+  c.fillStyle = "#5d7085"; c.fillText("T₀ = " + S.T0.toFixed(1), ML + pw - 76, Y(S.T0) - 5);
 
   // 理想（完全绝热）参考曲线：与实际曲线之间的差 = 与环境交换的热量
   const idealOn = showIdeal.checked && S.data.length > 1 && (S.phase === "run" || S.phase === "done");
@@ -805,9 +808,9 @@ function drawGraph() {
     for (let t = 0; t <= tEnd; t += step) { const px = X(t), py = Y(idealT(t)); t ? c.lineTo(px, py) : c.moveTo(px, py); }
     for (let t = tEnd; t >= 0; t -= step) c.lineTo(X(t), Y(modelT(t)));
     c.closePath();
-    c.fillStyle = S.dTeq > 0 ? "rgba(255,138,107,0.18)" : "rgba(107,197,255,0.18)";
+    c.fillStyle = S.dTeq > 0 ? "rgba(217,83,47,0.18)" : "rgba(31,127,196,0.18)";
     c.fill();
-    c.strokeStyle = "#8fb4d6"; c.lineWidth = 1.6; c.setLineDash([7, 5]);
+    c.strokeStyle = "#7b8ea3"; c.lineWidth = 1.6; c.setLineDash([7, 5]);
     c.beginPath();
     for (let t = 0; t <= tEnd; t += step) { const px = X(t), py = Y(idealT(t)); t ? c.lineTo(px, py) : c.moveTo(px, py); }
     c.stroke(); c.setLineDash([]);
@@ -815,10 +818,10 @@ function drawGraph() {
 
   // 数据曲线
   if (S.data.length > 1) {
-    c.strokeStyle = "#ffd479"; c.lineWidth = 2; c.beginPath();
+    c.strokeStyle = DATA_COL; c.lineWidth = 2; c.beginPath();
     S.data.forEach((p, i) => i ? c.lineTo(X(p.t), Y(p.T)) : c.moveTo(X(p.t), Y(p.T)));
     c.stroke();
-    c.fillStyle = "#ffd479";
+    c.fillStyle = DATA_COL;
     for (const p of S.data) if (Math.round(p.t) % 10 === 0) {
       c.beginPath(); c.arc(X(p.t), Y(p.T), 2.5, 0, Math.PI * 2); c.fill();
     }
@@ -845,17 +848,17 @@ function drawGraph() {
   // 外推法拟合线（拓展模块，刻意画得低调，可由开关关闭）
   if (S.extrap && showExtrap.checked) {
     const ex = S.extrap;
-    c.strokeStyle = "#8fce8a"; c.lineWidth = 1.2; c.setLineDash([5, 4]);
+    c.strokeStyle = "#3f9142"; c.lineWidth = 1.2; c.setLineDash([5, 4]);
     c.beginPath(); c.moveTo(X(0), Y(ex.a)); c.lineTo(X(ex.t1), Y(ex.a + ex.b * ex.t1)); c.stroke();
     c.setLineDash([]);
-    c.strokeStyle = "#8fce8a"; c.lineWidth = 2;
+    c.strokeStyle = "#3f9142"; c.lineWidth = 2;
     c.beginPath(); c.arc(X(0) + 5, Y(ex.Text), 4.5, 0, Math.PI * 2); c.stroke();
-    c.fillStyle = "#a5e3a0"; c.font = "11px sans-serif";
+    c.fillStyle = "#2c6e49"; c.font = "11px sans-serif";
     c.fillText("外推 " + ex.Text.toFixed(2), X(0) + 14, Y(ex.Text) - 6);
   }
 
   setLegend(idealOn
-    ? `虚线 = <b style="color:#8fb4d6">理想（完全绝热）</b>　阴影 = 与环境交换的热量（${S.dTeq > 0 ? "散失" : "环境补入"}）`
+    ? `虚线 = <b style="color:#7b8ea3">理想（完全绝热）</b>　阴影 = 与环境交换的热量（${S.dTeq > 0 ? "散失" : "环境补入"}）`
     : "");
 }
 function setLegend(html) {
@@ -921,25 +924,25 @@ function drawErrGraph(cv, p, fl) {
   const Y = T => MT + (1 - (T - lo) / (hi - lo)) * ph;
 
   // 网格
-  c.strokeStyle = "#22344a"; c.lineWidth = 1; c.font = "10px sans-serif";
+  c.strokeStyle = "#e4eaf1"; c.lineWidth = 1; c.font = "10px sans-serif";
   for (let t = 0; t <= RUN_TIME; t += 50) {
     c.beginPath(); c.moveTo(X(t), MT); c.lineTo(X(t), MT + ph); c.stroke();
-    c.fillStyle = "#7a8fa8"; c.fillText(t + "s", X(t) - 8, MT + ph + 15);
+    c.fillStyle = "#6b7f94"; c.fillText(t + "s", X(t) - 8, MT + ph + 15);
   }
   for (let i = 0; i <= 3; i++) {
     const T = lo + (hi - lo) * i / 3;
-    c.strokeStyle = "#22344a";
+    c.strokeStyle = "#e4eaf1";
     c.beginPath(); c.moveTo(ML, Y(T)); c.lineTo(ML + pw, Y(T)); c.stroke();
-    c.fillStyle = "#7a8fa8"; c.fillText(T.toFixed(1), ML - 40, Y(T) + 3);
+    c.fillStyle = "#6b7f94"; c.fillText(T.toFixed(1), ML - 40, Y(T) + 3);
   }
 
   // T₀ 基线
-  c.strokeStyle = "#5a6f88"; c.setLineDash([4, 4]);
+  c.strokeStyle = "#9aa8b8"; c.setLineDash([4, 4]);
   c.beginPath(); c.moveTo(ML, Y(p.T0)); c.lineTo(ML + pw, Y(p.T0)); c.stroke();
   c.setLineDash([]);
 
-  const col = exo ? "#ff8a6b" : "#6bc5ff";
-  const rgb = exo ? "255,138,107" : "107,197,255";
+  const col = exo ? "#d9532f" : "#1f7fc4";
+  const rgb = exo ? "217,83,47" : "31,127,196";
 
   const band = (f1, f2, alpha) => {
     c.beginPath();
@@ -959,8 +962,8 @@ function drawErrGraph(cv, p, fl) {
     for (let t = 0; t <= RUN_TIME; t += 1) { const x = X(t), y = Y(fn(t)); t ? c.lineTo(x, y) : c.moveTo(x, y); }
     c.stroke(); c.setLineDash([]);
   };
-  line(ideal, "#8fb4d6", 1.4, [6, 4]);   // 理想（完全绝热）
-  line(ctrl, "#9fb3c8", 1.6);            // 无缺陷对照
+  line(ideal, "#7b8ea3", 1.4, [6, 4]);   // 理想（完全绝热）
+  line(ctrl, "#54637a", 1.6);            // 无缺陷对照
   line(act, col, 2.4);                   // 实际操作
 
   // 两个峰值之间的落差箭头
@@ -984,7 +987,7 @@ function renderErrorPanel() {
       `<div class="mech">机制：${fl.mech}</div>
        <div class="line">这是基准情形。标准装置本身也并非完全绝热，实测 |ΔH| 已比理想值偏小
          <span class="pct">${Math.abs(s.total).toFixed(1)}%</span>。</div>
-       <div style="font-size:11.5px;color:#7a8fa8;margin-top:7px">
+       <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">
          当前未选择任何操作缺陷，所以「无缺陷对照」与「实际操作」是同一条曲线——
          图中灰线被橙色线完全覆盖，只看到两条线是正常的。</div>
        <div class="rule">正因如此，实验中读到的最高温度总是略低于"真实"最高温度——
@@ -999,8 +1002,8 @@ function renderErrorPanel() {
        |ΔH| <span class="pct">偏小 ${Math.abs(sx.total).toFixed(1)}%</span></div>
      <div class="line"><span class="kEndo">吸热</span> 实测曲线在理想曲线<b>上方</b> → |ΔT| 偏小 →
        |ΔH| <span class="pct">偏小 ${Math.abs(se.total).toFixed(1)}%</span></div>
-     <div style="font-size:11.5px;color:#7a8fa8;margin-top:7px">
-       相对正确操作（标准装置）的额外代价：<b style="color:#ffd479">${sx.cost.toFixed(1)}%</b>。
+     <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">
+       相对正确操作（标准装置）的额外代价：<b style="color:#a8730a">${sx.cost.toFixed(1)}%</b>。
        两组比例相同——热量进出与 ΔT 成正比，方向相反、比例相同。</div>
      <div class="rule">热量总是朝环境温度「靠拢」：放热时向环境散失，吸热时从环境补入。<br>
        方向相反，但结果一样——<b>|ΔT| 永远偏小，测出的 |ΔH| 永远偏小。</b></div>`;
@@ -1101,20 +1104,20 @@ function finishExperiment() {
     rows += `<tr><td>${p.t.toFixed(0)}</td><td>${p.T.toFixed(2)}</td></tr>`;
 
   resultsEl.innerHTML = `
-    <b style="color:#9fc7e8">① 测量数据</b><br>${givens}<br>
+    <b style="color:#16679f">① 测量数据</b><br>${givens}<br>
     T<sub>初</sub> = ${Tinit.toFixed(2)} °C，T<sub>${S.dTeq > 0 ? "最高" : "最低"}</sub> = ${Text.toFixed(2)} °C<br>
     <b>ΔT = ${dT > 0 ? "+" : ""}${dT.toFixed(2)} °C</b>（${S.dTeq > 0 ? "升温 → 放热" : "降温 → 吸热"}）<br><br>
-    <b style="color:#9fc7e8">② 溶液吸收的热量</b><br>
+    <b style="color:#16679f">② 溶液吸收的热量</b><br>
     <span class="formula">q = m·c·ΔT = ${S.mSol.toFixed(1)} × 4.18 × ${dT.toFixed(2)}</span>
     = <b>${(q / 1000).toFixed(3)} kJ</b><br><br>
-    <b style="color:#9fc7e8">③ 摩尔焓变</b><br>
+    <b style="color:#16679f">③ 摩尔焓变</b><br>
     <span class="formula">ΔH = −q / n = −(${(q / 1000).toFixed(3)}) / ${S.n.toFixed(4)}</span>
     = <b>${dHexp > 0 ? "+" : ""}${dHexp.toFixed(1)} kJ/mol</b><br><br>
-    <b style="color:#9fc7e8">④ 与理论值比较</b><br>
+    <b style="color:#16679f">④ 与理论值比较</b><br>
     理论 ΔH = ${e.dH > 0 ? "+" : ""}${e.dH} kJ/mol，
     相对偏差 = <b class="${errCls}">${err > 0 ? "+" : ""}${err.toFixed(1)}%</b>
-    <span style="color:#7a8fa8">（实测值${err < 0 ? "偏小" : "偏大"}）</span><br>
-    <span style="color:#7a8fa8;font-size:12px">本次操作条件：<b style="color:#c9dcf0">${FLAWS[S.flaw].name}</b>。
+    <span style="color:#6b7f94">（实测值${err < 0 ? "偏小" : "偏大"}）</span><br>
+    <span style="color:#6b7f94;font-size:12px">本次操作条件：<b style="color:#2b3d52">${FLAWS[S.flaw].name}</b>。
     未修正的实测读数本来就会偏低几个百分点——热量计并非完全绝热，达峰后热量仍在继续交换。
     其余误差来源：温度计与热量计自身吸热、称量/量取误差。</span>
     <table><tr><th>t / s</th><th>T / °C</th></tr>${rows}</table>`;
