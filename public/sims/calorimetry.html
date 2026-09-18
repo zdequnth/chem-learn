@@ -18,8 +18,10 @@
   }
   h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; color: #7fd0ff; }
   .subtitle { font-size: 12px; color: #8ba1b8; margin-bottom: 14px; }
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  /* 两列等高，末块面板撑满剩余高度——否则实验跑完前右列会留一个空洞 */
+  .col > .panel:last-child { flex: 1 1 auto; }
   .full { margin-top: 14px; }
   .panel {
     background: #16202e;
@@ -31,7 +33,8 @@
   canvas { display: block; border-radius: 6px; }
   #lab { background: linear-gradient(#1b2837, #141e2b); width: 100%; max-width: 780px; }
   #graph { background: #101a26; width: 100%; }
-  .errGraph { background: #101a26; width: 100%; }
+  /* 上限同时约束宽和高：小图高度是按宽度 0.62 倍算的，不封顶会在宽屏上撑成巨图 */
+  .errGraph { background: #101a26; width: 100%; max-width: 540px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
   label { font-size: 14px; color: #b8c9dc; }
   select, input[type=number] {
@@ -76,9 +79,9 @@
   .errLegend .ln.ctrl { border-color: #9fb3c8; }
   .errLegend .ln.act { border-color: #ff8a6b; border-top-width: 3px; }
   .errLegend .sw { display: inline-block; width: 17px; height: 12px; border-radius: 2px; }
-  .errLegend .sw.light { background: rgba(255,138,107,0.16); }
-  .errLegend .sw.dark { background: rgba(255,138,107,0.34); }
-  .errGrid { display: grid; grid-template-columns: 1fr 1fr 320px; gap: 12px; align-items: start; }
+  .errLegend .sw.light { background: linear-gradient(rgba(255,138,107,0.12), rgba(255,138,107,0.12)), #101a26; }
+  .errLegend .sw.dark { background: linear-gradient(rgba(255,138,107,0.40), rgba(255,138,107,0.40)), #101a26; }
+  .errGrid { display: grid; grid-template-columns: minmax(0,560px) minmax(0,560px) minmax(300px,1fr); gap: 12px; align-items: start; }
   .errCard { background: #0e1723; border: 1px solid #2a3d55; border-radius: 8px; padding: 10px; }
   .errCard h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #c9dcf0; }
   .errCard h3 .tag { font-size: 11px; font-weight: 400; color: #8ba1b8; margin-left: 6px; }
@@ -202,8 +205,8 @@
     <span><i class="ln dashed"></i>理想（完全绝热）</span>
     <span><i class="ln ctrl"></i>无缺陷对照（标准装置）</span>
     <span><i class="ln act"></i>实际操作</span>
-    <span><i class="sw light"></i>与环境交换的总热量</span>
-    <span><i class="sw dark"></i>本次操作额外造成</span>
+    <span><i class="sw light"></i>正确操作也无法避免的</span>
+    <span><i class="sw dark"></i>本次操作额外造成的</span>
   </div>
   <div class="errGrid">
     <div class="errCard">
@@ -946,8 +949,9 @@ function drawErrGraph(cv, p, fl) {
     c.fillStyle = `rgba(${rgb},${alpha})`; c.fill();
   };
   // 浅色 = 理想↔实际（与环境交换的总热量）；深色 = 对照↔实际（本次操作额外造成的）
-  band(ideal, act, 0.13);
-  band(ctrl, act, 0.30);
+  // 两者透明度要拉开，否则在深色背景上分不出来是哪一层
+  band(ideal, act, 0.12);
+  band(ctrl, act, 0.40);
 
   const line = (fn, style, width, dash) => {
     c.strokeStyle = style; c.lineWidth = width; c.setLineDash(dash || []);
@@ -980,6 +984,9 @@ function renderErrorPanel() {
       `<div class="mech">机制：${fl.mech}</div>
        <div class="line">这是基准情形。标准装置本身也并非完全绝热，实测 |ΔH| 已比理想值偏小
          <span class="pct">${Math.abs(s.total).toFixed(1)}%</span>。</div>
+       <div style="font-size:11.5px;color:#7a8fa8;margin-top:7px">
+         当前未选择任何操作缺陷，所以「无缺陷对照」与「实际操作」是同一条曲线——
+         图中灰线被橙色线完全覆盖，只看到两条线是正常的。</div>
        <div class="rule">正因如此，实验中读到的最高温度总是略低于"真实"最高温度——
          这是外推法存在的理由，也是它只能算"拓展"的原因。</div>`;
     return;
