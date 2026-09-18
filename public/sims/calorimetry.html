@@ -17,7 +17,15 @@
     min-width: 1200px;
   }
   h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; color: #0d5f9e; }
-  .subtitle { font-size: 12px; color: #6b7f94; margin-bottom: 14px; }
+  .subtitle { font-size: 12px; color: #6b7f94; }
+  .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+  .langSw { display: flex; flex-shrink: 0; border: 1px solid #c3cedb; border-radius: 7px; overflow: hidden; }
+  .langSw button {
+    background: #fff; color: #5d7085; border: none; border-radius: 0;
+    padding: 6px 15px; font-size: 13px; cursor: pointer;
+  }
+  .langSw button:hover { background: #eef2f7; }
+  .langSw button.active { background: #1f6fb8; color: #fff; font-weight: 600; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   /* 两列等高，末块面板撑满剩余高度——否则实验跑完前右列会留一个空洞 */
@@ -125,97 +133,97 @@
 </style>
 </head>
 <body>
-<h1>量热法模拟实验 Calorimetry Simulation</h1>
-<div class="subtitle">AP Chemistry · 咖啡杯热量计测定溶解热 (ΔH<sub>soln</sub>) 与中和热 (ΔH<sub>neut</sub>) · 恒压 q<sub>p</sub> = ΔH</div>
+<div class="hdr">
+  <div>
+    <h1 data-i18n="h1">Calorimetry Simulation</h1>
+    <div class="subtitle" data-i18n-html="subtitle"></div>
+  </div>
+  <div class="langSw" id="langSw">
+    <button data-lang="en">English</button>
+    <button data-lang="zh">中文</button>
+  </div>
+</div>
 
 <div class="layout">
   <div class="col">
     <div class="panel">
-      <h2>实验装置动画</h2>
+      <h2 data-i18n="panel.lab">Apparatus</h2>
       <canvas id="lab"></canvas>
       <div class="readout">
-        <div class="box"><div class="val neutral" id="tempVal">--.-</div><div class="cap">温度 T / °C</div></div>
-        <div class="box"><div class="val" id="timeVal" style="color:#1e2b3a">0</div><div class="cap">时间 t / s</div></div>
-        <div class="box"><div class="val" id="dtVal" style="color:#1e2b3a">--</div><div class="cap">ΔT / °C</div></div>
+        <div class="box"><div class="val neutral" id="tempVal">--.-</div><div class="cap" data-i18n="cap.temp"></div></div>
+        <div class="box"><div class="val" id="timeVal" style="color:#1e2b3a">0</div><div class="cap" data-i18n="cap.time"></div></div>
+        <div class="box"><div class="val" id="dtVal" style="color:#1e2b3a">--</div><div class="cap" data-i18n="cap.dt"></div></div>
       </div>
-      <div id="status">选择实验并点击「开始实验」。</div>
+      <div id="status"></div>
     </div>
 
     <div class="panel">
-      <h2>实验设置</h2>
+      <h2 data-i18n="panel.setup">Experiment Setup</h2>
       <div class="row">
-        <label>实验项目：
+        <label><span data-i18n="label.expt"></span>
           <select id="exptSelect"></select>
         </label>
       </div>
       <div class="row fieldgroup" id="inputFields"></div>
       <div class="row">
-        <button id="startBtn">▶ 开始实验</button>
-        <button id="resetBtn" class="ghost">↺ 重置</button>
-        <span style="font-size:13px;color:#5d7085">速度：</span>
+        <button id="startBtn" data-i18n="btn.start"></button>
+        <button id="resetBtn" class="ghost" data-i18n="btn.reset"></button>
+        <span style="font-size:13px;color:#5d7085" data-i18n="label.speed"></span>
         <button class="speed" data-sp="1">1×</button>
         <button class="speed active" data-sp="4">4×</button>
         <button class="speed" data-sp="10">10×</button>
       </div>
       <div class="hint" id="theoryHint"></div>
-      <div class="hint">
-        <b style="color:#16679f">实验原理</b><br>
-        溶质溶解或酸碱中和时释放/吸收的热量被溶液与热量计吸收：<br>
-        <span class="formula" style="font-family:Consolas,monospace;color:#2c6e49">q<sub>soln</sub> = m × c × ΔT</span>（c ≈ 4.18 J·g⁻¹·°C⁻¹）<br>
-        <span class="formula" style="font-family:Consolas,monospace;color:#2c6e49">ΔH = −q<sub>soln</sub> / n</span>（kJ/mol，放热为负）<br>
-        热量计并非完全绝热，温度曲线达峰后会缓慢回落，故实测读数通常比真实值偏低。
-      </div>
+      <div class="hint" data-i18n-html="principle.full"></div>
     </div>
   </div>
 
   <div class="col">
     <div class="panel">
       <div class="h2row">
-        <h2>温度 – 时间曲线（点击曲线可读取数据点）</h2>
-        <label class="chk"><input type="checkbox" id="showIdeal">叠加理想曲线</label>
+        <h2 data-i18n="panel.graph">Temperature – Time Curve</h2>
+        <label class="chk"><input type="checkbox" id="showIdeal"><span data-i18n="graph.showIdeal"></span></label>
       </div>
       <canvas id="graph"></canvas>
       <div class="hint" id="graphLegend" style="display:none"></div>
       <details class="extrap">
-        <summary>拓展：外推法（非考试重点，了解即可）</summary>
+        <summary data-i18n="extrap.summary"></summary>
         <div class="body">
-          真实实验中曲线达峰后会因向环境散热而回落，因此学生读到的最高温度偏低。
-          外推法即取降温段拟合一条直线、回推到 t = 0，读出"假如没有散热"应有的温度。
+          <div data-i18n="extrap.body"></div>
           <div class="row" style="margin-top:8px">
-            <button id="extrapBtn" class="ghost" disabled>拟合外推</button>
-            <label class="chk"><input type="checkbox" id="showExtrap" disabled>在图上显示外推线</label>
+            <button id="extrapBtn" class="ghost" disabled data-i18n="btn.extrap"></button>
+            <label class="chk"><input type="checkbox" id="showExtrap" disabled><span data-i18n="extrap.show"></span></label>
           </div>
           <div id="extrapOut"></div>
-          <div style="margin-top:6px">注意：外推法<b>只能</b>修正"与环境热交换"造成的偏差，
-            修正不了称量、量取或忽略热量计热容等误差。</div>
+          <div style="margin-top:6px" data-i18n-html="extrap.caveat"></div>
         </div>
       </details>
     </div>
 
     <div class="panel">
-      <h2>数据处理与结果</h2>
-      <div id="results">实验完成后，此处将显示完整计算过程与数据表。</div>
+      <h2 data-i18n="panel.results">Data Processing &amp; Results</h2>
+      <div id="results"></div>
     </div>
   </div>
 </div>
 
 <div class="panel full">
-  <h2>误差分析：操作 → 温度曲线 → ΔH 偏差</h2>
+  <h2 data-i18n="panel.err">Error Analysis</h2>
   <div class="flawRow" id="flawRow"></div>
   <div class="errLegend">
-    <span><i class="ln dashed"></i>理想（完全绝热）</span>
-    <span><i class="ln ctrl"></i>无缺陷对照（标准装置）</span>
-    <span><i class="ln act"></i>实际操作</span>
-    <span><i class="sw light"></i>正确操作也无法避免的</span>
-    <span><i class="sw dark"></i>本次操作额外造成的</span>
+    <span><i class="ln dashed"></i><span data-i18n="err.legend.ideal"></span></span>
+    <span><i class="ln ctrl"></i><span data-i18n="err.legend.ctrl"></span></span>
+    <span><i class="ln act"></i><span data-i18n="err.legend.act"></span></span>
+    <span><i class="sw light"></i><span data-i18n="err.legend.light"></span></span>
+    <span><i class="sw dark"></i><span data-i18n="err.legend.dark"></span></span>
   </div>
   <div class="errGrid">
     <div class="errCard">
-      <h3>放热反应 <span class="tag">NaOH 溶解 5.0 g / 100 mL 水</span></h3>
+      <h3><span data-i18n="err.card.exo"></span> <span class="tag" data-i18n="err.card.exoTag"></span></h3>
       <canvas class="errGraph" id="errExo"></canvas>
     </div>
     <div class="errCard">
-      <h3>吸热反应 <span class="tag">NH₄NO₃ 溶解 8.0 g / 100 mL 水</span></h3>
+      <h3><span data-i18n="err.card.endo"></span> <span class="tag" data-i18n="err.card.endoTag"></span></h3>
       <canvas class="errGraph" id="errEndo"></canvas>
     </div>
     <div class="verdict" id="errVerdict"></div>
@@ -224,17 +232,275 @@
 
 <script>
 "use strict";
+
+/* ================= 多语言 =================
+   默认英文（AP 考试术语），可切到中文。用 ?lang=zh 也能直接指定，方便给不同班级发链接。 */
+const I18N = {
+  en: {
+    "title": "Calorimetry Simulation — Heat of Solution / Neutralization (AP Chemistry)",
+    "h1": "Calorimetry Simulation",
+    "subtitle": "AP Chemistry · Coffee-cup calorimetry: heat of solution (ΔH<sub>soln</sub>) and heat of neutralization (ΔH<sub>neut</sub>) · Constant pressure q<sub>p</sub> = ΔH",
+    "panel.lab": "Apparatus",
+    "panel.setup": "Experiment Setup",
+    "panel.graph": "Temperature – Time Curve (click the curve to read data points)",
+    "panel.results": "Data Processing & Results",
+    "panel.err": "Error Analysis: Procedure → Curve → ΔH Deviation",
+    "cap.temp": "Temperature T / °C",
+    "cap.time": "Time t / s",
+    "cap.dt": "ΔT / °C",
+    "label.expt": "Experiment:",
+    "label.mass": "Solute mass m / g",
+    "label.water": "Water volume V / mL",
+    "label.va": "HCl volume / mL",
+    "label.ca": "HCl conc. / M",
+    "label.vb": "NaOH volume / mL",
+    "label.cb": "NaOH conc. / M",
+    "label.t0": "Initial temp. T₀ / °C",
+    "label.speed": "Speed:",
+    "btn.start": "▶ Start Experiment",
+    "btn.reset": "↺ Reset",
+    "btn.extrap": "Fit Extrapolation",
+    "status.idle": "Choose an experiment and click “Start Experiment”.",
+    "status.running": "Experiment running…",
+    "status.pourWater": "Adding distilled water to the calorimeter…",
+    "status.pourHCl": "Pouring HCl solution…",
+    "status.pourNaOH": "Pouring NaOH solution — reaction begins!",
+    "status.adding": "Adding {solute} solid, dissolving…",
+    "status.reacting": "Reaction in progress, recording temperature…",
+    "status.dissolving": "Dissolving, recording temperature…",
+    "status.done": "Experiment complete — see Data Processing on the right.",
+    "status.point": "Data point: t = {t} s, T = {T} °C",
+    "expt.naoh": "NaOH dissolution (exothermic)",
+    "expt.nacl": "NaCl dissolution (slightly endothermic)",
+    "expt.nh4no3": "NH₄NO₃ dissolution (endothermic)",
+    "expt.kno3": "KNO₃ dissolution (endothermic)",
+    "expt.neutral": "HCl + NaOH neutralization (exothermic)",
+    "theory.label": "Theoretical value",
+    "theory.dissolve": "({solute}, molar mass {mm} g/mol)",
+    "theory.neutral": "(strong acid + strong base, per mole of H₂O)",
+    "principle.full": "<b style=\"color:#16679f\">Principle</b><br>The heat released or absorbed when a solute dissolves, or an acid neutralizes a base, is taken up by the solution and the calorimeter:<br><span class=\"formula\" style=\"font-family:Consolas,monospace;color:#2c6e49\">q<sub>soln</sub> = m × c × ΔT</span> (c ≈ 4.18 J·g⁻¹·°C⁻¹)<br><span class=\"formula\" style=\"font-family:Consolas,monospace;color:#2c6e49\">ΔH = −q<sub>soln</sub> / n</span> (kJ/mol; negative when exothermic)<br>The calorimeter is not perfectly insulated: the curve falls slowly after its peak, so a measured reading is usually a little lower than the true value.",
+    "graph.showIdeal": "Overlay ideal curve",
+    "extrap.summary": "Extension: extrapolation (not exam-critical — optional)",
+    "extrap.body": "In a real experiment the curve falls back after its peak because heat leaks to the surroundings, so the highest temperature a student reads is too low. Extrapolation fits a straight line to the cooling section and runs it back to t = 0, giving the temperature the system would have reached with no heat loss.",
+    "extrap.show": "Show the extrapolation line on the graph",
+    "extrap.caveat": "Note: extrapolation corrects <b>only</b> the bias from heat exchange with the surroundings. It cannot fix errors in weighing, measuring volume, or neglecting the calorimeter's heat capacity.",
+    "results.placeholder": "Once the experiment finishes, the full calculation and data table appear here.",
+    "results.running": "Experiment running…",
+    "err.legend.ideal": "Ideal (perfectly insulated)",
+    "err.legend.ctrl": "No-flaw control (standard setup)",
+    "err.legend.act": "Actual procedure",
+    "err.legend.light": "Unavoidable even when done correctly",
+    "err.legend.dark": "Extra loss caused by this mistake",
+    "err.card.exo": "Exothermic reaction",
+    "err.card.endo": "Endothermic reaction",
+    "err.card.exoTag": "NaOH dissolution, 5.0 g / 100 mL water",
+    "err.card.endoTag": "NH₄NO₃ dissolution, 8.0 g / 100 mL water",
+    "err.low": "Measured too low",
+    "err.high": "Measured too high",
+    "flaw.none": "No flaw (control)",
+    "flaw.none.mech": "Double foam cup + lid + stirring — close to adiabatic, but not perfectly",
+    "flaw.nolid": "No lid",
+    "flaw.nolid.mech": "The liquid surface exchanges heat with the air by convection and radiation",
+    "flaw.probe": "Thermometer touching the bottom",
+    "flaw.probe.mech": "Heat is conducted away along the thermometer and the cup wall",
+    "flaw.nostir": "No stirring",
+    "flaw.nostir.mech": "The solution is not uniform: the peak is lower and later (a lagging reading), with extra heat loss as well",
+    "flaw.glass": "Single cup / glass beaker",
+    "flaw.glass.mech": "Glass walls conduct heat — the fastest exchange with the surroundings",
+    "cv.thermometer": "Thermometer",
+    "cv.stirrer": "Stirrer",
+    "cv.foamcup": "Foam cup ×2 (near-adiabatic)",
+    "cv.glassbeaker": "Glass beaker (conducts heat)",
+    "cv.nolid": "No lid",
+    "cv.heatout": "Heat escapes to the surroundings",
+    "cv.heatin": "Heat flows in from the surroundings",
+    "cv.op": "Procedure: ",
+    "cv.arrowExo": "→ ΔT too small",
+    "cv.arrowEndo": "→ |ΔT| too small",
+    "cv.pourWater": "Distilled water",
+    "cv.pourHCl": "HCl solution",
+    "cv.pourNaOH": "NaOH solution",
+    "cv.solid": " solid",
+    "g.legendIdeal": "dashed = <b>ideal (perfectly insulated)</b>&nbsp; shaded = heat exchanged with the surroundings ({dir})",
+    "g.legendLoss": "lost",
+    "g.legendGain": "gained from surroundings",
+    "g.extrapMark": "Extrap. ",
+    "verdict.mech": "Mechanism: {mech}",
+    "verdict.none1": "This is the baseline. Even the standard setup is not perfectly insulated, so the measured |ΔH| is already <span class=\"pct\">{pct}%</span> below the ideal value.",
+    "verdict.none2": "No mistake is selected, so “no-flaw control” and “actual procedure” are the <b>same</b> curve — the grey line is hidden under the orange one. Seeing only two lines is expected here.",
+    "verdict.none3": "This is exactly why the highest temperature you read is always a little below the “true” peak — the reason extrapolation exists, and the reason it is an extension rather than a core step.",
+    "verdict.exo": "<span class=\"kExo\">Exothermic</span> the measured curve sits <b>below</b> the ideal one → ΔT too small → |ΔH| <span class=\"pct\">too small by {pct}%</span>",
+    "verdict.endo": "<span class=\"kEndo\">Endothermic</span> the measured curve sits <b>above</b> the ideal one → |ΔT| too small → |ΔH| <span class=\"pct\">too small by {pct}%</span>",
+    "verdict.cost": "Extra cost versus doing it correctly (standard setup): <b style=\"color:#a8730a\">{cost}%</b>. Both percentages match — heat exchange is proportional to ΔT, so the direction flips while the size does not.",
+    "verdict.rule": "Heat always moves the system toward ambient temperature: out of the solution when the reaction is exothermic, into it when endothermic.<br>The direction is opposite, but the outcome is the same — <b>|ΔT| is always too small, so the measured |ΔH| is always too small.</b>",
+    "res.givens.dissolve": "m({solute}) = {mass} g, M = {mm} g/mol → n = {n} mol<br>m(solution) ≈ {water} g water + {mass} g solute = {msol} g",
+    "res.givens.neutral": "n(H⁺) = {va} mL × {ca} M = {nH} mol; n(OH⁻) = {vb} mL × {cb} M = {nOH} mol<br>Limiting reagent: <b>{limiting}</b> → n(H₂O) = {n} mol; m(solution) ≈ {v} mL × 1.00 g/mL = {msol} g",
+    "res.s1": "① Measured data",
+    "res.tinit": "T<sub>init</sub> = {t0} °C, T<sub>{ext}</sub> = {text} °C",
+    "res.extHigh": "max",
+    "res.extLow": "min",
+    "res.dt": "ΔT = {dt} °C",
+    "res.warm": " (temperature rises → exothermic)",
+    "res.cool": " (temperature falls → endothermic)",
+    "res.s2": "② Heat absorbed by the solution",
+    "res.s3": "③ Molar enthalpy change",
+    "res.s4": "④ Comparison with the theoretical value",
+    "res.theory": "Theoretical ΔH = {lit} kJ/mol, relative deviation = ",
+    "res.measured": "(measured value is {dir})",
+    "res.low": "too small",
+    "res.high": "too large",
+    "res.cond": "Conditions for this run: <b>{flaw}</b>. An uncorrected reading is expected to come out a few percent low — the calorimeter is not perfectly insulated and heat keeps exchanging after the peak. Other sources: heat absorbed by the thermometer and calorimeter themselves, and weighing/measuring errors.",
+    "extrap.status": "Fitting from the cooling section back to t = 0…",
+    "extrap.raw": "Measured peak",
+    "extrap.corrected": "After extrapolation",
+    "extrap.lit": "Theoretical value",
+  },
+  zh: {
+    "title": "量热法模拟实验 — 溶解热 / 中和热 (AP Chemistry Calorimetry)",
+    "h1": "量热法模拟实验",
+    "subtitle": "AP Chemistry · 咖啡杯热量计测定溶解热 (ΔH<sub>soln</sub>) 与中和热 (ΔH<sub>neut</sub>) · 恒压 q<sub>p</sub> = ΔH",
+    "panel.lab": "实验装置动画",
+    "panel.setup": "实验设置",
+    "panel.graph": "温度 – 时间曲线（点击曲线可读取数据点）",
+    "panel.results": "数据处理与结果",
+    "panel.err": "误差分析：操作 → 温度曲线 → ΔH 偏差",
+    "cap.temp": "温度 T / °C",
+    "cap.time": "时间 t / s",
+    "cap.dt": "ΔT / °C",
+    "label.expt": "实验项目：",
+    "label.mass": "溶质质量 m / g",
+    "label.water": "水体积 V / mL",
+    "label.va": "HCl 体积 / mL",
+    "label.ca": "HCl 浓度 / M",
+    "label.vb": "NaOH 体积 / mL",
+    "label.cb": "NaOH 浓度 / M",
+    "label.t0": "初温 T₀ / °C",
+    "label.speed": "速度：",
+    "btn.start": "▶ 开始实验",
+    "btn.reset": "↺ 重置",
+    "btn.extrap": "拟合外推",
+    "status.idle": "选择实验并点击「开始实验」。",
+    "status.running": "实验进行中……",
+    "status.pourWater": "向量热计中加入蒸馏水……",
+    "status.pourHCl": "倒入 HCl 溶液……",
+    "status.pourNaOH": "倒入 NaOH 溶液，开始反应！",
+    "status.adding": "加入 {solute} 固体，开始溶解……",
+    "status.reacting": "反应进行中，记录温度……",
+    "status.dissolving": "溶解进行中，记录温度……",
+    "status.done": "实验完成！查看右侧数据处理。",
+    "status.point": "数据点：t = {t} s，T = {T} °C",
+    "expt.naoh": "NaOH 溶解（放热）",
+    "expt.nacl": "NaCl 溶解（微弱吸热）",
+    "expt.nh4no3": "NH₄NO₃ 溶解（吸热）",
+    "expt.kno3": "KNO₃ 溶解（吸热）",
+    "expt.neutral": "HCl + NaOH 中和（放热）",
+    "theory.label": "理论值",
+    "theory.dissolve": "（{solute}，摩尔质量 {mm} g/mol）",
+    "theory.neutral": "（强酸强碱中和，每摩尔 H₂O）",
+    "principle.full": "<b style=\"color:#16679f\">实验原理</b><br>溶质溶解或酸碱中和时释放/吸收的热量被溶液与热量计吸收：<br><span class=\"formula\" style=\"font-family:Consolas,monospace;color:#2c6e49\">q<sub>soln</sub> = m × c × ΔT</span>（c ≈ 4.18 J·g⁻¹·°C⁻¹）<br><span class=\"formula\" style=\"font-family:Consolas,monospace;color:#2c6e49\">ΔH = −q<sub>soln</sub> / n</span>（kJ/mol，放热为负）<br>热量计并非完全绝热，温度曲线达峰后会缓慢回落，故实测读数通常比真实值偏低。",
+    "graph.showIdeal": "叠加理想曲线",
+    "extrap.summary": "拓展：外推法（非考试重点，了解即可）",
+    "extrap.body": "真实实验中曲线达峰后会因向环境散热而回落，因此学生读到的最高温度偏低。外推法即取降温段拟合一条直线、回推到 t = 0，读出「假如没有散热」应有的温度。",
+    "extrap.show": "在图上显示外推线",
+    "extrap.caveat": "注意：外推法<b>只能</b>修正「与环境热交换」造成的偏差，修正不了称量、量取或忽略热量计热容等误差。",
+    "results.placeholder": "实验完成后，此处将显示完整计算过程与数据表。",
+    "results.running": "实验进行中……",
+    "err.legend.ideal": "理想（完全绝热）",
+    "err.legend.ctrl": "无缺陷对照（标准装置）",
+    "err.legend.act": "实际操作",
+    "err.legend.light": "正确操作也无法避免的",
+    "err.legend.dark": "本次操作额外造成的",
+    "err.card.exo": "放热反应",
+    "err.card.endo": "吸热反应",
+    "err.card.exoTag": "NaOH 溶解 5.0 g / 100 mL 水",
+    "err.card.endoTag": "NH₄NO₃ 溶解 8.0 g / 100 mL 水",
+    "err.low": "实测偏低",
+    "err.high": "实测偏高",
+    "flaw.none": "无缺陷（对照）",
+    "flaw.none.mech": "双层泡沫杯 + 杯盖 + 搅拌，接近绝热——但仍非完全绝热",
+    "flaw.nolid": "不盖盖子",
+    "flaw.nolid.mech": "液面直接与环境对流、辐射换热",
+    "flaw.probe": "温度计接触杯底",
+    "flaw.probe.mech": "热量沿温度计与杯壁被直接导走",
+    "flaw.nostir": "不搅拌",
+    "flaw.nostir.mech": "溶液温度不均匀：峰值更低、更晚出现（读数滞后），同时伴随散热",
+    "flaw.glass": "单层杯 / 玻璃烧杯",
+    "flaw.glass.mech": "器壁导热，与环境换热最快",
+    "cv.thermometer": "温度计",
+    "cv.stirrer": "搅拌器",
+    "cv.foamcup": "泡沫塑料杯 ×2（近似绝热）",
+    "cv.glassbeaker": "玻璃烧杯（导热）",
+    "cv.nolid": "未盖杯盖",
+    "cv.heatout": "热量散失到环境",
+    "cv.heatin": "环境热量传入溶液",
+    "cv.op": "操作：",
+    "cv.arrowExo": "→ 实测 ΔT 偏小",
+    "cv.arrowEndo": "→ 实测 |ΔT| 偏小",
+    "cv.pourWater": "蒸馏水",
+    "cv.pourHCl": "HCl 溶液",
+    "cv.pourNaOH": "NaOH 溶液",
+    "cv.solid": " 固体",
+    "g.legendIdeal": "虚线 = <b>理想（完全绝热）</b>　阴影 = 与环境交换的热量（{dir}）",
+    "g.legendLoss": "散失",
+    "g.legendGain": "环境补入",
+    "g.extrapMark": "外推 ",
+    "verdict.mech": "机制：{mech}",
+    "verdict.none1": "这是基准情形。标准装置本身也并非完全绝热，实测 |ΔH| 已比理想值偏小 <span class=\"pct\">{pct}%</span>。",
+    "verdict.none2": "当前未选择任何操作缺陷，所以「无缺陷对照」与「实际操作」是同一条曲线——图中灰线被橙色线完全覆盖，只看到两条线是正常的。",
+    "verdict.none3": "正因如此，实验中读到的最高温度总是略低于「真实」最高温度——这是外推法存在的理由，也是它只能算「拓展」的原因。",
+    "verdict.exo": "<span class=\"kExo\">放热</span> 实测曲线在理想曲线<b>下方</b> → ΔT 偏小 → |ΔH| <span class=\"pct\">偏小 {pct}%</span>",
+    "verdict.endo": "<span class=\"kEndo\">吸热</span> 实测曲线在理想曲线<b>上方</b> → |ΔT| 偏小 → |ΔH| <span class=\"pct\">偏小 {pct}%</span>",
+    "verdict.cost": "相对正确操作（标准装置）的额外代价：<b style=\"color:#a8730a\">{cost}%</b>。两组比例相同——热量进出与 ΔT 成正比，方向相反、比例相同。",
+    "verdict.rule": "热量总是朝环境温度「靠拢」：放热时向环境散失，吸热时从环境补入。<br>方向相反，但结果一样——<b>|ΔT| 永远偏小，测出的 |ΔH| 永远偏小。</b>",
+    "res.givens.dissolve": "m({solute}) = {mass} g，M = {mm} g/mol → n = {n} mol<br>m(溶液) ≈ {water} g 水 + {mass} g 溶质 = {msol} g",
+    "res.givens.neutral": "n(H⁺) = {va} mL × {ca} M = {nH} mol；n(OH⁻) = {vb} mL × {cb} M = {nOH} mol<br>限量试剂：<b>{limiting}</b> → n(H₂O) = {n} mol；m(溶液) ≈ {v} mL × 1.00 g/mL = {msol} g",
+    "res.s1": "① 测量数据",
+    "res.tinit": "T<sub>初</sub> = {t0} °C，T<sub>{ext}</sub> = {text} °C",
+    "res.extHigh": "最高",
+    "res.extLow": "最低",
+    "res.dt": "ΔT = {dt} °C",
+    "res.warm": "（升温 → 放热）",
+    "res.cool": "（降温 → 吸热）",
+    "res.s2": "② 溶液吸收的热量",
+    "res.s3": "③ 摩尔焓变",
+    "res.s4": "④ 与理论值比较",
+    "res.theory": "理论 ΔH = {lit} kJ/mol，相对偏差 = ",
+    "res.measured": "（实测值{dir}）",
+    "res.low": "偏小",
+    "res.high": "偏大",
+    "res.cond": "本次操作条件：<b>{flaw}</b>。未修正的实测读数本来就会偏低几个百分点——热量计并非完全绝热，达峰后热量仍在继续交换。其余误差来源：温度计与热量计自身吸热、称量/量取误差。",
+    "extrap.status": "对降温段拟合、回推到 t = 0……",
+    "extrap.raw": "实测最高温",
+    "extrap.corrected": "外推修正后",
+    "extrap.lit": "理论值",
+  },
+};
+
+// 语言优先级：URL 的 ?lang= > 上次选择 > 默认英文
+let LANG = (() => {
+  const q = new URLSearchParams(location.search).get("lang");
+  if (q && I18N[q]) return q;
+  try { const saved = localStorage.getItem("calorimetry-lang"); if (saved && I18N[saved]) return saved; } catch (e) {}
+  return "en";
+})();
+
+function t(key, params) {
+  const s = (I18N[LANG] && I18N[LANG][key]) ?? I18N.en[key] ?? key;
+  if (!params) return s;
+  return s.replace(/\{(\w+)\}/g, (m, k) => (params[k] !== undefined ? params[k] : m));
+}
+
 /* ================= 实验配置 ================= */
 const EXPERIMENTS = {
-  naoh:   { name: "NaOH 溶解（放热）",  type: "dissolve", solute: "NaOH",   mm: 40.00, dH: -44.5,
+  naoh:   { nameKey: "expt.naoh",   type: "dissolve", solute: "NaOH",   mm: 40.00, dH: -44.5,
             defaultMass: 5.0, maxMass: 12, color: "rgba(90,150,215,0.42)", solid: "#cfd6de" },
-  nacl:   { name: "NaCl 溶解（微弱吸热）", type: "dissolve", solute: "NaCl",   mm: 58.44, dH: +3.9,
+  nacl:   { nameKey: "expt.nacl",   type: "dissolve", solute: "NaCl",   mm: 58.44, dH: +3.9,
             defaultMass: 5.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#dfe5eb" },
-  nh4no3: { name: "NH₄NO₃ 溶解（吸热）", type: "dissolve", solute: "NH₄NO₃", mm: 80.04, dH: +25.7,
+  nh4no3: { nameKey: "expt.nh4no3", type: "dissolve", solute: "NH₄NO₃", mm: 80.04, dH: +25.7,
             defaultMass: 8.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#d2dae3" },
-  kno3:   { name: "KNO₃ 溶解（吸热）",   type: "dissolve", solute: "KNO₃",   mm: 101.10, dH: +34.9,
+  kno3:   { nameKey: "expt.kno3",   type: "dissolve", solute: "KNO₃",   mm: 101.10, dH: +34.9,
             defaultMass: 8.0, maxMass: 20, color: "rgba(90,150,215,0.42)", solid: "#cdd5dd" },
-  neutral:{ name: "HCl + NaOH 中和（放热）", type: "neutralize", dH: -57.3,
+  neutral:{ nameKey: "expt.neutral", type: "neutralize", dH: -57.3,
             color: "rgba(90,150,215,0.42)" },
 };
 const C_WATER = 4.18;      // J·g⁻¹·°C⁻¹
@@ -267,16 +533,11 @@ function peakOf(fn, dir) {
 // tau2f 越小 = 与环境热交换越快；tau1f 越大 = 升温越滞后。
 // tau2f 由标定得出，使「相对标准装置的额外代价」依次约为 8% / 13% / 17% / 21%。
 const FLAWS = {
-  none:   { name: "无缺陷（对照）",    tau2f: 1.00, tau1f: 1.0,
-            mech: "双层泡沫杯 + 杯盖 + 搅拌，接近绝热——但仍非完全绝热" },
-  nolid:  { name: "不盖盖子",          tau2f: 0.44, tau1f: 1.0,
-            mech: "液面直接与环境对流、辐射换热" },
-  probe:  { name: "温度计接触杯底",     tau2f: 0.31, tau1f: 1.0,
-            mech: "热量沿温度计与杯壁被直接导走" },
-  nostir: { name: "不搅拌",            tau2f: 0.38, tau1f: 1.6,
-            mech: "溶液温度不均匀：峰值更低、更晚出现（读数滞后），同时伴随散热" },
-  glass:  { name: "单层杯 / 玻璃烧杯",  tau2f: 0.19, tau1f: 1.0,
-            mech: "器壁导热，与环境换热最快" },
+  none:   { nameKey: "flaw.none",   mechKey: "flaw.none.mech",   tau2f: 1.00, tau1f: 1.0 },
+  nolid:  { nameKey: "flaw.nolid",  mechKey: "flaw.nolid.mech",  tau2f: 0.44, tau1f: 1.0 },
+  probe:  { nameKey: "flaw.probe",  mechKey: "flaw.probe.mech",  tau2f: 0.31, tau1f: 1.0 },
+  nostir: { nameKey: "flaw.nostir", mechKey: "flaw.nostir.mech", tau2f: 0.38, tau1f: 1.6 },
+  glass:  { nameKey: "flaw.glass",  mechKey: "flaw.glass.mech",  tau2f: 0.19, tau1f: 1.0 },
 };
 const FLAW_ORDER = ["nolid", "nostir", "probe", "glass"];
 const ERR_TAU1 = 12, ERR_TAU2 = 650, ERR_CCAL = 8;
@@ -338,32 +599,47 @@ const flawRow = document.getElementById("flawRow");
 const errVerdict = document.getElementById("errVerdict");
 const errExo = document.getElementById("errExo");
 const errEndo = document.getElementById("errEndo");
+const langSw = document.getElementById("langSw");
 
-for (const key in EXPERIMENTS) {
-  const o = document.createElement("option");
-  o.value = key; o.textContent = EXPERIMENTS[key].name;
-  exptSelect.appendChild(o);
+/* 状态栏存 key 而不是成品文案，这样切换语言时能重新渲染 */
+let statusKey = "status.idle", statusParams = null;
+function setStatus(key, params) {
+  statusKey = key; statusParams = params || null;
+  statusEl.textContent = t(key, statusParams);
+}
+
+function buildExptSelect() {
+  const keep = exptSelect.value || "naoh";
+  exptSelect.innerHTML = "";
+  for (const key in EXPERIMENTS) {
+    const o = document.createElement("option");
+    o.value = key; o.textContent = t(EXPERIMENTS[key].nameKey);
+    exptSelect.appendChild(o);
+  }
+  exptSelect.value = keep;
 }
 
 function renderInputs() {
   const e = S.expt;
   let html = "";
   if (e.type === "dissolve") {
-    html += `<label>溶质质量 m / g
+    html += `<label>${t("label.mass")}
       <input type="number" id="in_mass" value="${e.defaultMass}" min="0.5" max="${e.maxMass}" step="0.5"></label>`;
-    html += `<label>水体积 V / mL
+    html += `<label>${t("label.water")}
       <input type="number" id="in_water" value="100" min="50" max="200" step="10"></label>`;
   } else {
-    html += `<label>HCl 体积 / mL<input type="number" id="in_va" value="50" min="20" max="100" step="10"></label>`;
-    html += `<label>HCl 浓度 / M<input type="number" id="in_ca" value="1.0" min="0.5" max="2.0" step="0.5"></label>`;
-    html += `<label>NaOH 体积 / mL<input type="number" id="in_vb" value="50" min="20" max="100" step="10"></label>`;
-    html += `<label>NaOH 浓度 / M<input type="number" id="in_cb" value="1.0" min="0.5" max="2.0" step="0.5"></label>`;
+    html += `<label>${t("label.va")}<input type="number" id="in_va" value="50" min="20" max="100" step="10"></label>`;
+    html += `<label>${t("label.ca")}<input type="number" id="in_ca" value="1.0" min="0.5" max="2.0" step="0.5"></label>`;
+    html += `<label>${t("label.vb")}<input type="number" id="in_vb" value="50" min="20" max="100" step="10"></label>`;
+    html += `<label>${t("label.cb")}<input type="number" id="in_cb" value="1.0" min="0.5" max="2.0" step="0.5"></label>`;
   }
-  html += `<label>初温 T₀ / °C<input type="number" id="in_t0" value="22.0" min="15" max="30" step="0.5"></label>`;
+  html += `<label>${t("label.t0")}<input type="number" id="in_t0" value="22.0" min="15" max="30" step="0.5"></label>`;
   inputFields.innerHTML = html;
-  theoryHint.innerHTML = `<b style="color:#16679f">理论值</b> ΔH<sub>${e.type==="dissolve"?"soln":"neut"}</sub>` +
+  theoryHint.innerHTML = `<b style="color:#16679f">${t("theory.label")}</b> ΔH<sub>${e.type==="dissolve"?"soln":"neut"}</sub>` +
     ` = <b>${e.dH > 0 ? "+" : ""}${e.dH} kJ/mol</b>` +
-    (e.type === "dissolve" ? `（${e.solute}，摩尔质量 ${e.mm} g/mol）` : "（强酸强碱中和，每摩尔 H₂O）");
+    (e.type === "dissolve"
+      ? t("theory.dissolve", { solute: e.solute, mm: e.mm })
+      : t("theory.neutral"));
 }
 
 exptSelect.addEventListener("change", () => { S.expt = EXPERIMENTS[exptSelect.value]; resetSim(); renderInputs(); });
@@ -422,8 +698,8 @@ function startExperiment() {
   S.data = []; S.particles = []; S.lastSample = -1;
   resetExtrapUI(false);
   startBtn.disabled = true;
-  resultsEl.textContent = "实验进行中……";
-  statusEl.textContent = e.type === "dissolve" ? "向量热计中加入蒸馏水……" : "倒入 HCl 溶液……";
+  S.result = null; renderResults();
+  setStatus(e.type === "dissolve" ? "status.pourWater" : "status.pourHCl");
 }
 
 function resetSim() {
@@ -431,10 +707,10 @@ function resetSim() {
   S.data = []; S.particles = [];
   resetExtrapUI(false);
   startBtn.disabled = false;
-  statusEl.textContent = "选择实验并点击「开始实验」。";
+  setStatus("status.idle");
   tempVal.textContent = "--.-"; tempVal.className = "val neutral";
   timeVal.textContent = "0"; dtVal.textContent = "--";
-  resultsEl.textContent = "实验完成后，此处将显示完整计算过程与数据表。";
+  S.result = null; renderResults();
 }
 
 startBtn.addEventListener("click", startExperiment);
@@ -449,13 +725,13 @@ function tick(dtReal) {
   if (S.phase === "pour1") {
     S.level = Math.min(S.phaseT / 2.2, 1) * (e.type === "neutralize" ? 0.5 : 1);
     if (S.phaseT >= 2.2) { S.phase = e.type === "neutralize" ? "pour2" : "add"; S.phaseT = 0;
-      statusEl.textContent = e.type === "neutralize" ? "倒入 NaOH 溶液，开始反应！" : `加入 ${e.solute} 固体，开始溶解……`; }
+      setStatus(e.type === "neutralize" ? "status.pourNaOH" : "status.adding", { solute: e.solute }); }
   } else if (S.phase === "pour2") {
     S.level = 0.5 + Math.min(S.phaseT / 2.2, 1) * 0.5;
-    if (S.phaseT >= 2.2) { S.phase = "run"; S.phaseT = 0; statusEl.textContent = "反应进行中，记录温度……"; }
+    if (S.phaseT >= 2.2) { S.phase = "run"; S.phaseT = 0; setStatus("status.reacting"); }
   } else if (S.phase === "add") {
     if (S.phaseT < 1.6 && Math.random() < 0.5) spawnSolute();
-    if (S.phaseT >= 2.0) { S.phase = "run"; S.phaseT = 0; statusEl.textContent = "溶解进行中，记录温度……"; }
+    if (S.phaseT >= 2.0) { S.phase = "run"; S.phaseT = 0; setStatus("status.dissolving"); }
   } else if (S.phase === "run") {
     S.simT += dtReal * S.speed;
     if (S.simT - S.lastSample >= 1) {          // 每 1 模拟秒采样
@@ -580,12 +856,12 @@ function drawLab(now) {
 
   // 标签
   c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
-  c.fillText(glass ? "玻璃烧杯（导热）" : "泡沫塑料杯 ×2（近似绝热）", CUP.x1 - 4, CUP.bot + 22);
-  c.fillText("温度计", 150, 46);
-  c.fillText("搅拌器", 256, 46);
+  c.fillText(t(glass ? "cv.glassbeaker" : "cv.foamcup"), CUP.x1 - 4, CUP.bot + 22);
+  c.fillText(t("cv.thermometer"), 150, 46);
+  c.fillText(t("cv.stirrer"), 256, 46);
   if (S.flaw === "nolid") {
     c.fillStyle = "#c0392b";
-    c.fillText("未盖杯盖", CUP.x2 - 46, CUP.top + 6);
+    c.fillText(t("cv.nolid"), CUP.x2 - 46, CUP.top + 6);
   }
 
   c.restore();
@@ -601,14 +877,32 @@ function roundRectPath(c, x, y, w, h, r) {
   c.arcTo(x, y, x + w, y, r);
   c.closePath();
 }
-function wrapText(c, text, x, y, maxW, lh) {
-  let line = "", yy = y;
+// 中文逐字断行，西文按词断行——否则英文会被从单词中间劈开（"surro / undings"）
+const CJK = /[⺀-〿぀-鿿豈-﫿︰-﹏＀-￯]/;
+function tokenize(text) {
+  const out = []; let buf = "";
   for (const ch of text) {
-    if (c.measureText(line + ch).width > maxW && line) { c.fillText(line, x, yy); line = ch; yy += lh; }
-    else line += ch;
+    if (CJK.test(ch)) { if (buf) { out.push(buf); buf = ""; } out.push(ch); }
+    else if (ch === " ") { if (buf) { out.push(buf); buf = ""; } out.push(" "); }
+    else buf += ch;
   }
-  if (line) c.fillText(line, x, yy);
-  return yy;
+  if (buf) out.push(buf);
+  return out;
+}
+function wrapLines(c, text, maxW) {
+  const out = []; let line = "";
+  for (const tk of tokenize(text)) {
+    if (line && c.measureText((line + tk).trimEnd()).width > maxW) {
+      out.push(line.trimEnd()); line = tk === " " ? "" : tk;
+    } else line += tk;
+  }
+  if (line.trim()) out.push(line.trimEnd());
+  return out;
+}
+function wrapText(c, text, x, y, maxW, lh) {
+  let yy = y;
+  for (const ln of wrapLines(c, text, maxW)) { c.fillText(ln, x, yy); yy += lh; }
+  return yy - lh;
 }
 function flowArrow(c, x, y, dx, dy, color) {
   const len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
@@ -642,20 +936,39 @@ function drawHeatFlow(c) {
     flowArrow(c, R1, y0, R0 - R1, 0, col);
   }
 
-  // 右下角说明卡（避开杯体收窄后的位置）
-  const bx = 442, by = 296, bw = 162, bh = 152;
-  c.fillStyle = "rgba(255,255,255,0.95)";
+  // 右下角说明卡：先按最长一行算宽、再按折行数算高，中英文都能自适应
+  const pad = 12, gap = 7;
+  const blocks = [
+    { text: t(exo ? "cv.heatout" : "cv.heatin"), font: "bold 13px sans-serif", color: col, lh: 17 },
+    { text: t("cv.op") + t(fl.nameKey), font: "12px sans-serif", color: "#2b3d52", lh: 16 },
+    { text: t(fl.mechKey), font: "11px sans-serif", color: "#5d7085", lh: 15 },
+    { text: t(exo ? "cv.arrowExo" : "cv.arrowEndo"), font: "bold 12px sans-serif", color: col, lh: 17 },
+  ];
+  let needW = 0, needH = 0;
+  for (const b of blocks) {
+    c.font = b.font;
+    const one = c.measureText(b.text).width;
+    needW = Math.max(needW, one);
+    b.lines = wrapLines(c, b.text, 168);          // 先按上限宽度折行
+    needH += b.lines.length * b.lh + gap;
+  }
+  const bw = Math.min(needW + pad * 2, 186);
+  for (const b of blocks) { c.font = b.font; b.lines = wrapLines(c, b.text, bw - pad * 2); }
+  let bh = -gap;
+  for (const b of blocks) bh += b.lines.length * b.lh + gap;
+  bh += pad * 2;
+
+  const bx = LAB_W - 16 - bw, by = TABLE_Y - 14 - bh;
+  c.fillStyle = "rgba(255,255,255,0.96)";
   roundRectPath(c, bx, by, bw, bh, 8); c.fill();
   c.strokeStyle = col; c.lineWidth = 1.5;
   roundRectPath(c, bx, by, bw, bh, 8); c.stroke();
-  c.fillStyle = col; c.font = "bold 14px sans-serif";
-  c.fillText(exo ? "热量散失到环境" : "环境热量传入溶液", bx + 12, by + 26);
-  c.fillStyle = "#2b3d52"; c.font = "12px sans-serif";
-  c.fillText("操作：" + fl.name, bx + 12, by + 48);
-  c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
-  wrapText(c, fl.mech, bx + 12, by + 70, bw - 24, 15);
-  c.fillStyle = col; c.font = "bold 12px sans-serif";
-  c.fillText(exo ? "→ 实测 ΔT 偏小" : "→ 实测 |ΔT| 偏小", bx + 12, by + 136);
+  let ty = by + pad;
+  for (const b of blocks) {
+    c.font = b.font; c.fillStyle = b.color;
+    for (const ln of b.lines) { ty += b.lh; c.fillText(ln, bx + pad, ty - 4); }
+    ty += gap;
+  }
 }
 
 function drawThermometer(c) {
@@ -718,8 +1031,8 @@ function drawPouring(c) {
   }
   c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
   c.fillText(S.phase === "pour1"
-    ? (S.expt.type === "dissolve" ? "蒸馏水" : "HCl 溶液")
-    : "NaOH 溶液", 40, 40);
+    ? t(S.expt.type === "dissolve" ? "cv.pourWater" : "cv.pourHCl")
+    : t("cv.pourNaOH"), 40, 40);
 }
 
 function drawSpatula(c) {
@@ -730,7 +1043,7 @@ function drawSpatula(c) {
   c.fillStyle = S.expt.solid;
   c.beginPath(); c.ellipse(x + 6, y - 3, 15, 6, 0, 0, Math.PI * 2); c.fill();
   c.fillStyle = "#5d7085"; c.font = "11px sans-serif";
-  c.fillText(S.expt.solute + " 固体", x - 66, y - 34);
+  c.fillText(S.expt.solute + t("cv.solid"), x - 66, y - 34);
 }
 
 /* ================= 实时读数 ================= */
@@ -854,11 +1167,11 @@ function drawGraph() {
     c.strokeStyle = "#3f9142"; c.lineWidth = 2;
     c.beginPath(); c.arc(X(0) + 5, Y(ex.Text), 4.5, 0, Math.PI * 2); c.stroke();
     c.fillStyle = "#2c6e49"; c.font = "11px sans-serif";
-    c.fillText("外推 " + ex.Text.toFixed(2), X(0) + 14, Y(ex.Text) - 6);
+    c.fillText(t("g.extrapMark") + ex.Text.toFixed(2), X(0) + 14, Y(ex.Text) - 6);
   }
 
   setLegend(idealOn
-    ? `虚线 = <b style="color:#7b8ea3">理想（完全绝热）</b>　阴影 = 与环境交换的热量（${S.dTeq > 0 ? "散失" : "环境补入"}）`
+    ? t("g.legendIdeal", { dir: t(S.dTeq > 0 ? "g.legendLoss" : "g.legendGain") })
     : "");
 }
 function setLegend(html) {
@@ -880,7 +1193,7 @@ graph.addEventListener("click", ev => {
   const t = ((ev.clientX - r.left) - 56) / (graph.clientWidth - 76) * RUN_TIME;
   let best = S.data[0];
   for (const p of S.data) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
-  statusEl.textContent = `数据点：t = ${best.t.toFixed(0)} s，T = ${best.T.toFixed(2)} °C`;
+  setStatus("status.point", { t: best.t.toFixed(0), T: best.T.toFixed(2) });
 });
 
 /* ================= 误差分析模块 ================= */
@@ -974,7 +1287,7 @@ function drawErrGraph(cv, p, fl) {
   arrowHead(c, ax, Y(pa), exo ? -1 : 1, col);
   arrowHead(c, ax, Y(pi), exo ? 1 : -1, col);
   c.fillStyle = col; c.font = "bold 10px sans-serif";
-  c.fillText(exo ? "实测偏低" : "实测偏高", ax - 54, (Y(pi) + Y(pa)) / 2 + 3);
+  c.fillText(t(exo ? "err.low" : "err.high"), ax - 54, (Y(pi) + Y(pa)) / 2 + 3);
 }
 
 function renderErrorPanel() {
@@ -984,29 +1297,20 @@ function renderErrorPanel() {
   if (S.flaw === "none") {
     const s = flawCurves(ERR_DEMO.exo, fl);
     errVerdict.innerHTML =
-      `<div class="mech">机制：${fl.mech}</div>
-       <div class="line">这是基准情形。标准装置本身也并非完全绝热，实测 |ΔH| 已比理想值偏小
-         <span class="pct">${Math.abs(s.total).toFixed(1)}%</span>。</div>
-       <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">
-         当前未选择任何操作缺陷，所以「无缺陷对照」与「实际操作」是同一条曲线——
-         图中灰线被橙色线完全覆盖，只看到两条线是正常的。</div>
-       <div class="rule">正因如此，实验中读到的最高温度总是略低于"真实"最高温度——
-         这是外推法存在的理由，也是它只能算"拓展"的原因。</div>`;
+      `<div class="mech">${t("verdict.mech", { mech: t(fl.mechKey) })}</div>
+       <div class="line">${t("verdict.none1", { pct: Math.abs(s.total).toFixed(1) })}</div>
+       <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">${t("verdict.none2")}</div>
+       <div class="rule">${t("verdict.none3")}</div>`;
     return;
   }
   const sx = flawCurves(ERR_DEMO.exo, fl);
   const se = flawCurves(ERR_DEMO.endo, fl);
   errVerdict.innerHTML =
-    `<div class="mech">机制：${fl.mech}</div>
-     <div class="line"><span class="kExo">放热</span> 实测曲线在理想曲线<b>下方</b> → ΔT 偏小 →
-       |ΔH| <span class="pct">偏小 ${Math.abs(sx.total).toFixed(1)}%</span></div>
-     <div class="line"><span class="kEndo">吸热</span> 实测曲线在理想曲线<b>上方</b> → |ΔT| 偏小 →
-       |ΔH| <span class="pct">偏小 ${Math.abs(se.total).toFixed(1)}%</span></div>
-     <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">
-       相对正确操作（标准装置）的额外代价：<b style="color:#a8730a">${sx.cost.toFixed(1)}%</b>。
-       两组比例相同——热量进出与 ΔT 成正比，方向相反、比例相同。</div>
-     <div class="rule">热量总是朝环境温度「靠拢」：放热时向环境散失，吸热时从环境补入。<br>
-       方向相反，但结果一样——<b>|ΔT| 永远偏小，测出的 |ΔH| 永远偏小。</b></div>`;
+    `<div class="mech">${t("verdict.mech", { mech: t(fl.mechKey) })}</div>
+     <div class="line">${t("verdict.exo", { pct: Math.abs(sx.total).toFixed(1) })}</div>
+     <div class="line">${t("verdict.endo", { pct: Math.abs(se.total).toFixed(1) })}</div>
+     <div style="font-size:11.5px;color:#6b7f94;margin-top:7px">${t("verdict.cost", { cost: sx.cost.toFixed(1) })}</div>
+     <div class="rule">${t("verdict.rule")}</div>`;
 }
 
 function buildFlawButtons() {
@@ -1014,7 +1318,7 @@ function buildFlawButtons() {
   for (const k of ["none", ...FLAW_ORDER]) {
     const b = document.createElement("button");
     b.className = "flaw" + (k === S.flaw ? " active" : "");
-    b.textContent = FLAWS[k].name;
+    b.textContent = t(FLAWS[k].nameKey);
     b.addEventListener("click", () => {
       S.flaw = k;
       flawRow.querySelectorAll(".flaw").forEach(x => x.classList.remove("active"));
@@ -1051,17 +1355,22 @@ function runExtrapolation() {
   const Tinit = S.T0;                                      // 同 finishExperiment：用混合前记录的初温
   const Traw = S.dTeq > 0 ? Math.max(...temps) : Math.min(...temps);
   const dTraw = Traw - Tinit, dText = a - Tinit, k = S.mSol * C_WATER / (1000 * S.n);
-  S.extrap = { a, b, t1: RUN_TIME, Text: a, dTraw, dText };
+  S.extrap = { a, b, t1: RUN_TIME, Text: a, dTraw, dText, Traw, k };
   showExtrap.disabled = false;                 // 拟合出来后才允许开关这条线
   showExtrap.checked = true;
+  renderExtrapOut();
+}
 
+function renderExtrapOut() {
+  const ex = S.extrap;
+  if (!ex) { extrapOut.innerHTML = ""; return; }
   const sgn = v => (v > 0 ? "+" : "");
   extrapOut.innerHTML = `
     <table>
       <tr><td></td><td>T / °C</td><td>ΔT / °C</td><td>ΔH / kJ·mol⁻¹</td></tr>
-      <tr><td>实测最高温</td><td>${Traw.toFixed(2)}</td><td>${sgn(dTraw)}${dTraw.toFixed(2)}</td><td>${(-k * dTraw).toFixed(1)}</td></tr>
-      <tr><td>外推修正后</td><td>${a.toFixed(2)}</td><td>${sgn(dText)}${dText.toFixed(2)}</td><td>${(-k * dText).toFixed(1)}</td></tr>
-      <tr><td>理论值</td><td>—</td><td>—</td><td>${S.expt.dH.toFixed(1)}</td></tr>
+      <tr><td>${t("extrap.raw")}</td><td>${ex.Traw.toFixed(2)}</td><td>${sgn(ex.dTraw)}${ex.dTraw.toFixed(2)}</td><td>${(-ex.k * ex.dTraw).toFixed(1)}</td></tr>
+      <tr><td>${t("extrap.corrected")}</td><td>${ex.a.toFixed(2)}</td><td>${sgn(ex.dText)}${ex.dText.toFixed(2)}</td><td>${(-ex.k * ex.dText).toFixed(1)}</td></tr>
+      <tr><td>${t("extrap.lit")}</td><td>—</td><td>—</td><td>${S.expt.dH.toFixed(1)}</td></tr>
     </table>`;
 }
 
@@ -1069,7 +1378,7 @@ function runExtrapolation() {
 function finishExperiment() {
   S.phase = "done";
   startBtn.disabled = false;
-  statusEl.textContent = "实验完成！查看右侧数据处理。";
+  setStatus("status.done");
 
   const e = S.expt, inp = S.inputs;
   const temps = S.data.map(p => p.T);
@@ -1086,40 +1395,47 @@ function finishExperiment() {
   const errCls = ae < 5 ? "err-good" : ae < 15 ? "err-warn" : "err-bad";
   resetExtrapUI(true);                                  // 实验完成后才允许拟合
 
-  let givens;
-  if (e.type === "dissolve") {
-    givens = `m(${e.solute}) = ${inp.mass} g，M = ${e.mm} g/mol → n = ${(S.n).toFixed(4)} mol<br>
-      m(溶液) ≈ ${inp.water} g 水 + ${inp.mass} g 溶质 = ${S.mSol.toFixed(1)} g`;
-  } else {
-    const nH = inp.va * inp.ca / 1000, nOH = inp.vb * inp.cb / 1000;
-    givens = `n(H⁺) = ${inp.va} mL × ${inp.ca} M = ${nH.toFixed(3)} mol；
-      n(OH⁻) = ${inp.vb} mL × ${inp.cb} M = ${nOH.toFixed(3)} mol<br>
-      限量试剂：<b>${inp.limiting}</b> → n(H₂O) = ${S.n.toFixed(3)} mol；
-      m(溶液) ≈ ${(inp.va + inp.vb)} mL × 1.00 g/mL = ${S.mSol.toFixed(1)} g`;
-  }
+  S.result = { Tinit, Text, dT, q, dHexp, err, errCls };
+  renderResults();
+}
 
-  // 数据表（每 10 s）
+function renderResults() {
+  const R = S.result;
+  if (!R) {
+    const mid = S.phase === "pour1" || S.phase === "pour2" || S.phase === "add" || S.phase === "run";
+    resultsEl.innerHTML = t(mid ? "results.running" : "results.placeholder");
+    return;
+  }
+  const e = S.expt, inp = S.inputs;
+  const { Tinit, Text, dT, q, dHexp, err, errCls } = R;
+
+  const givens = e.type === "dissolve"
+    ? t("res.givens.dissolve", { solute: e.solute, mass: inp.mass, mm: e.mm, n: S.n.toFixed(4), water: inp.water, msol: S.mSol.toFixed(1) })
+    : t("res.givens.neutral", {
+        va: inp.va, ca: inp.ca, nH: (inp.va * inp.ca / 1000).toFixed(3),
+        vb: inp.vb, cb: inp.cb, nOH: (inp.vb * inp.cb / 1000).toFixed(3),
+        limiting: inp.limiting, n: S.n.toFixed(3), v: inp.va + inp.vb, msol: S.mSol.toFixed(1),
+      });
+
   let rows = "";
   for (const p of S.data) if (Math.round(p.t) % 10 === 0)
     rows += `<tr><td>${p.t.toFixed(0)}</td><td>${p.T.toFixed(2)}</td></tr>`;
 
   resultsEl.innerHTML = `
-    <b style="color:#16679f">① 测量数据</b><br>${givens}<br>
-    T<sub>初</sub> = ${Tinit.toFixed(2)} °C，T<sub>${S.dTeq > 0 ? "最高" : "最低"}</sub> = ${Text.toFixed(2)} °C<br>
-    <b>ΔT = ${dT > 0 ? "+" : ""}${dT.toFixed(2)} °C</b>（${S.dTeq > 0 ? "升温 → 放热" : "降温 → 吸热"}）<br><br>
-    <b style="color:#16679f">② 溶液吸收的热量</b><br>
+    <b style="color:#16679f">${t("res.s1")}</b><br>${givens}<br>
+    ${t("res.tinit", { t0: Tinit.toFixed(2), ext: t(S.dTeq > 0 ? "res.extHigh" : "res.extLow"), text: Text.toFixed(2) })}<br>
+    <b>${t("res.dt", { dt: (dT > 0 ? "+" : "") + dT.toFixed(2) })}</b>${t(S.dTeq > 0 ? "res.warm" : "res.cool")}<br><br>
+    <b style="color:#16679f">${t("res.s2")}</b><br>
     <span class="formula">q = m·c·ΔT = ${S.mSol.toFixed(1)} × 4.18 × ${dT.toFixed(2)}</span>
     = <b>${(q / 1000).toFixed(3)} kJ</b><br><br>
-    <b style="color:#16679f">③ 摩尔焓变</b><br>
+    <b style="color:#16679f">${t("res.s3")}</b><br>
     <span class="formula">ΔH = −q / n = −(${(q / 1000).toFixed(3)}) / ${S.n.toFixed(4)}</span>
     = <b>${dHexp > 0 ? "+" : ""}${dHexp.toFixed(1)} kJ/mol</b><br><br>
-    <b style="color:#16679f">④ 与理论值比较</b><br>
-    理论 ΔH = ${e.dH > 0 ? "+" : ""}${e.dH} kJ/mol，
-    相对偏差 = <b class="${errCls}">${err > 0 ? "+" : ""}${err.toFixed(1)}%</b>
-    <span style="color:#6b7f94">（实测值${err < 0 ? "偏小" : "偏大"}）</span><br>
-    <span style="color:#6b7f94;font-size:12px">本次操作条件：<b style="color:#2b3d52">${FLAWS[S.flaw].name}</b>。
-    未修正的实测读数本来就会偏低几个百分点——热量计并非完全绝热，达峰后热量仍在继续交换。
-    其余误差来源：温度计与热量计自身吸热、称量/量取误差。</span>
+    <b style="color:#16679f">${t("res.s4")}</b><br>
+    ${t("res.theory", { lit: (e.dH > 0 ? "+" : "") + e.dH })}
+    <b class="${errCls}">${err > 0 ? "+" : ""}${err.toFixed(1)}%</b>
+    <span style="color:#6b7f94">${t("res.measured", { dir: t(err < 0 ? "res.low" : "res.high") })}</span><br>
+    <span style="color:#6b7f94;font-size:12px">${t("res.cond", { flaw: t(FLAWS[S.flaw].nameKey) })}</span>
     <table><tr><th>t / s</th><th>T / °C</th></tr>${rows}</table>`;
 }
 
@@ -1135,9 +1451,40 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+/* ================= 语言切换 ================= */
+function applyStaticI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.title = t("title");
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  langSw.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.lang === LANG));
+}
+
+// 切换语言时凡是含文案的部分都要重建（下拉项、输入标签、缺陷按钮、结果、状态栏）
+function setLang(lang) {
+  if (!I18N[lang] || lang === LANG) return;
+  LANG = lang;
+  try { localStorage.setItem("calorimetry-lang", lang); } catch (e) {}
+  applyStaticI18n();
+  buildExptSelect();
+  renderInputs();
+  buildFlawButtons();
+  renderErrorPanel();
+  renderExtrapOut();
+  renderResults();
+  statusEl.textContent = t(statusKey, statusParams);
+}
+
+langSw.addEventListener("click", e => {
+  const b = e.target.closest("button[data-lang]");
+  if (b) setLang(b.dataset.lang);
+});
+
 extrapBtn.addEventListener("click", runExtrapolation);
 window.addEventListener("resize", renderErrorPanel);
 
+applyStaticI18n();
+buildExptSelect();
 renderInputs();
 resetSim();
 buildFlawButtons();
