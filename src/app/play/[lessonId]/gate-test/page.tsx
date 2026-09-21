@@ -55,7 +55,33 @@ export default function GateTestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [fx, setFx] = useState<{ kind: 'correct' | 'wrong'; variant: number } | null>(null)
   const submittingRef = useRef(false)
+  const [switchCount, setSwitchCount] = useState(0)
+  const [warnOpen, setWarnOpen] = useState(false)
+  const [aborted, setAborted] = useState(false)
+  const switchRef = useRef(0)
   const { lang } = useLang()
+
+  // Anti-cheat: count how often the student leaves the test window. First time
+  // warns, second time ends the attempt.
+  useEffect(() => {
+    if (!sessionId || done || aborted) return
+    const onVis = () => {
+      if (!document.hidden) return
+      switchRef.current += 1
+      setSwitchCount(switchRef.current)
+      if (switchRef.current >= 2) {
+        fetch('/api/test/gate-test/abort', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, focusLost: switchRef.current }),
+        }).catch(() => {})
+        setAborted(true)
+      } else {
+        setWarnOpen(true)
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [sessionId, done, aborted])
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -165,7 +191,7 @@ export default function GateTestPage() {
       const res = await fetch('/api/test/gate-test/answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, questionId: question.id, selectedOptionId: selectedOption }),
+        body: JSON.stringify({ sessionId, questionId: question.id, selectedOptionId: selectedOption, focusLost: switchRef.current }),
       })
       const data = await res.json()
 
@@ -294,6 +320,25 @@ export default function GateTestPage() {
     )
   }
 
+  // Ended early because of repeated window switching
+  if (aborted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-lg mx-auto px-4 pt-24 pb-20 text-center">
+          <AlertTriangle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">{lang === 'zh' ? '本次测试已结束' : 'Test ended'}</h2>
+          <p className="text-muted-foreground mb-6">
+            {lang === 'zh' ? '检测到多次切换窗口，本次通关测试已结束。如需重测，请回到课时重新开始。' : 'Multiple window switches were detected, so this test was ended.'}
+          </p>
+          <Link href={`/play/${lessonId}`} className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 inline-block">
+            {lang === 'zh' ? '返回课时' : 'Back to Lesson'}
+          </Link>
+        </main>
+      </div>
+    )
+  }
+
   // Loading
   if (loading || !question) {
     return (
@@ -320,6 +365,9 @@ export default function GateTestPage() {
             ✕ 退出测试
           </button>
         </div>
+        <p className="text-center text-xs text-amber-600 mb-3">
+          {lang === 'zh' ? '测试期间请勿切换窗口' : 'Please do not switch windows during the test'}
+        </p>
 
         {/* Live Stats */}
         <div className="bg-card rounded-2xl border p-4 mb-4">
@@ -430,6 +478,22 @@ export default function GateTestPage() {
             </button>
           )}
         </div>
+
+        {/* Window-switch warning */}
+        {warnOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 text-center">
+              <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
+              <h3 className="font-semibold mb-2">{lang === 'zh' ? '请勿切换窗口' : 'Do not switch windows'}</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {lang === 'zh' ? '检测到切换窗口。再次切换将结束本次测试。' : 'Window switch detected. Switching again will end this test.'}
+              </p>
+              <button onClick={() => setWarnOpen(false)} className="px-6 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
+                {lang === 'zh' ? '继续测试' : 'Continue'}
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { sessionId, questionId, selectedOptionId } = await request.json()
+  const { sessionId, questionId, selectedOptionId, focusLost } = await request.json()
 
   // Read session
   const { data: sessions } = await supabaseAdmin('gate_test_sessions', {
@@ -96,6 +96,16 @@ export async function POST(request: Request) {
     query: `?id=eq.${sessionId}`,
   })
   if (patchResult.error) console.error('Failed to update session:', patchResult.error)
+
+  // Anti-cheat signal, kept in a separate best-effort write so a missing column
+  // can never break the main session update.
+  if (Number(focusLost) > 0) {
+    await supabaseAdmin('gate_test_sessions', {
+      method: 'PATCH',
+      body: { focus_lost_count: Math.max(session.focus_lost_count || 0, Number(focusLost)) },
+      query: `?id=eq.${sessionId}`,
+    })
+  }
 
   // Update student progress if passed. Awaited: a fire-and-forget write can be
   // lost when the serverless function is frozen right after the response, which

@@ -186,6 +186,11 @@ export async function GET(request: Request) {
   const allSessions = await fetchAllIn('gate_test_sessions', 'student_id', studentIds, 'id,student_id,lesson_id,status,started_at,completed_at')
   const sessions = allSessions.filter((s: any) => lessonIdSet.has(s.lesson_id))
 
+  // Focus-lost counts (best effort — returns nothing if the column isn't migrated yet)
+  const focusBySession = new Map<string, number>()
+  const focusRows = await fetchAllIn('gate_test_sessions', 'student_id', studentIds, 'id,focus_lost_count')
+  for (const f of focusRows) focusBySession.set(f.id, f.focus_lost_count || 0)
+
   // Answers for those sessions; keep only this course's questions
   const sessionIds = sessions.map((s: any) => s.id)
   const answers = await fetchAllIn('gate_test_answers', 'session_id', sessionIds, 'session_id,question_id,is_correct')
@@ -294,7 +299,7 @@ export async function GET(request: Request) {
     else byStudentLesson.set(key, [s])
   }
 
-  interface Attempt { sessionId: string; seconds: number | null; correct: number; wrong: number }
+  interface Attempt { sessionId: string; seconds: number | null; correct: number; wrong: number; focusLost: number; secPerQ: number | null }
   interface SL { studentId: string; lessonId: string; attempts: number; passed: boolean; passedFirst: boolean; attemptsDetail: Attempt[]; passIndex: number }
   const perStudentLesson: SL[] = []
   for (const [key, rows] of byStudentLesson) {
@@ -303,7 +308,15 @@ export async function GET(request: Request) {
     const attemptsDetail: Attempt[] = rows.map((r: any) => {
       const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
       const c = sessionCounts.get(r.id) || { correct: 0, wrong: 0 }
-      return { sessionId: r.id, seconds: sec >= 0 ? sec : null, correct: c.correct, wrong: c.wrong }
+      const answered = c.correct + c.wrong
+      return {
+        sessionId: r.id,
+        seconds: sec >= 0 ? sec : null,
+        correct: c.correct,
+        wrong: c.wrong,
+        focusLost: focusBySession.get(r.id) || 0,
+        secPerQ: answered > 0 && sec >= 0 ? Math.round(sec / answered) : null,
+      }
     })
     const passed = passedSet.has(key)
     const passedFirst = rows.length > 0 && rows[0].status === 'passed'

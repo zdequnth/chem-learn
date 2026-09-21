@@ -26,6 +26,7 @@ interface LessonStat {
 }
 interface Attempt {
   sessionId: string; seconds: number | null; correct: number; wrong: number
+  focusLost: number; secPerQ: number | null
 }
 interface DetailRow {
   studentId: string; name: string; attempts: number; passed: boolean; passIndex: number
@@ -455,11 +456,15 @@ function AnalyticsContent() {
                                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                                   {d.attemptDetail.map((a, idx) => {
                                     const highlight = d.passed && idx === d.passIndex
+                                    const reasons: string[] = []
+                                    if (a.focusLost >= 2) reasons.push(lang === 'zh' ? `切屏${a.focusLost}次` : `${a.focusLost} switches`)
+                                    if (highlight && a.secPerQ !== null && a.secPerQ < 8) reasons.push(lang === 'zh' ? `过快·平均${a.secPerQ}秒/题` : `fast ${a.secPerQ}s/q`)
                                     return (
                                       <button key={a.sessionId} onClick={() => openSession(a.sessionId)}
                                         className={`text-left hover:underline ${highlight ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
                                         title={lang === 'zh' ? '查看这次测试的题目' : 'View questions'}>
                                         {fmtSeconds(a.seconds)} · {lang === 'zh' ? `${a.correct}对${a.wrong}错` : `${a.correct}✓ ${a.wrong}✗`}
+                                        {reasons.length > 0 && <span className="text-amber-600 ml-1 font-medium">⚠️{reasons.join(' · ')}</span>}
                                       </button>
                                     )
                                   })}
