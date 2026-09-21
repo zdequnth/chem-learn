@@ -34,6 +34,66 @@ async function fetchAllIn(table: string, column: string, ids: string[], select =
   return out
 }
 
+async function canAccessCourse(userId: string, role: string | undefined, courseId: string | null): Promise<boolean> {
+  if (!courseId) return false
+  if (role === 'admin') return true
+  const { data: course } = await supabaseAdmin('courses', { query: `?id=eq.${courseId}&select=owner_id` })
+  if (course?.[0]?.owner_id === userId) return true
+  const { data: cc } = await supabaseAdmin('course_collaborators', { query: `?course_id=eq.${courseId}&teacher_id=eq.${userId}&select=id` })
+  return (cc || []).length > 0
+}
+
+// The specific questions a student answered in one test session (for drill-down)
+async function sessionQuestions(userId: string, role: string | undefined, sessionId: string) {
+  const { data: sess } = await supabaseAdmin('gate_test_sessions', {
+    query: `?id=eq.${sessionId}&select=id,student_id,lesson_id,status`,
+  })
+  const s = sess?.[0]
+  if (!s) return NextResponse.json({ error: '找不到该次测试' }, { status: 404 })
+
+  const { data: ln } = await supabaseAdmin('lessons', { query: `?id=eq.${s.lesson_id}&select=chapter_id,title` })
+  const { data: ch } = await supabaseAdmin('chapters', { query: `?id=eq.${ln?.[0]?.chapter_id}&select=course_id` })
+  if (!await canAccessCourse(userId, role, ch?.[0]?.course_id ?? null)) {
+    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+  }
+
+  const { data: ans } = await supabaseAdmin('gate_test_answers', {
+    query: `?session_id=eq.${sessionId}&order=answered_at&select=question_id,selected_option_id,is_correct`,
+  })
+  const rows: any[] = ans || []
+  const qids: string[] = Array.from(new Set(rows.map((a: any) => a.question_id)))
+  const qs = qids.length ? await fetchAllIn('questions', 'id', qids, 'id,stem,image_url') : []
+  const opts = qids.length ? await fetchAllIn('question_options', 'question_id', qids, 'id,question_id,content,is_correct,display_order') : []
+  const qMap = new Map(qs.map((q: any) => [q.id, q]))
+  const optsByQ = new Map<string, any[]>()
+  for (const o of opts) {
+    const arr = optsByQ.get(o.question_id) || []
+    arr.push(o)
+    optsByQ.set(o.question_id, arr)
+  }
+  const prof = await supabaseAdmin('profiles', { query: `?id=eq.${s.student_id}&select=display_name` })
+
+  return NextResponse.json({
+    studentName: prof.data?.[0]?.display_name || '（学生）',
+    lessonTitle: ln?.[0]?.title || '',
+    status: s.status,
+    questions: rows.map((a: any) => {
+      const q = qMap.get(a.question_id)
+      const os = (optsByQ.get(a.question_id) || []).sort((x: any, y: any) => x.display_order - y.display_order)
+      const sel = os.find((o: any) => o.id === a.selected_option_id)
+      const cor = os.find((o: any) => o.is_correct)
+      return {
+        stem: q?.stem || '',
+        imageUrl: q?.image_url || null,
+        isCorrect: a.is_correct,
+        options: os.map((o: any) => ({ content: o.content, isCorrect: o.is_correct })),
+        selected: sel?.content || '',
+        correct: cor?.content || '',
+      }
+    }),
+  })
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -45,6 +105,12 @@ export async function GET(request: Request) {
   const classIdParam = searchParams.get('classId')
   const courseIdParam = searchParams.get('courseId')
   const lessonIdParam = searchParams.get('lessonId')
+  const sessionIdParam = searchParams.get('sessionId')
+
+  // Drill-down: the questions of one specific test session
+  if (sessionIdParam) {
+    return sessionQuestions(user.id, role, sessionIdParam)
+  }
 
   let courseId: string | null = null
   let scopeName = ''
@@ -65,16 +131,9 @@ export async function GET(request: Request) {
     studentIds = members.map((m: any) => m.student_id)
   } else {
     if (!courseIdParam) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
-    let allowed = role === 'admin'
-    if (!allowed) {
-      const { data: course } = await supabaseAdmin('courses', { query: `?id=eq.${courseIdParam}&select=owner_id,name` })
-      if (course?.[0]?.owner_id === user.id) allowed = true
-      else {
-        const { data: cc } = await supabaseAdmin('course_collaborators', { query: `?course_id=eq.${courseIdParam}&teacher_id=eq.${user.id}&select=id` })
-        allowed = (cc || []).length > 0
-      }
+    if (!await canAccessCourse(user.id, role, courseIdParam)) {
+      return NextResponse.json({ error: '无权访问' }, { status: 403 })
     }
-    if (!allowed) return NextResponse.json({ error: '无权访问' }, { status: 403 })
     const { data: course } = await supabaseAdmin('courses', { query: `?id=eq.${courseIdParam}&select=name` })
     scopeName = course?.[0]?.name || ''
     courseId = courseIdParam
@@ -90,6 +149,9 @@ export async function GET(request: Request) {
   const chapterTitle = new Map<string, string>(chapters.map((c: any) => [c.id, c.title]))
   const chapterSort = new Map<string, number>(chapters.map((c: any) => [c.id, c.sort_order]))
   const lessonChapter = new Map<string, string>(lessons.map((l: any) => [l.id, l.chapter_id]))
+  // Order lessons by chapter order, then lesson order
+  lessons.sort((a: any, b: any) =>
+    ((chapterSort.get(a.chapter_id) ?? 0) - (chapterSort.get(b.chapter_id) ?? 0)) || (a.sort_order - b.sort_order))
 
   if (lessonIds.length === 0) {
     return NextResponse.json({ scope, scopeName, empty: true, questions: [], knowledgePoints: [], lessons: [] })
@@ -213,8 +275,16 @@ export async function GET(request: Request) {
     passedByLesson.set(p.lesson_id, set)
   }
 
-  // Per (student, lesson): only *completed* test sessions count as attempts, so
-  // the attempt count always equals the number of recorded durations.
+  // Per-session correct / wrong counts (from the recorded answers)
+  const sessionCounts = new Map<string, { correct: number; wrong: number }>()
+  for (const a of courseAnswers) {
+    const c = sessionCounts.get(a.session_id) || { correct: 0, wrong: 0 }
+    if (a.is_correct) c.correct++
+    else c.wrong++
+    sessionCounts.set(a.session_id, c)
+  }
+
+  // Per (student, lesson): only *completed* test sessions count as attempts.
   const byStudentLesson = new Map<string, any[]>()
   for (const s of sessions) {
     if (!s.completed_at) continue
@@ -224,17 +294,19 @@ export async function GET(request: Request) {
     else byStudentLesson.set(key, [s])
   }
 
-  interface SL { studentId: string; lessonId: string; attempts: number; passed: boolean; durations: number[]; passIndex: number }
+  interface Attempt { sessionId: string; seconds: number | null; correct: number; wrong: number }
+  interface SL { studentId: string; lessonId: string; attempts: number; passed: boolean; passedFirst: boolean; attemptsDetail: Attempt[]; passIndex: number }
   const perStudentLesson: SL[] = []
   for (const [key, rows] of byStudentLesson) {
     const [studentId, lessonId] = key.split('|')
     rows.sort((a: any, b: any) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-    const durations: number[] = []
-    for (const r of rows) {
+    const attemptsDetail: Attempt[] = rows.map((r: any) => {
       const sec = Math.round((new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 1000)
-      if (sec >= 0) durations.push(sec)
-    }
+      const c = sessionCounts.get(r.id) || { correct: 0, wrong: 0 }
+      return { sessionId: r.id, seconds: sec >= 0 ? sec : null, correct: c.correct, wrong: c.wrong }
+    })
     const passed = passedSet.has(key)
+    const passedFirst = rows.length > 0 && rows[0].status === 'passed'
     // Which attempt first passed: the session whose completion is closest to the
     // recorded pass time (passed_at). -1 when not passed / unknown.
     let passIndex = -1
@@ -251,7 +323,7 @@ export async function GET(request: Request) {
         passIndex = rows.length - 1
       }
     }
-    perStudentLesson.push({ studentId, lessonId, attempts: rows.length, passed, durations, passIndex })
+    perStudentLesson.push({ studentId, lessonId, attempts: rows.length, passed, passedFirst, attemptsDetail, passIndex })
   }
 
   const median = (nums: number[]) => {
@@ -264,8 +336,9 @@ export async function GET(request: Request) {
 
   const lessonStats = lessons.map((l: any) => {
     const rows = perStudentLesson.filter((r) => r.lessonId === l.id)
-    const durations = rows.flatMap((r) => r.durations)
+    const durations = rows.flatMap((r) => r.attemptsDetail.map((a) => a.seconds).filter((s): s is number => s !== null))
     const passedCount = passedByLesson.get(l.id)?.size || 0
+    const firstPass = rows.filter((r) => r.passedFirst).length
     const totalStudents = studentIds.length
     return {
       id: l.id,
@@ -274,6 +347,7 @@ export async function GET(request: Request) {
       attempted: rows.length,
       passed: passedCount,
       passRate: totalStudents > 0 ? Math.round((passedCount / totalStudents) * 100) : null,
+      firstPassRate: rows.length > 0 ? Math.round((firstPass / rows.length) * 100) : null,
       avgAttempts: rows.length ? Math.round((rows.reduce((a, r) => a + r.attempts, 0) / rows.length) * 10) / 10 : null,
       medianSeconds: median(durations),
       avgSeconds: mean(durations),
@@ -290,8 +364,8 @@ export async function GET(request: Request) {
         name: nameById.get(r.studentId) || '（学生）',
         attempts: r.attempts,
         passed: r.passed,
-        durations: r.durations,
         passIndex: r.passIndex,
+        attemptDetail: r.attemptsDetail,
       }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'))
   }

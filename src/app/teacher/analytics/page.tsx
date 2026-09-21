@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, Fragment } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
@@ -21,11 +21,19 @@ interface KpStat {
 }
 interface LessonStat {
   id: string; title: string; chapterTitle: string
-  attempted: number; passed: number; passRate: number | null
+  attempted: number; passed: number; passRate: number | null; firstPassRate: number | null
   avgAttempts: number | null; medianSeconds: number | null; avgSeconds: number | null
 }
+interface Attempt {
+  sessionId: string; seconds: number | null; correct: number; wrong: number
+}
 interface DetailRow {
-  studentId: string; name: string; attempts: number; passed: boolean; durations: number[]; passIndex: number
+  studentId: string; name: string; attempts: number; passed: boolean; passIndex: number
+  attemptDetail: Attempt[]
+}
+interface SessionModal {
+  studentName: string; lessonTitle: string
+  questions: { stem: string; imageUrl: string | null; isCorrect: boolean; options: { content: string; isCorrect: boolean }[]; selected: string; correct: string }[]
 }
 
 function rateClass(rate: number) {
@@ -66,6 +74,18 @@ function AnalyticsContent() {
   const [rateFilter, setRateFilter] = useState<'80' | '50' | '30' | 'none'>('80')
   const [detail, setDetail] = useState<DetailRow[] | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [sessionModal, setSessionModal] = useState<SessionModal | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(false)
+
+  const openSession = async (sessionId: string) => {
+    setSessionModal({ studentName: '', lessonTitle: '', questions: [] })
+    setSessionLoading(true)
+    try {
+      const j = await (await fetch(`/api/teacher/analytics?sessionId=${sessionId}`)).json()
+      if (j.error) { alert(j.error); setSessionModal(null) }
+      else setSessionModal({ studentName: j.studentName || '', lessonTitle: j.lessonTitle || '', questions: j.questions || [] })
+    } catch { setSessionModal(null) } finally { setSessionLoading(false) }
+  }
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -174,6 +194,18 @@ function AnalyticsContent() {
     // let React paint the expanded list, then print; .print-expand also forces it in print CSS
     setTimeout(() => window.print(), 120)
   }
+
+  // Lessons that have attempts, grouped by chapter (in course order)
+  const lessonGroups: { chapter: string; items: LessonStat[] }[] = (() => {
+    const out: { chapter: string; items: LessonStat[] }[] = []
+    for (const l of lessons.filter((x) => x.attempted > 0)) {
+      const ch = l.chapterTitle || '—'
+      let g = out.find((x) => x.chapter === ch)
+      if (!g) { g = { chapter: ch, items: [] }; out.push(g) }
+      g.items.push(l)
+    }
+    return out
+  })()
 
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
@@ -357,26 +389,35 @@ function AnalyticsContent() {
                         <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '课时' : 'Lesson'}</th>
                         <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '参与' : 'Tried'}</th>
                         <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '通过率' : 'Pass'}</th>
+                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '首次通过率' : '1st-try'}</th>
                         <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '平均尝试' : 'Avg tries'}</th>
                         <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '中位用时' : 'Median'}</th>
                         <th className="py-2 font-medium">{lang === 'zh' ? '平均用时' : 'Avg'}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {lessons.filter((l) => l.attempted > 0).map((l) => (
-                        <tr key={l.id} className="border-b last:border-0 align-top">
-                          <td className="py-2 pr-4">
-                            <button onClick={() => toggleLesson(l.id)} className="flex items-center gap-1 hover:text-emerald-600 text-left">
-                              {openLesson === l.id ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
-                              <span>{l.title}</span>
-                            </button>
-                          </td>
-                          <td className="py-2 pr-4 text-muted-foreground">{l.attempted}</td>
-                          <td className="py-2 pr-4">{l.passRate === null ? '—' : `${l.passRate}%`}</td>
-                          <td className="py-2 pr-4">{l.avgAttempts ?? '—'}</td>
-                          <td className="py-2 pr-4">{fmtSeconds(l.medianSeconds)}</td>
-                          <td className="py-2">{fmtSeconds(l.avgSeconds)}</td>
-                        </tr>
+                      {lessonGroups.map((g) => (
+                        <Fragment key={g.chapter}>
+                          <tr className="bg-gray-50">
+                            <td colSpan={7} className="py-1.5 px-2 text-xs font-semibold text-muted-foreground">{g.chapter}</td>
+                          </tr>
+                          {g.items.map((l) => (
+                            <tr key={l.id} className="border-b last:border-0 align-top">
+                              <td className="py-2 pr-4 pl-4">
+                                <button onClick={() => toggleLesson(l.id)} className="flex items-center gap-1 hover:text-emerald-600 text-left">
+                                  {openLesson === l.id ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+                                  <span>{l.title}</span>
+                                </button>
+                              </td>
+                              <td className="py-2 pr-4 text-muted-foreground">{l.attempted}</td>
+                              <td className="py-2 pr-4">{l.passRate === null ? '—' : `${l.passRate}%`}</td>
+                              <td className="py-2 pr-4">{l.firstPassRate === null ? '—' : `${l.firstPassRate}%`}</td>
+                              <td className="py-2 pr-4">{l.avgAttempts ?? '—'}</td>
+                              <td className="py-2 pr-4">{fmtSeconds(l.medianSeconds)}</td>
+                              <td className="py-2">{fmtSeconds(l.avgSeconds)}</td>
+                            </tr>
+                          ))}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -409,16 +450,21 @@ function AnalyticsContent() {
                                 ? <span className="text-emerald-600">{lang === 'zh' ? '已通过' : 'Passed'}</span>
                                 : <span className="text-red-500">{lang === 'zh' ? '未通过' : 'Not passed'}</span>}
                             </td>
-                            <td className="py-2 text-muted-foreground">
-                              {d.durations.length > 0 ? d.durations.map((s, idx) => {
-                                const isLast = idx === d.durations.length - 1
-                                const highlight = d.passed && idx === d.passIndex
-                                return (
-                                  <span key={idx} className={highlight ? 'text-red-500 font-medium' : ''}>
-                                    {fmtSeconds(s)}{isLast ? '' : '、'}
-                                  </span>
-                                )
-                              }) : '—'}
+                            <td className="py-2">
+                              {d.attemptDetail.length > 0 ? (
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                  {d.attemptDetail.map((a, idx) => {
+                                    const highlight = d.passed && idx === d.passIndex
+                                    return (
+                                      <button key={a.sessionId} onClick={() => openSession(a.sessionId)}
+                                        className={`text-left hover:underline ${highlight ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
+                                        title={lang === 'zh' ? '查看这次测试的题目' : 'View questions'}>
+                                        {fmtSeconds(a.seconds)} · {lang === 'zh' ? `${a.correct}对${a.wrong}错` : `${a.correct}✓ ${a.wrong}✗`}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : '—'}
                             </td>
                           </tr>
                         ))}
@@ -432,6 +478,48 @@ function AnalyticsContent() {
           </div>
         )}
       </main>
+
+      {/* Session drill-down modal */}
+      {sessionModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print" onClick={() => setSessionModal(null)}>
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-3 border-b">
+              <h3 className="font-semibold flex items-center gap-2">
+                {sessionModal.studentName} · {sessionModal.lessonTitle}
+                {sessionLoading && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />}
+              </h3>
+              <button onClick={() => setSessionModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-3">
+              {sessionModal.questions.length === 0 && !sessionLoading && (
+                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '这次测试暂无题目记录' : 'No records'}</p>
+              )}
+              {sessionModal.questions.map((q, i) => (
+                <div key={i} className="border rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                      {q.isCorrect ? (lang === 'zh' ? '对' : 'ok') : (lang === 'zh' ? '错' : 'x')}
+                    </span>
+                    <span className="text-xs text-muted-foreground">#{i + 1}</span>
+                  </div>
+                  {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                  <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {q.options.map((opt, j) => (
+                      <span key={j} className={`text-xs px-2 py-1 rounded ${opt.isCorrect ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                        {String.fromCharCode(65 + j)}. <KatexHtml text={cleanOption(opt.content)} />
+                      </span>
+                    ))}
+                  </div>
+                  {!q.isCorrect && q.selected && (
+                    <div className="text-xs text-red-500 mt-1">{lang === 'zh' ? '学生选了：' : 'Chose: '}<KatexHtml text={cleanOption(q.selected)} /></div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
