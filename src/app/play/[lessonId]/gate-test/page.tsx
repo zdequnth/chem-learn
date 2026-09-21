@@ -69,7 +69,7 @@ export default function GateTestPage() {
       if (!document.hidden) return
       switchRef.current += 1
       setSwitchCount(switchRef.current)
-      if (switchRef.current >= 2) {
+      if (switchRef.current >= 3) {
         fetch('/api/test/gate-test/abort', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId, focusLost: switchRef.current }),
@@ -365,7 +365,7 @@ export default function GateTestPage() {
             ✕ 退出测试
           </button>
         </div>
-        <p className="text-center text-xs text-amber-600 mb-3">
+        <p className="text-center text-base sm:text-lg font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 mb-4">
           {lang === 'zh' ? '测试期间请勿切换窗口' : 'Please do not switch windows during the test'}
         </p>
 
@@ -486,7 +486,9 @@ export default function GateTestPage() {
               <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
               <h3 className="font-semibold mb-2">{lang === 'zh' ? '请勿切换窗口' : 'Do not switch windows'}</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {lang === 'zh' ? '检测到切换窗口。再次切换将结束本次测试。' : 'Window switch detected. Switching again will end this test.'}
+                {switchCount >= 2
+                  ? (lang === 'zh' ? '再次切换将结束本次测试。' : 'Switching again will end this test.')
+                  : (lang === 'zh' ? '检测到切换窗口，请勿切换窗口。' : 'Please do not switch windows.')}
               </p>
               <button onClick={() => setWarnOpen(false)} className="px-6 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
                 {lang === 'zh' ? '继续测试' : 'Continue'}
