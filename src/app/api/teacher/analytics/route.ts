@@ -457,6 +457,20 @@ export async function GET(request: Request) {
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'))
   }
 
+  // Per-student distinct wrong-question counts (for the student wrong-book module)
+  const studentWrong = new Map<string, Set<string>>()
+  for (const a of courseAnswers) {
+    if (a.is_correct) continue
+    const sid = sessionStudent.get(a.session_id)
+    if (!sid) continue
+    const set = studentWrong.get(sid) || new Set<string>()
+    set.add(a.question_id)
+    studentWrong.set(sid, set)
+  }
+  const studentList = studentIds
+    .map((id: string) => ({ id, name: nameById.get(id) || '（学生）', wrongCount: studentWrong.get(id)?.size || 0 }))
+    .sort((a: any, b: any) => b.wrongCount - a.wrongCount || a.name.localeCompare(b.name, 'zh'))
+
   const empty = sessions.length === 0 && courseAnswers.length === 0
   return NextResponse.json({
     scope,
@@ -467,5 +481,6 @@ export async function GET(request: Request) {
     knowledgePoints: kpStats,
     lessons: lessonStats,
     detail,
+    studentList,
   })
 }

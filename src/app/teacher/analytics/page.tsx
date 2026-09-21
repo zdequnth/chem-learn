@@ -74,6 +74,7 @@ function AnalyticsContent() {
   const [questions, setQuestions] = useState<QStat[]>([])
   const [kpStats, setKpStats] = useState<KpStat[]>([])
   const [lessons, setLessons] = useState<LessonStat[]>([])
+  const [studentList, setStudentList] = useState<{ id: string; name: string; wrongCount: number }[]>([])
   const [openLesson, setOpenLesson] = useState('')
   const [openWrong, setOpenWrong] = useState(false)
   const [rateFilter, setRateFilter] = useState<'80' | '50' | '30' | 'none'>('80')
@@ -152,7 +153,7 @@ function AnalyticsContent() {
     if (!activeId) return
     const ctrl = new AbortController()
     setLoading(true); setError(''); setEmpty(false); setEmptyReason('')
-    setQuestions([]); setKpStats([]); setLessons([]); setOpenLesson(''); setDetail(null)
+    setQuestions([]); setKpStats([]); setLessons([]); setStudentList([]); setOpenLesson(''); setDetail(null)
     const qs = scope === 'course' ? `scope=course&courseId=${courseId}` : `scope=class&classId=${classId}`
     fetch(`/api/teacher/analytics?${qs}`, { signal: ctrl.signal })
       .then((r) => r.json())
@@ -163,6 +164,7 @@ function AnalyticsContent() {
         setQuestions(j.questions || [])
         setKpStats(j.knowledgePoints || [])
         setLessons(j.lessons || [])
+        setStudentList(j.studentList || [])
         setEmpty(!!j.empty)
         setEmptyReason(j.reason || '')
       })
@@ -397,7 +399,7 @@ function AnalyticsContent() {
             {/* Panel 3: attempts & time */}
             <section className="no-print bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-1">⏱️ {lang === 'zh' ? '通关尝试与用时' : 'Attempts & Time'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点课时查看每个学生的尝试次数与每次用时，点学生名字看他的错题本' : 'Pass rate = passed / all students; click a lesson for detail, click a student for their wrong book'}</p>
+              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点课时查看每个学生的尝试次数与每次用时' : 'Pass rate = passed / all students; click a lesson for detail'}</p>
               {lessons.filter((l) => l.attempted > 0).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无通关记录' : 'No attempts yet'}</p>
               ) : (
@@ -462,12 +464,7 @@ function AnalyticsContent() {
                       <tbody>
                         {detail.map((d) => (
                           <tr key={d.studentId} className="border-b last:border-0">
-                            <td className="py-2 pr-4">
-                              <button onClick={() => openStudentWrong(d.studentId, d.name)}
-                                className="text-blue-600 hover:underline" title={lang === 'zh' ? '查看该学生的错题本' : 'View wrong book'}>
-                                {d.name}
-                              </button>
-                            </td>
+                            <td className="py-2 pr-4">{d.name}</td>
                             <td className="py-2 pr-4">{d.attempts}</td>
                             <td className="py-2 pr-4">
                               {d.passed
@@ -499,6 +496,25 @@ function AnalyticsContent() {
                       </tbody>
                     </table>
                   )}
+                </div>
+              )}
+            </section>
+
+            {/* Panel 4: student wrong books */}
+            <section className="no-print bg-card rounded-2xl border p-6">
+              <h2 className="text-lg font-semibold mb-1">📕 {lang === 'zh' ? '学生错题本' : 'Student Wrong Books'}</h2>
+              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '点学生名字，查看他在本课程的全部错题' : 'Click a student to view their wrong questions'}</p>
+              {studentList.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无学生数据' : 'No students'}</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {studentList.map((s) => (
+                    <button key={s.id} onClick={() => openStudentWrong(s.id, s.name)}
+                      className="flex items-center justify-between gap-2 px-3 py-2 border rounded-lg text-left hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                      <span className="truncate">{s.name}</span>
+                      {s.wrongCount > 0 && <span className="text-xs text-orange-600 shrink-0">{s.wrongCount} 题</span>}
+                    </button>
+                  ))}
                 </div>
               )}
             </section>
@@ -568,10 +584,9 @@ function AnalyticsContent() {
                 <div key={i} className="border rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                    <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">{lang === 'zh' ? `错 ${q.wrongCount} 次` : `${q.wrongCount}×`}</span>
-                    {q.solved
-                      ? <span className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">{lang === 'zh' ? '后来做对过' : 'later correct'}</span>
-                      : <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">{lang === 'zh' ? '一直未做对' : 'never correct'}</span>}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${q.solved ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-100 text-orange-700'}`}>
+                      {lang === 'zh' ? `错过 ${q.wrongCount} 次，${q.solved ? '已答对' : '尚未答对'}` : `${q.wrongCount}×, ${q.solved ? 'later correct' : 'never correct'}`}
+                    </span>
                     <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
                   </div>
                   {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
