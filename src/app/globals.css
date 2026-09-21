@@ -185,3 +185,12 @@
   .fx-particle, .fx-dot { animation: none !important; opacity: 0 !important; }
   .fx-pop { animation: none !important; opacity: 0 !important; }
 }
+
+/* Print just one element (used for the student wrong book) */
+.print-book { position: absolute; left: -10000px; top: 0; width: 100%; }
+@media print {
+  body.print-book-mode * { visibility: hidden !important; }
+  body.print-book-mode .print-book,
+  body.print-book-mode .print-book * { visibility: visible !important; }
+  body.print-book-mode .print-book { position: absolute !important; left: 0 !important; top: 0 !important; }
+}

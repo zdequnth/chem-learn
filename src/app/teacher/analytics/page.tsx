@@ -95,6 +95,42 @@ function AnalyticsContent() {
 
   const [wrongModal, setWrongModal] = useState<WrongModal | null>(null)
   const [wrongLoading, setWrongLoading] = useState(false)
+  const [studentSort, setStudentSort] = useState<'wrong' | 'name'>('wrong')
+
+  const exportStudentBook = () => {
+    document.body.classList.add('print-book-mode')
+    setTimeout(() => {
+      window.print()
+      document.body.classList.remove('print-book-mode')
+    }, 80)
+  }
+
+  const sortedStudents = [...studentList].sort((a, b) =>
+    studentSort === 'name'
+      ? a.name.localeCompare(b.name, 'zh')
+      : (b.wrongCount - a.wrongCount) || a.name.localeCompare(b.name, 'zh'))
+
+  // Shared card for a wrong question (used by the modal and the print copy)
+  const wrongQuestionCard = (q: WrongModal['questions'][number], i: number) => (
+    <div key={i} className="border rounded-xl p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-muted-foreground">#{i + 1}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${q.solved ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-100 text-orange-700'}`}>
+          {lang === 'zh' ? `错过 ${q.wrongCount} 次，${q.solved ? '已答对' : '尚未答对'}` : `${q.wrongCount}×, ${q.solved ? 'later correct' : 'never correct'}`}
+        </span>
+        <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
+      </div>
+      {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+      <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+        {q.options.map((opt, j) => (
+          <span key={j} className={`text-xs px-2 py-1 rounded ${opt.isCorrect ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+            {String.fromCharCode(65 + j)}. <KatexHtml text={cleanOption(opt.content)} />
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 
   const openStudentWrong = async (studentId: string, studentName: string) => {
     setWrongModal({ studentName, questions: [] })
@@ -502,15 +538,29 @@ function AnalyticsContent() {
 
             {/* Panel 4: student wrong books */}
             <section className="no-print bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-1">📕 {lang === 'zh' ? '学生错题本' : 'Student Wrong Books'}</h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-lg font-semibold">📕 {lang === 'zh' ? '学生错题本' : 'Student Wrong Books'}</h2>
+                {studentList.length > 0 && (
+                  <div className="flex gap-1 text-xs">
+                    <button onClick={() => setStudentSort('wrong')}
+                      className={`px-2 py-1 rounded ${studentSort === 'wrong' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
+                      {lang === 'zh' ? '错题数 ↓' : 'Most'}
+                    </button>
+                    <button onClick={() => setStudentSort('name')}
+                      className={`px-2 py-1 rounded ${studentSort === 'name' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
+                      {lang === 'zh' ? '姓名 ↑' : 'Name'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '点学生名字，查看他在本课程的全部错题' : 'Click a student to view their wrong questions'}</p>
               {studentList.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无学生数据' : 'No students'}</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {studentList.map((s) => (
+                  {sortedStudents.map((s) => (
                     <button key={s.id} onClick={() => openStudentWrong(s.id, s.name)}
-                      className="flex items-center justify-between gap-2 px-3 py-2 border rounded-lg text-left hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                      className="flex items-center justify-between gap-2 px-2.5 py-1.5 border rounded-lg text-sm text-left hover:bg-blue-50 hover:border-blue-300 transition-colors">
                       <span className="truncate">{s.name}</span>
                       {s.wrongCount > 0 && <span className="text-xs text-orange-600 shrink-0">{s.wrongCount} 题</span>}
                     </button>
@@ -574,33 +624,32 @@ function AnalyticsContent() {
                 {lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}
                 {wrongLoading && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />}
               </h3>
-              <button onClick={() => setWrongModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+              <div className="flex items-center gap-2">
+                {wrongModal.questions.length > 0 && (
+                  <button onClick={exportStudentBook}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600">
+                    <Printer className="w-4 h-4" /> {lang === 'zh' ? '导出/打印' : 'Export'}
+                  </button>
+                )}
+                <button onClick={() => setWrongModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+              </div>
             </div>
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-3">
               {wrongModal.questions.length === 0 && !wrongLoading && (
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '该学生在这门课里暂无错题记录' : 'No wrong questions'}</p>
               )}
-              {wrongModal.questions.map((q, i) => (
-                <div key={i} className="border rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${q.solved ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-100 text-orange-700'}`}>
-                      {lang === 'zh' ? `错过 ${q.wrongCount} 次，${q.solved ? '已答对' : '尚未答对'}` : `${q.wrongCount}×, ${q.solved ? 'later correct' : 'never correct'}`}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
-                  </div>
-                  {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
-                  <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                    {q.options.map((opt, j) => (
-                      <span key={j} className={`text-xs px-2 py-1 rounded ${opt.isCorrect ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-50 text-gray-600'}`}>
-                        {String.fromCharCode(65 + j)}. <KatexHtml text={cleanOption(opt.content)} />
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              {wrongModal.questions.map((q, i) => wrongQuestionCard(q, i))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Off-screen copy that is the only thing printed for the student wrong book */}
+      {wrongModal && wrongModal.questions.length > 0 && (
+        <div className="print-book">
+          <h2 className="text-lg font-bold mb-3">{lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}</h2>
+          <div className="space-y-3">
+            {wrongModal.questions.map((q, i) => wrongQuestionCard(q, i))}
           </div>
         </div>
       )}
