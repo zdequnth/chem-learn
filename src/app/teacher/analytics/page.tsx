@@ -36,6 +36,10 @@ interface SessionModal {
   studentName: string; lessonTitle: string
   questions: { stem: string; imageUrl: string | null; isCorrect: boolean; options: { content: string; isCorrect: boolean }[]; selected: string; correct: string }[]
 }
+interface WrongModal {
+  studentName: string
+  questions: { stem: string; imageUrl: string | null; lessonTitle: string; wrongCount: number; solved: boolean; options: { content: string; isCorrect: boolean }[] }[]
+}
 
 function rateClass(rate: number) {
   if (rate >= 80) return 'text-emerald-600'
@@ -86,6 +90,20 @@ function AnalyticsContent() {
       if (j.error) { alert(j.error); setSessionModal(null) }
       else setSessionModal({ studentName: j.studentName || '', lessonTitle: j.lessonTitle || '', questions: j.questions || [] })
     } catch { setSessionModal(null) } finally { setSessionLoading(false) }
+  }
+
+  const [wrongModal, setWrongModal] = useState<WrongModal | null>(null)
+  const [wrongLoading, setWrongLoading] = useState(false)
+
+  const openStudentWrong = async (studentId: string, studentName: string) => {
+    setWrongModal({ studentName, questions: [] })
+    setWrongLoading(true)
+    const base = scope === 'course' ? `scope=course&courseId=${courseId}` : `scope=class&classId=${classId}`
+    try {
+      const j = await (await fetch(`/api/teacher/analytics?${base}&studentId=${studentId}`)).json()
+      if (j.error) { alert(j.error); setWrongModal(null) }
+      else setWrongModal({ studentName: j.studentName || studentName, questions: j.questions || [] })
+    } catch { setWrongModal(null) } finally { setWrongLoading(false) }
   }
 
   useEffect(() => {
@@ -379,7 +397,7 @@ function AnalyticsContent() {
             {/* Panel 3: attempts & time */}
             <section className="no-print bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-1">⏱️ {lang === 'zh' ? '通关尝试与用时' : 'Attempts & Time'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点击课时查看每个学生的尝试次数与每次用时' : 'Pass rate = passed / all students; click a lesson for per-student detail'}</p>
+              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点课时查看每个学生的尝试次数与每次用时，点学生名字看他的错题本' : 'Pass rate = passed / all students; click a lesson for detail, click a student for their wrong book'}</p>
               {lessons.filter((l) => l.attempted > 0).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无通关记录' : 'No attempts yet'}</p>
               ) : (
@@ -444,7 +462,12 @@ function AnalyticsContent() {
                       <tbody>
                         {detail.map((d) => (
                           <tr key={d.studentId} className="border-b last:border-0">
-                            <td className="py-2 pr-4">{d.name}</td>
+                            <td className="py-2 pr-4">
+                              <button onClick={() => openStudentWrong(d.studentId, d.name)}
+                                className="text-blue-600 hover:underline" title={lang === 'zh' ? '查看该学生的错题本' : 'View wrong book'}>
+                                {d.name}
+                              </button>
+                            </td>
                             <td className="py-2 pr-4">{d.attempts}</td>
                             <td className="py-2 pr-4">
                               {d.passed
@@ -519,6 +542,47 @@ function AnalyticsContent() {
                   {!q.isCorrect && q.selected && (
                     <div className="text-xs text-red-500 mt-1">{lang === 'zh' ? '学生选了：' : 'Chose: '}<KatexHtml text={cleanOption(q.selected)} /></div>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student wrong-book modal */}
+      {wrongModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print" onClick={() => setWrongModal(null)}>
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-3 border-b">
+              <h3 className="font-semibold flex items-center gap-2">
+                {lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}
+                {wrongLoading && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />}
+              </h3>
+              <button onClick={() => setWrongModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-3">
+              {wrongModal.questions.length === 0 && !wrongLoading && (
+                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '该学生在这门课里暂无错题记录' : 'No wrong questions'}</p>
+              )}
+              {wrongModal.questions.map((q, i) => (
+                <div key={i} className="border rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-muted-foreground">#{i + 1}</span>
+                    <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">{lang === 'zh' ? `错 ${q.wrongCount} 次` : `${q.wrongCount}×`}</span>
+                    {q.solved
+                      ? <span className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">{lang === 'zh' ? '后来做对过' : 'later correct'}</span>
+                      : <span className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full">{lang === 'zh' ? '一直未做对' : 'never correct'}</span>}
+                    <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
+                  </div>
+                  {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                  <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {q.options.map((opt, j) => (
+                      <span key={j} className={`text-xs px-2 py-1 rounded ${opt.isCorrect ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-50 text-gray-600'}`}>
+                        {String.fromCharCode(65 + j)}. <KatexHtml text={cleanOption(opt.content)} />
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

@@ -94,6 +94,75 @@ async function sessionQuestions(userId: string, role: string | undefined, sessio
   })
 }
 
+// Every question a student ever answered wrong in this course (their wrong book)
+async function studentWrongBook(
+  userId: string, role: string | undefined,
+  params: { scope: string; classId: string | null; courseId: string | null; studentId: string },
+) {
+  let courseId = params.courseId
+  if (params.scope === 'class') {
+    if (!params.classId) return NextResponse.json({ error: '缺少classId' }, { status: 400 })
+    const { data: cls } = await supabaseAdmin('classes', { query: `?id=eq.${params.classId}&select=course_id,teacher_id,name` })
+    const c = cls?.[0]
+    if (!c) return NextResponse.json({ error: '班级不存在' }, { status: 404 })
+    if (!(role === 'admin' || c.teacher_id === userId)) return NextResponse.json({ error: '无权访问' }, { status: 403 })
+    courseId = c.course_id
+  } else if (!await canAccessCourse(userId, role, courseId)) {
+    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+  }
+  if (!courseId) return NextResponse.json({ studentName: '', questions: [] })
+
+  const prof = await supabaseAdmin('profiles', { query: `?id=eq.${params.studentId}&select=display_name` })
+  const studentName = prof.data?.[0]?.display_name || '（学生）'
+
+  const chapters = await fetchAllIn('chapters', 'course_id', [courseId], 'id')
+  const lessons = chapters.length ? await fetchAllIn('lessons', 'chapter_id', chapters.map((c: any) => c.id), 'id,title') : []
+  const lessonIdSet = new Set(lessons.map((l: any) => l.id))
+  const lessonTitle = new Map<string, string>(lessons.map((l: any) => [l.id, l.title]))
+  if (lessonIdSet.size === 0) return NextResponse.json({ studentName, questions: [] })
+
+  const sess = await fetchAllIn('gate_test_sessions', 'student_id', [params.studentId], 'id,lesson_id')
+  const sids = sess.filter((s: any) => lessonIdSet.has(s.lesson_id)).map((s: any) => s.id)
+  if (sids.length === 0) return NextResponse.json({ studentName, questions: [] })
+
+  const answers = await fetchAllIn('gate_test_answers', 'session_id', sids, 'question_id,is_correct')
+  const agg = new Map<string, { wrong: number; correct: number }>()
+  for (const a of answers) {
+    const e = agg.get(a.question_id) || { wrong: 0, correct: 0 }
+    if (a.is_correct) e.correct++
+    else e.wrong++
+    agg.set(a.question_id, e)
+  }
+  const wrongIds = [...agg.entries()].filter(([, e]) => e.wrong > 0).map(([id]) => id)
+  if (wrongIds.length === 0) return NextResponse.json({ studentName, questions: [] })
+
+  const qs = await fetchAllIn('questions', 'id', wrongIds, 'id,stem,image_url,lesson_id')
+  const opts = await fetchAllIn('question_options', 'question_id', wrongIds, 'id,question_id,content,is_correct,display_order')
+  const optsByQ = new Map<string, any[]>()
+  for (const o of opts) {
+    const arr = optsByQ.get(o.question_id) || []
+    arr.push(o)
+    optsByQ.set(o.question_id, arr)
+  }
+
+  return NextResponse.json({
+    studentName,
+    questions: qs.map((q: any) => {
+      const e = agg.get(q.id) || { wrong: 0, correct: 0 }
+      return {
+        stem: q.stem || '',
+        imageUrl: q.image_url || null,
+        lessonTitle: lessonTitle.get(q.lesson_id) || '',
+        wrongCount: e.wrong,
+        solved: e.correct > 0,
+        options: (optsByQ.get(q.id) || [])
+          .sort((x: any, y: any) => x.display_order - y.display_order)
+          .map((o: any) => ({ content: o.content, isCorrect: o.is_correct })),
+      }
+    }),
+  })
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -110,6 +179,11 @@ export async function GET(request: Request) {
   // Drill-down: the questions of one specific test session
   if (sessionIdParam) {
     return sessionQuestions(user.id, role, sessionIdParam)
+  }
+  // Drill-down: one student's wrong book for this course
+  const studentIdParam = searchParams.get('studentId')
+  if (studentIdParam) {
+    return studentWrongBook(user.id, role, { scope, classId: classIdParam, courseId: courseIdParam, studentId: studentIdParam })
   }
 
   let courseId: string | null = null
