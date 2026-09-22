@@ -453,11 +453,14 @@ export default function GateTestPage() {
 
         {/* AI Result Modal */}
         {aiModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAiModal(null)}>
-            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-3xl mx-4 max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold mb-3">🧠 {aiModal.title}</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-3xl mx-4 max-h-[88vh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <h3 className="text-lg font-semibold">🧠 {aiModal.title}</h3>
+                <button onClick={() => setAiModal(null)} title="关闭"
+                  className="shrink-0 -mt-1 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
+              </div>
               <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
-              <button onClick={() => setAiModal(null)} className="mt-4 px-4 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
             </div>
           </div>
         )}
