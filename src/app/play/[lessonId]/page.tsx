@@ -201,7 +201,7 @@ export default function LessonHubPage() {
               </div>
             ) : (
               <button onClick={handleStartGateTest}
-                className="bg-card border rounded-2xl p-6 text-left hover:shadow-md hover:border-emerald-300 transition-all group">
+                className="w-full bg-card border rounded-2xl p-6 text-left hover:shadow-md hover:border-emerald-300 transition-all group">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <Swords className="w-5 h-5 text-emerald-500" />
