@@ -90,7 +90,7 @@ async function parseChunk(client: OpenAI, prompt: string): Promise<{ ok: boolean
     })
 
     let raw = completion.choices[0]?.message?.content || ''
-    raw = raw.replace(/<[^>]+>/g, ' ')
+    raw = raw.replace(/<[a-zA-Z/!][^>]*>/g, ' ')
     raw = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
 
     // JSON mode returns parseable JSON, so parse it directly — a regex "fix"
@@ -123,10 +123,12 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
 
-  // Strip pre-rendered KaTeX HTML + normalize LaTeX delimiters
+  // Strip pre-rendered KaTeX HTML + normalize LaTeX delimiters.
+  // Only real HTML tags are removed — a bare "<" (e.g. "a < b" comparisons in
+  // question options) must stay, or it eats the text up to the next ">".
   const cleanText = text
     .replace(/<span[^>]*class="katex"[^>]*>[\s\S]*?<\/span>/g, ' ')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<[a-zA-Z/!][^>]*>/g, '')
     .replace(/\\\(/g, '$').replace(/\\\)/g, '$')  // \(...\) → $...$
     .replace(/\\\[/g, '$$$').replace(/\\\]/g, '$$$')  // \[...\] → $$...$$
 
