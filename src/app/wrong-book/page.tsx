@@ -90,9 +90,13 @@ export default function WrongBookPage() {
 
   const analyzeWeakness = async () => {
     if (weaknessLoading) return
-    const active = records.filter(r => !r.is_resolved)
-    const src = active.length > 0 ? active : records
-    if (src.length === 0) { alert('你还没有错题，先去做题吧！'); return }
+    // Analyse only what the course / chapter filters select (all when none chosen)
+    const src = records.filter(r => {
+      if (selectedCourse && r.course_id !== selectedCourse) return false
+      if (selectedChapter && r.chapter_id !== selectedChapter) return false
+      return true
+    })
+    if (src.length === 0) { alert('当前筛选范围内还没有错题。'); return }
     const map = new Map<string, string[]>()
     for (const r of src) {
       const key = r.chapter_title || '未分章'
@@ -101,6 +105,10 @@ export default function WrongBookPage() {
       map.set(key, arr)
     }
     const groups = [...map.entries()].map(([chapter, stems]) => ({ chapter, stems }))
+    const scopeName = [
+      selectedCourse ? courses.find(c => c.id === selectedCourse)?.name : '',
+      selectedChapter ? chapters.find(c => c.id === selectedChapter)?.title : '',
+    ].filter(Boolean).join(' · ')
     setWeaknessLoading(true)
     try {
       const res = await fetch('/api/ai/analyze-weakness', {
@@ -109,7 +117,7 @@ export default function WrongBookPage() {
       })
       const json = await res.json()
       if (json.error) { alert('分析失败: ' + json.error); return }
-      setAiModal({ title: '我的薄弱点分析', content: json.result || '' })
+      setAiModal({ title: `我的薄弱点分析${scopeName ? '（' + scopeName + '）' : '（全部）'}`, content: json.result || '' })
     } catch {
       alert('分析失败，请重试')
     } finally {
@@ -181,6 +189,7 @@ export default function WrongBookPage() {
             )}
             {records.length > 0 && (
               <button onClick={analyzeWeakness} disabled={weaknessLoading}
+                title="按当前筛选的课程/章节分析；都未选则分析全部错题"
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 text-sm no-print">
                 {weaknessLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> 分析中...</> : <>🧠 AI 分析我的薄弱点</>}
               </button>
