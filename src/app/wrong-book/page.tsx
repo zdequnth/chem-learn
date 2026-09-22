@@ -282,7 +282,7 @@ export default function WrongBookPage() {
                           </div>
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
-                              <p className="text-sm text-blue-800">解析：{r.question_explanation}</p>
+                              <p className="text-sm text-blue-800">解析：<KatexHtml text={r.question_explanation} /></p>
                             </div>
                           )}
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
