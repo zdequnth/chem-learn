@@ -118,7 +118,6 @@ export default function LessonHubPage() {
                   {knowledgePoints.map(kp => (
                     <div key={kp.id} className="border rounded-xl p-4">
                       <h3 className="font-medium mb-1">{kp.title}</h3>
-                      {kp.description && <div className="text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
                         <div className="mt-3 space-y-3">
                           {[
@@ -150,6 +149,7 @@ export default function LessonHubPage() {
                           })}
                         </div>
                       )}
+                      {kp.description && <div className="mt-3 text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
                     </div>
                   ))}
                 </div>

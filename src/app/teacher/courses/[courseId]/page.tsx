@@ -926,12 +926,6 @@ export default function CourseDetailPage() {
               <div className="flex-1 p-6 space-y-4 min-w-0">
                 <div><label className="block text-sm font-medium mb-1">知识点名称</label>
                   <input value={modalTitle} onChange={e => setModalTitle(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" /></div>
-                <div><label className="block text-sm font-medium mb-1">详细描述（Markdown / Ctrl+V 贴图）</label>
-                  <div className="relative"><textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
-                    onPaste={async (e) => { const items = e.clipboardData?.items; if (!items) return; for (const item of Array.from(items)) { if (item.type.startsWith('image/')) { e.preventDefault(); const file = item.getAsFile(); if (!file) continue; const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')'); break } } }}
-                    rows={12} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" placeholder="Markdown / Ctrl+V 贴图 / 换行分段" />
-                    <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')') }; i.click() }}
-                      className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片"><Image className="w-4 h-4 text-gray-500" /></button></div></div>
                 <div>
                   <label className="block text-sm font-medium mb-1">学习资源（视频 / 网页演示 / PDF，可加备注）</label>
                   {modalResources.map((r, i) => (
@@ -966,10 +960,15 @@ export default function CourseDetailPage() {
                     <button onClick={addModalResource} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
                   </div>
                 </div>
+                <div><label className="block text-sm font-medium mb-1">详细描述（Markdown / Ctrl+V 贴图）</label>
+                  <div className="relative"><textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
+                    onPaste={async (e) => { const items = e.clipboardData?.items; if (!items) return; for (const item of Array.from(items)) { if (item.type.startsWith('image/')) { e.preventDefault(); const file = item.getAsFile(); if (!file) continue; const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')'); break } } }}
+                    rows={12} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" placeholder="Markdown / Ctrl+V 贴图 / 换行分段" />
+                    <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')') }; i.click() }}
+                      className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片"><Image className="w-4 h-4 text-gray-500" /></button></div></div>
               </div>
               <div className="flex-1 p-6 bg-gray-50 min-w-0"><h4 className="text-sm font-medium text-muted-foreground mb-3">学生端预览</h4>
                 <div className="bg-white border rounded-xl p-4"><h3 className="font-semibold text-lg mb-3">{modalTitle || '(未命名)'}</h3>
-                  {modalDesc ? <div className="text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground">暂无描述</p>}
                   {modalResources.length > 0 && (
                     <div className="mt-3 space-y-3">
                       {[
@@ -995,6 +994,7 @@ export default function CourseDetailPage() {
                       })}
                     </div>
                   )}
+                  {modalDesc ? <div className="mt-3 text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground mt-3">暂无描述</p>}
                 </div>
               </div>
             </div>
