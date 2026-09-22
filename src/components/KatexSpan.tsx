@@ -19,100 +19,77 @@ function tryRender(formula: string, displayMode: boolean): string {
   }
 }
 
-function renderLatex(text: string): string {
-  // Preprocess: replace bare \ce{...} (NOT inside $...$ or $$...$$) with rendered HTML
-  // We detect "bare" by checking that there's no unclosed $ before the \ce
-  let preprocessed = ''
-  let remaining = text
-  while (remaining.length > 0) {
-    const ceIdx = remaining.indexOf('\\ce{')
-    if (ceIdx === -1) { preprocessed += remaining; break }
-    // Check if \ce{ is inside a $...$ or $$...$$ block
-    const before = remaining.slice(0, ceIdx)
-    const dollarCount = (before.match(/\$/g) || []).length
-    const isInsideMath = dollarCount % 2 === 1 // unclosed $ means we're inside math
-    if (isInsideMath) {
-      // Don't preprocess — let the $ parser handle it
-      preprocessed += remaining.slice(0, ceIdx + 4)
-      remaining = remaining.slice(ceIdx + 4)
-      continue
-    }
-    preprocessed += remaining.slice(0, ceIdx)
-    remaining = remaining.slice(ceIdx)
-    // Brace count to find matching }
+// Render bare \ce{...} commands that appear in plain text (outside math),
+// leaving the rest of the text untouched.
+function renderBareCe(text: string): string {
+  let out = ''
+  let rest = text
+  while (rest.length > 0) {
+    const idx = rest.indexOf('\\ce{')
+    if (idx === -1) { out += rest; break }
+    out += rest.slice(0, idx)
+    rest = rest.slice(idx)
     let depth = 1
     let j = 4
-    while (j < remaining.length && depth > 0) {
-      if (remaining[j] === '{') depth++
-      else if (remaining[j] === '}') depth--
+    while (j < rest.length && depth > 0) {
+      if (rest[j] === '{') depth++
+      else if (rest[j] === '}') depth--
       j++
     }
     if (depth === 0) {
-      preprocessed += tryRender(remaining.slice(0, j), false)
-      remaining = remaining.slice(j)
+      out += tryRender(rest.slice(0, j), false)
+      rest = rest.slice(j)
     } else {
-      preprocessed += remaining.slice(0, 4)
-      remaining = remaining.slice(4)
+      out += rest.slice(0, 4)
+      rest = rest.slice(4)
     }
   }
+  return out
+}
 
-  // Now parse the preprocessed text for $...$, $$...$$, \(...\), \[...\]
-  const segments: { type: 'text' | 'inline' | 'display'; content: string }[] = []
-  remaining = preprocessed
+function renderLatex(text: string): string {
+  // Tokenize the text into plain-text / inline-math / display-math segments in a
+  // single pass. (The old approach guessed whether a \ce{} was inside math by
+  // counting $ signs, which broke inside $$...$$ blocks.)
+  const segs: { type: 'text' | 'inline' | 'display'; content: string }[] = []
+  let buf = ''
+  let i = 0
+  const flush = () => { if (buf) { segs.push({ type: 'text', content: buf }); buf = '' } }
 
-  while (remaining.length > 0) {
-    // Find the earliest match: $$, $, \(, \[
-    const dd = remaining.indexOf('$$')
-    const sd = remaining.indexOf('$')
-    const lp = remaining.indexOf('\\(')
-    const bp = remaining.indexOf('\\[')
-
-    // Each candidate: { idx, type, delim }
-    type Candidate = { idx: number; type: 'display' | 'inline'; delim: string; endDelim: string; openLen: number }
-    const candidates: Candidate[] = []
-    if (dd !== -1) candidates.push({ idx: dd, type: 'display', delim: '$$', endDelim: '$$', openLen: 2 })
-    if (sd !== -1) candidates.push({ idx: sd, type: 'inline', delim: '$', endDelim: '$', openLen: 1 })
-    if (lp !== -1) candidates.push({ idx: lp, type: 'inline', delim: '\\(', endDelim: '\\)', openLen: 2 })
-    if (bp !== -1) candidates.push({ idx: bp, type: 'display', delim: '\\[', endDelim: '\\]', openLen: 2 })
-    candidates.sort((a, b) => a.idx - b.idx)
-
-    if (candidates.length === 0) {
-      segments.push({ type: 'text', content: remaining })
-      break
+  while (i < text.length) {
+    if (text.startsWith('$$', i)) {
+      const end = text.indexOf('$$', i + 2)
+      if (end !== -1) { flush(); segs.push({ type: 'display', content: text.slice(i + 2, end) }); i = end + 2; continue }
     }
-
-    const first = candidates[0]
-
-    // Text before the match
-    if (first.idx > 0) {
-      segments.push({ type: 'text', content: remaining.slice(0, first.idx) })
+    if (text.startsWith('\\[', i)) {
+      const end = text.indexOf('\\]', i + 2)
+      if (end !== -1) { flush(); segs.push({ type: 'display', content: text.slice(i + 2, end) }); i = end + 2; continue }
     }
-
-    // inline or display: search for end delimiter
-    const endIdx = remaining.indexOf(first.endDelim, first.idx + first.openLen)
-    if (endIdx !== -1) {
-      segments.push({ type: first.type, content: remaining.slice(first.idx + first.openLen, endIdx) })
-      remaining = remaining.slice(endIdx + first.endDelim.length)
-    } else {
-      segments.push({ type: 'text', content: remaining.slice(first.idx, first.idx + first.openLen) })
-      remaining = remaining.slice(first.idx + first.openLen)
+    if (text.startsWith('\\(', i)) {
+      const end = text.indexOf('\\)', i + 2)
+      if (end !== -1) { flush(); segs.push({ type: 'inline', content: text.slice(i + 2, end) }); i = end + 2; continue }
     }
+    if (text[i] === '$') {
+      const end = text.indexOf('$', i + 1)
+      if (end !== -1 && !text.startsWith('$', i + 1)) { flush(); segs.push({ type: 'inline', content: text.slice(i + 1, end) }); i = end + 1; continue }
+    }
+    buf += text[i]
+    i++
   }
+  flush()
 
-  // Render segments
-  return segments.map(seg => {
-    if (seg.type === 'text') return seg.content
-
-    // $...$ or $$...$$: check if it looks like chemistry
+  return segs.map(seg => {
+    if (seg.type === 'text') return renderBareCe(seg.content)
+    if (seg.type === 'display') return tryRender(seg.content, true)
+    // Inline math: wrap chemistry-looking content in \ce{} so it renders nicely
     const needsChemistry = /[A-Z][a-z]?\d|[\^_]/.test(seg.content) && !/\\[a-zA-Z]+/.test(seg.content)
-    const formula = needsChemistry ? '\\ce{' + seg.content + '}' : seg.content
-    return tryRender(formula, seg.type === 'display')
+    return tryRender(needsChemistry ? '\\ce{' + seg.content + '}' : seg.content, false)
   }).join('')
 }
 
 function basicMarkdown(text: string): string {
   let html = text
-  // Markdown tables
+  // Markdown tables (wrapped so wide tables can scroll horizontally)
   html = html.replace(/(\|[^\n]+\|\n\|[-:|\s]+\|\n(?:\|[^\n]+\|\n?)+)/g, (match) => {
     const lines = match.trim().split('\n').filter(l => l.includes('|'))
     if (lines.length < 2) return match
@@ -124,7 +101,7 @@ function basicMarkdown(text: string): string {
     const tbody = cells.length > 1
       ? `<tbody>${cells.slice(1).map(r => `<tr>${r.map(c => `<td class="px-3 py-1.5 text-xs border">${c}</td>`).join('')}</tr>`).join('')}</tbody>`
       : ''
-    return `<table class="w-full my-2 border-collapse border rounded-lg overflow-hidden">${thead}${tbody}</table>`
+    return `<div class="overflow-x-auto my-2"><table class="w-full border-collapse border rounded-lg">${thead}${tbody}</table></div>`
   })
 
   // Headings (### Title)
