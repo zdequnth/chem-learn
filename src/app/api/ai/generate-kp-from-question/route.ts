@@ -19,32 +19,46 @@ export async function POST(request: Request) {
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
 
-  const prompt = `你是一位经验丰富的国际学校教师。请根据以下错题的题干和解析，生成一份全面系统的知识点总结。
+  const prompt = `你是一位经验丰富的国际学校化学教师。请根据下面这道错题，为学生生成一份系统、可复习的知识点总结。
 
 题目：${stem}
 解析：${explanation || '无解析'}
 
-要求：
-1. 用纯文本格式（不用任何HTML标签），包含以下部分：
-   - **核心概念**：这道题考察的核心概念是什么
-   - **关键原理**：详细阐述背后的原理和规律
-   - **相关公式/反应**：相关的方程式或计算公式
-   - **易错辨析**：学生容易混淆的概念或常见错误
-   - **知识拓展**：相关的延伸知识点
-2. 围绕题目主题全面展开，不仅限于题目本身考到的点
-3. 篇幅适中，每个部分2-4句话，总分总结构
-4. 化学式直接写，如 Fe2O3、H2O，不要用LaTeX或KaTeX
-5. ${langInst}
-6. 重要：直接输出纯文本，不要包含任何HTML标签`
+请用 Markdown 输出，包含以下几个部分（标题用 ##）：
+
+## 一、核心概念
+这道题真正考察的核心概念，讲清楚"是什么、为什么"。
+
+## 二、关键公式 / 反应
+相关的公式、方程式，**必须用 LaTeX 写**：行内用 $...$，独立公式用 $$...$$；化学方程式可用 $\\ce{2H2 + O2 -> 2H2O}$ 这种形式。
+
+## 三、常见考点
+这类知识点在考试中通常怎么考，列出 2~4 条。
+
+## 四、易错点与辨析
+学生最常犯的错误、容易混淆的概念。需要比较时，用 Markdown 表格，例如：
+| 项目 | 正确理解 | 常见错误 |
+| --- | --- | --- |
+| ... | ... | ... |
+
+## 五、解题与记忆技巧
+遇到这类题该怎么想、怎么快速判断。
+
+规则：
+- 篇幅充实（约 300~600 字），围绕本题主题展开，可适当延伸到同一知识块
+- 公式/化学式一律用 LaTeX（$...$ 或 \\ce{}）表示，**不要写成纯文本**
+- 可以用 Markdown 表格做对比归纳
+- 语言：${langInst}
+- 只输出 Markdown 正文，不要 HTML 标签，不要代码块围栏`
 
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-chat',
       messages: [
-        { role: 'system', content: '你是化学教师。用Markdown精简输出。' },
+        { role: 'system', content: '你是经验丰富的化学教师，用 Markdown 输出，公式用 LaTeX。' },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.5, max_tokens: 1024,
+      temperature: 0.5, max_tokens: 2500,
     })
 
     return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })

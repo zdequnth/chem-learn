@@ -43,6 +43,10 @@ export default function WrongBookPage() {
   const [chapters, setChapters] = useState<{ id: string; title: string; courseId: string }[]>([])
   const [aiGenerating, setAiGenerating] = useState<string | null>(null)
   const [aiModal, setAiModal] = useState<{ title: string; content: string } | null>(null)
+  const [weaknessLoading, setWeaknessLoading] = useState(false)
+  const [practice, setPractice] = useState<any>(null)
+  const [practiceSrc, setPracticeSrc] = useState('')
+  const [practiceChoice, setPracticeChoice] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) { router.push('/login') }
@@ -82,6 +86,49 @@ export default function WrongBookPage() {
     setAiGenerating(null)
     if (json.error) { alert('生成失败: ' + json.error); return }
     setAiModal({ title: '知识点总结', content: json.result || '' })
+  }
+
+  const analyzeWeakness = async () => {
+    if (weaknessLoading) return
+    const active = records.filter(r => !r.is_resolved)
+    const src = active.length > 0 ? active : records
+    if (src.length === 0) { alert('你还没有错题，先去做题吧！'); return }
+    const map = new Map<string, string[]>()
+    for (const r of src) {
+      const key = r.chapter_title || '未分章'
+      const arr = map.get(key) || []
+      arr.push(r.question_stem)
+      map.set(key, arr)
+    }
+    const groups = [...map.entries()].map(([chapter, stems]) => ({ chapter, stems }))
+    setWeaknessLoading(true)
+    try {
+      const res = await fetch('/api/ai/analyze-weakness', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groups }),
+      })
+      const json = await res.json()
+      if (json.error) { alert('分析失败: ' + json.error); return }
+      setAiModal({ title: '我的薄弱点分析', content: json.result || '' })
+    } catch {
+      alert('分析失败，请重试')
+    } finally {
+      setWeaknessLoading(false)
+    }
+  }
+
+  const openPractice = async (questionId: string) => {
+    setPracticeSrc(questionId)
+    setPracticeChoice(null)
+    setPractice({ loading: true })
+    try {
+      const json = await (await fetch(`/api/student/similar-question?questionId=${questionId}`)).json()
+      if (json.error) { alert(json.error); setPractice(null); return }
+      if (!json.question) { alert('题库里暂时没有同类型的题目可以练。'); setPractice(null); return }
+      setPractice(json.question)
+    } catch {
+      setPractice(null)
+    }
   }
 
   const toggleResolved = async (id: string, current: boolean) => {
@@ -131,6 +178,12 @@ export default function WrongBookPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 text-sm no-print">
                 🎯 错题重测
               </Link>
+            )}
+            {records.length > 0 && (
+              <button onClick={analyzeWeakness} disabled={weaknessLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 text-sm no-print">
+                {weaknessLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> 分析中...</> : <>🧠 AI 分析我的薄弱点</>}
+              </button>
             )}
             {records.length > 0 && (
               <button onClick={() => window.print()}
@@ -208,10 +261,16 @@ export default function WrongBookPage() {
                               {r.is_resolved && <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-50 text-green-600">✓ 已掌握</span>}
                             </div>
                           </div>
-                          <button onClick={() => handleGenerateKP(r.id, r.question_stem, r.question_explanation || '')} disabled={aiGenerating === r.id}
-                            className="mt-2 flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 disabled:opacity-50 no-print">
-                            🧠 {aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点'}
-                          </button>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 no-print">
+                            <button onClick={() => handleGenerateKP(r.id, r.question_stem, r.question_explanation || '')} disabled={aiGenerating === r.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 disabled:opacity-50">
+                              🧠 {aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点'}
+                            </button>
+                            <button onClick={() => openPractice(r.question_id)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100">
+                              🔁 同类型题目重复训练
+                            </button>
+                          </div>
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
                               <p className="text-sm text-blue-800">解析：{r.question_explanation}</p>
@@ -239,6 +298,51 @@ export default function WrongBookPage() {
             <h3 className="text-lg font-semibold mb-3">🧠 {aiModal.title}</h3>
             <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
             <button onClick={() => setAiModal(null)} className="mt-4 px-4 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
+          </div>
+        </div>
+      )}
+
+      {practice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPractice(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">🔁 同类型题目训练</h3>
+              <button onClick={() => setPractice(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            {practice.loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>
+            ) : (
+              <>
+                {practice.imageUrl && <img src={practice.imageUrl} alt="" className="mb-3 rounded-lg max-h-48 border" />}
+                <div className="text-sm mb-3"><KatexHtml text={practice.stem} /></div>
+                <div className="space-y-2">
+                  {(practice.options || []).map((opt: any, i: number) => {
+                    const revealed = practiceChoice !== null
+                    const isChosen = practiceChoice === opt.id
+                    const cls = revealed && opt.isCorrect ? 'border-green-500 bg-green-50'
+                      : revealed && isChosen ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    return (
+                      <button key={opt.id} onClick={() => practiceChoice === null && setPracticeChoice(opt.id)}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl border transition-colors ${cls} ${practiceChoice === null ? 'cursor-pointer' : 'cursor-default'}`}>
+                        <span className="font-medium text-muted-foreground mr-2">{String.fromCharCode(65 + i)}.</span>
+                        <KatexHtml text={cleanOption(opt.content)} />
+                        {revealed && opt.isCorrect && <span className="text-green-600 ml-2">✓</span>}
+                        {revealed && isChosen && !opt.isCorrect && <span className="text-red-500 ml-2">✗</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                {practiceChoice !== null && practice.explanation && (
+                  <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded-lg mt-3">解析：<KatexHtml text={practice.explanation} /></p>
+                )}
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => openPractice(practiceSrc)}
+                    className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">换一题</button>
+                  <button onClick={() => setPractice(null)} className="flex-1 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
