@@ -21,21 +21,28 @@ function splitIntoBatches(text: string): string[] {
     .map((p) => p.trim())
     .filter((p) => p.length > 0)
 
+  // Group paragraphs into per-question units, so a single question is never
+  // split across two batches (which made the model emit it as two questions).
+  const isQuestionStart = (p: string) => /^\s*\**\s*\d+\s*[.、)．:]\s*\S/.test(p)
   const units: string[] = []
+  let cur: string[] = []
+  let sawStart = false
   for (const para of paragraphs) {
-    if (para.length <= MAX_CHARS_PER_BATCH) {
-      units.push(para)
-      continue
+    if (isQuestionStart(para)) {
+      if (cur.length > 0) { units.push(cur.join('\n\n')); cur = [] }
+      sawStart = true
     }
-    const runs = para.split(/^(?=\s*\d+\s*[.、)．:]\s*)/m).map((r) => r.trim()).filter((r) => r.length > 0)
-    if (runs.length > 1) units.push(...runs)
-    else units.push(para) // one genuinely huge question — send it alone
+    cur.push(para)
   }
+  if (cur.length > 0) units.push(cur.join('\n\n'))
+
+  // If the text has no numbered questions, fall back to packing paragraphs.
+  const packables = sawStart ? units : paragraphs
 
   const batches: string[] = []
   let current: string[] = []
   let currentLen = 0
-  for (const unit of units) {
+  for (const unit of packables) {
     if (current.length > 0 && currentLen + unit.length + 2 > MAX_CHARS_PER_BATCH) {
       batches.push(current.join('\n\n'))
       current = []
