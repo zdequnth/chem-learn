@@ -337,8 +337,8 @@ function ImportForm() {
 
       {/* Edit question modal */}
       {editIndex !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setEditIndex(null)}>
-          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold mb-4">编辑第 {editIndex + 1} 题</h2>
             <div className="space-y-4">
               <select value={editForm.difficulty} onChange={e => setEditForm({ ...editForm, difficulty: Number(e.target.value) })}

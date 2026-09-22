@@ -910,8 +910,8 @@ export default function CourseDetailPage() {
       )}
 
       {modalKp && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto" onClick={() => setModalKp(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 mb-12" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 mb-12">
             <div className="flex items-center justify-between px-6 py-3 border-b">
               <h3 className="font-semibold">编辑知识点</h3>
               <div className="flex gap-2">
