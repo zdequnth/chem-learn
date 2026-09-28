@@ -19,15 +19,29 @@ const env = fs.readFileSync('.env.local', 'utf8')
 const SB = env.match(/NEXT_PUBLIC_SUPABASE_URL=(.+)/)[1].trim()
 const KEY = env.match(/SUPABASE_SERVICE_ROLE_KEY=(.+)/)[1].trim()
 
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+// The Clash tunnel drops TLS connections intermittently (curl exit 35), so retry
+// a few times before giving up — that's what the backoff is for.
 function http(method, pathAndQuery, body) {
   const args = ['-s', '-X', method, SB + '/rest/v1/' + pathAndQuery,
     '-H', 'apikey: ' + KEY, '-H', 'Authorization: Bearer ' + KEY]
   if (PROXY && PROXY !== 'direct') args.push('-x', PROXY)
   else args.push('--noproxy', '*')
   if (body !== undefined) args.push('-H', 'Content-Type: application/json', '-H', 'Prefer: return=representation', '--data-binary', '@-')
-  const out = execFileSync('curl', args, { input: body !== undefined ? JSON.stringify(body) : undefined, maxBuffer: 64 * 1024 * 1024 })
-  const text = out.toString().trim()
-  return text ? JSON.parse(text) : null
+  const input = body !== undefined ? JSON.stringify(body) : undefined
+  let last
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const out = execFileSync('curl', args, { input, maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'ignore'] })
+      const text = out.toString().trim()
+      return text ? JSON.parse(text) : null
+    } catch (e) {
+      last = e
+      if (attempt < 5) sleep(attempt * 800)
+    }
+  }
+  throw last
 }
 
 const norm = (s) => String(s || '').replace(/\s+/g, '').replace(/[()（）【】\[\]—\-_·.、,，:：]/g, '').toLowerCase()
@@ -119,18 +133,28 @@ console.log(`\n合计：可导入 ${good.length} 个文件，共 ${good.reduce((
 if (!APPLY) { console.log('（试跑结束。确认无误后加 --apply 写入）'); process.exit(0) }
 
 let inserted = 0
+let failed = 0
 for (const job of jobs.filter(j => j.ok)) {
   const existing = http('GET', `questions?lesson_id=eq.${job.lesson.id}&select=stem&limit=2000`)
   const have = new Set(existing.map(e => norm(e.stem)))
+  let added = 0
   for (const q of job.qs) {
     if (have.has(norm(q.stem))) continue
     const created = http('POST', 'questions', { lesson_id: job.lesson.id, question_type: 'gate_test', stem: q.stem, explanation: q.explanation, difficulty: q.difficulty, is_approved: true, is_ai_generated: false })
     const qid = Array.isArray(created) ? created[0]?.id : created?.id
-    if (!qid) continue
-    let order = 0
-    for (const o of q.options) http('POST', 'question_options', { question_id: qid, content: o.content, is_correct: o.isCorrect, display_order: order++ })
-    inserted++
+    if (!qid) { failed++; continue }
+    try {
+      // one request per question → options can't end up half-written
+      http('POST', 'question_options', q.options.map((o, i) => ({ question_id: qid, content: o.content, is_correct: o.isCorrect, display_order: i })))
+      inserted++; added++
+    } catch (e) {
+      // roll the question back so a re-run redoes it instead of skipping a broken one
+      try { http('DELETE', `question_options?question_id=eq.${qid}`) } catch {}
+      try { http('DELETE', `questions?id=eq.${qid}`) } catch {}
+      failed++
+      console.log(`   ⚠️ 写入失败已回滚：${q.stem.slice(0, 40)}…`)
+    }
   }
-  console.log(`✅ ${job.file} → ${job.lesson.title}：新增 ${job.qs.length} 题（已跳过重复）`)
+  console.log(`✅ ${job.file} → ${job.lesson.title}：新增 ${added} 题（已跳过重复）`)
 }
-console.log(`\n完成：共新增 ${inserted} 题。`)
+console.log(`\n完成：共新增 ${inserted} 题。` + (failed ? `失败 ${failed} 题，请重跑本命令补上。` : ''))
