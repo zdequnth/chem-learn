@@ -55,6 +55,7 @@ function ImportForm() {
   const [selectedLesson, setSelectedLesson] = useState(searchParams.get('lesson') || '')
   const [markdownText, setMarkdownText] = useState('')
   const [parsing, setParsing] = useState(false)
+  const [mode, setMode] = useState<'rule' | 'ai'>('rule')
   const [questions, setQuestions] = useState<ParsedQuestion[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -109,7 +110,8 @@ function ImportForm() {
     setSaved(false)
 
     try {
-      const res = await fetch('/api/ai/parse-questions', {
+      const endpoint = mode === 'rule' ? '/api/questions/parse-markdown' : '/api/ai/parse-questions'
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: markdownText.trim(), ...courseNames }),
@@ -255,7 +257,7 @@ function ImportForm() {
         </Link>
 
         <h1 className="text-2xl font-bold mb-2">📄 导入题目</h1>
-        <p className="text-muted-foreground mb-6 text-sm">粘贴 Markdown 格式的题目文本，AI 自动解析为结构化题目</p>
+        <p className="text-muted-foreground mb-6 text-sm">粘贴 Markdown 格式的题目文本，解析为结构化题目（快速解析用规则、数量精准；AI 解析适合格式不规整的文本）</p>
 
         {/* Config */}
         <div className="bg-card rounded-2xl border p-6 mb-6">
@@ -281,9 +283,25 @@ function ImportForm() {
           <textarea value={markdownText} onChange={e => setMarkdownText(e.target.value)}
             placeholder={`粘贴题目，格式参考：\n\n1. 下列物质中属于电解质的是？\nA. 蔗糖\nB. 氯化钠\nC. 乙醇\nD. 葡萄糖\n答案：B\n解析：氯化钠在水中完全电离，是强电解质。\n\n---\n\n2. 实验室制取Cl₂的化学方程式？\n...`}
             rows={12} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" />
+          <div className="flex flex-wrap items-center gap-2 mt-4 text-sm">
+            <span className="text-muted-foreground">解析方式：</span>
+            <button onClick={() => setMode('rule')}
+              className={`px-3 py-1.5 rounded-lg border font-medium ${mode === 'rule' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
+              ⚡ 快速解析（规则·不用 AI）
+            </button>
+            <button onClick={() => setMode('ai')}
+              className={`px-3 py-1.5 rounded-lg border font-medium ${mode === 'ai' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
+              🤖 AI 解析
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {mode === 'rule'
+                ? '按"编号 + A/B/C/D 选项 + Answer + Explanation"模板拆分，数量精准、不花 AI；格式不规整请用 AI'
+                : 'AI 自由拆分，格式较灵活，但偶尔会漏题/多题'}
+            </span>
+          </div>
           <button onClick={handleParse} disabled={!selectedLesson || !markdownText.trim() || parsing}
-            className="w-full mt-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center gap-2">
-            {parsing ? <><Loader2 className="w-5 h-5 animate-spin" /> AI 解析中...</> : <><Sparkles className="w-5 h-5" /> 开始解析</>}
+            className="w-full mt-3 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2">
+            {parsing ? <><Loader2 className="w-5 h-5 animate-spin" /> 解析中...</> : <><Sparkles className="w-5 h-5" /> {mode === 'rule' ? '开始快速解析' : '开始 AI 解析'}</>}
           </button>
         </div>
 
