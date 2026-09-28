@@ -11,13 +11,19 @@ import { execFileSync } from 'child_process'
 const ROOT = 'D:/111 MY IDEA/SelfPass'
 const APPLY = process.argv.includes('--apply')
 
+// Supabase is not reachable directly from this machine; route through the local
+// Clash proxy (same one git uses). Override with SELFPASS_PROXY=<url|direct>.
+const PROXY = process.env.SELFPASS_PROXY ?? process.env.HTTPS_PROXY ?? process.env.ALL_PROXY ?? 'http://127.0.0.1:7890'
+
 const env = fs.readFileSync('.env.local', 'utf8')
 const SB = env.match(/NEXT_PUBLIC_SUPABASE_URL=(.+)/)[1].trim()
 const KEY = env.match(/SUPABASE_SERVICE_ROLE_KEY=(.+)/)[1].trim()
 
 function http(method, pathAndQuery, body) {
-  const args = ['-s', '--noproxy', '*', '-X', method, SB + '/rest/v1/' + pathAndQuery,
+  const args = ['-s', '-X', method, SB + '/rest/v1/' + pathAndQuery,
     '-H', 'apikey: ' + KEY, '-H', 'Authorization: Bearer ' + KEY]
+  if (PROXY && PROXY !== 'direct') args.push('-x', PROXY)
+  else args.push('--noproxy', '*')
   if (body !== undefined) args.push('-H', 'Content-Type: application/json', '-H', 'Prefer: return=representation', '--data-binary', '@-')
   const out = execFileSync('curl', args, { input: body !== undefined ? JSON.stringify(body) : undefined, maxBuffer: 64 * 1024 * 1024 })
   const text = out.toString().trim()
