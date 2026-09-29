@@ -181,9 +181,19 @@
   75%  { transform: scale(1); opacity: 1; }
   100% { transform: scale(1); opacity: 0; }
 }
+
+/* Big noun-only right/wrong mark for vocabulary practice (top-right corner). */
+.fx-mark {
+  position: fixed; top: 84px; right: 28px; z-index: 45; pointer-events: none;
+  font-size: clamp(56px, 12vw, 104px); line-height: 1; font-weight: 700;
+  animation: fx-pop 1100ms ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fx-particle, .fx-dot { animation: none !important; opacity: 0 !important; }
   .fx-pop { animation: none !important; opacity: 0 !important; }
+  /* keep the mark visible (no fade) — it must not disappear for these users */
+  .fx-mark { animation: none !important; }
 }
 
 /* Print just one element (used for the student wrong book) */

@@ -15,6 +15,8 @@ type LessonRow = {
 }
 type CourseRow = { id: string; name: string; wordCount: number; studied: number; mastered: number; due: number }
 
+type StudyMode = 'card' | 'spell' | 'choice' | 'def'
+
 const MASTERED_BOX = 3
 const SESSION_CAP = 30
 
@@ -66,13 +68,17 @@ function VocabContent() {
   const [again, setAgain] = useState<VocabWordWithProgress[]>([])
   const [pos, setPos] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const [mode, setMode] = useState<'card' | 'spell' | 'choice'>('card')
+  const [mode, setMode] = useState<StudyMode>('card')
   const [answerInput, setAnswerInput] = useState('')
   const [choicePick, setChoicePick] = useState<string | null>(null)
+  const [lastOk, setLastOk] = useState<boolean | null>(null)
+  const [fx, setFx] = useState<{ kind: 'correct' | 'wrong'; key: number } | null>(null)
   const [done, setDone] = useState(0)
   const requeued = useRef<Set<string>>(new Set())
 
-  // ---- Text-to-speech (en-GB preferred). Voices load asynchronously in Chrome.
+  // ---- Text-to-speech. British and American are offered separately, because
+  // IGCSE uses British spelling but students still need to recognise American
+  // pronunciation. Chrome populates getVoices() asynchronously.
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
@@ -81,21 +87,36 @@ function VocabContent() {
     window.speechSynthesis.addEventListener('voiceschanged', load)
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load)
   }, [])
-  const enVoice = useMemo(() => {
-    const gb = voices.find(v => (v.lang || '').replace('_', '-').toLowerCase().startsWith('en-gb'))
-    return gb || voices.find(v => (v.lang || '').toLowerCase().startsWith('en')) || null
-  }, [voices])
-  const canSpeak = !!enVoice
+  const norm = (l?: string) => (l || '').replace('_', '-').toLowerCase()
+  const gbVoice = useMemo(() => voices.find(v => norm(v.lang).startsWith('en-gb')) || null, [voices])
+  const usVoice = useMemo(() => voices.find(v => norm(v.lang).startsWith('en-us')) || null, [voices])
+  // Last resort so a machine with only "en" (no region) still speaks.
+  const anyEn = useMemo(() => gbVoice || usVoice || voices.find(v => norm(v.lang).startsWith('en')) || null, [voices])
+  const noVoice = !anyEn
 
-  const speak = (text: string) => {
+  const speak = (text: string, accent: 'gb' | 'us' = 'gb') => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    const chosen = accent === 'us' ? (usVoice || anyEn) : (gbVoice || anyEn)
     const u = new SpeechSynthesisUtterance(text)
-    if (enVoice) { u.voice = enVoice; u.lang = enVoice.lang }
-    else u.lang = 'en-GB'
+    if (chosen) { u.voice = chosen; u.lang = chosen.lang }
+    else u.lang = accent === 'us' ? 'en-US' : 'en-GB'
     u.rate = 0.9
     window.speechSynthesis.cancel()
     window.speechSynthesis.speak(u)
   }
+
+  const speakButtons = (text: string) => (
+    <div className="flex items-center justify-center gap-2 flex-wrap">
+      <button onClick={() => speak(text, 'gb')}
+        className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
+        <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '英式' : 'UK'}
+      </button>
+      <button onClick={() => speak(text, 'us')}
+        className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
+        <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '美式' : 'US'}
+      </button>
+    </div>
+  )
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -131,8 +152,7 @@ function VocabContent() {
     if (q.length === 0) { alert(lang === 'zh' ? '这个课时没有可学的词' : 'No words to study'); return }
     requeued.current = new Set()
     setQueue(q); setAgain([]); setPos(0); setFlipped(false)
-    setAnswerInput(''); setChoicePick(null); setDone(0)
-    setMode('card')
+    setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null); setDone(0)
   }
 
   // Entering from a lesson hub (/play/[lessonId]) jumps straight into study.
@@ -165,7 +185,7 @@ function VocabContent() {
       nextAgain = [...again, word]
     }
     const nextPos = pos + 1
-    setFlipped(false); setAnswerInput(''); setChoicePick(null)
+    setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
     if (nextPos < queue!.length) { setPos(nextPos); setAgain(nextAgain); return }
     if (nextAgain.length > 0) { setQueue(nextAgain); setAgain([]); setPos(0); requeued.current = new Set(); return }
     endSession()
@@ -180,29 +200,28 @@ function VocabContent() {
     advance(word, result !== 'known')
   }
 
-  const submitSpelling = () => {
+  // Every "did they get it right" mode funnels through here so the right/wrong
+  // flash, the SRS write and the Next button all agree on one answer.
+  const settle = (ok: boolean) => {
     const word = queue![pos]
-    const ok = answerInput.trim().toLowerCase() === word.term.trim().toLowerCase()
+    setLastOk(ok)
     setFlipped(true)
-    setTimeout(() => {
-      fetch('/api/vocab/progress', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wordId: word.id, result: ok ? 'known' : 'unknown' }),
-      }).catch(() => {})
-    }, 0)
+    setFx({ kind: ok ? 'correct' : 'wrong', key: Date.now() })
+    fetch('/api/vocab/progress', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wordId: word.id, result: ok ? 'known' : 'unknown' }),
+    }).catch(() => {})
   }
 
-  const submitChoice = (optionTerm: string) => {
+  const submitSpelling = () => {
     const word = queue![pos]
-    const ok = optionTerm === word.zh
-    setChoicePick(optionTerm)
-    setFlipped(true)
-    setTimeout(() => {
-      fetch('/api/vocab/progress', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wordId: word.id, result: ok ? 'known' : 'unknown' }),
-      }).catch(() => {})
-    }, 0)
+    settle(answerInput.trim().toLowerCase() === word.term.trim().toLowerCase())
+  }
+
+  const submitChoice = (option: string) => {
+    const word = queue![pos]
+    setChoicePick(option)
+    settle(option === (mode === 'def' ? word.term : word.zh))
   }
 
   const grouped = useMemo(() => {
@@ -214,6 +233,25 @@ function VocabContent() {
     return [...byChapter.values()].sort((a, b) => a.order - b.order)
   }, [lessons])
 
+  // Options for the choice/definition modes, memoised per question so they do
+  // NOT reshuffle when the answer is revealed (which happens on every flip).
+  const optionList = useMemo(() => {
+    if (!queue || queue.length === 0) return []
+    const w = queue[pos]
+    if (!w) return []
+    const correct = mode === 'def' ? w.term : w.zh
+    const seen = new Set([correct])
+    const pool: string[] = []
+    for (const other of queue) {
+      if (other.id === w.id) continue
+      const v = mode === 'def' ? other.term : other.zh
+      if (seen.has(v)) continue
+      seen.add(v)
+      pool.push(v)
+    }
+    return shuffle([correct, ...shuffle(pool).slice(0, 3)])
+  }, [queue, pos, mode])
+
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
   }
@@ -221,23 +259,28 @@ function VocabContent() {
   // ---------- Active session ----------
   if (queue && queue.length > 0) {
     const word = queue[pos]
-    // distractors come from the same session, so no AI call is needed
-    const distractors = shuffle(queue.filter(w => w.id !== word.id).map(w => w.zh)).slice(0, 3)
-    const choices = shuffle([word.zh, ...distractors])
     const isLast = pos === queue.length - 1 && again.length === 0
     const pct = Math.round((done / (done + queue.length - pos + again.length)) * 100)
+    const correctOption = mode === 'def' ? word.term : word.zh
 
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
+        {fx && (
+          <div key={fx.key} className="fx-mark" aria-hidden>
+            <span className={fx.kind === 'correct' ? 'text-emerald-500' : 'text-red-500'}>{fx.kind === 'correct' ? '✓' : '✗'}</span>
+          </div>
+        )}
         <main className="max-w-2xl mx-auto px-4 pt-24 pb-20">
           <div className="flex items-center justify-between mb-4">
             <button onClick={endSession} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '结束' : 'End'}
             </button>
             <div className="flex gap-1 border rounded-lg overflow-hidden text-xs">
-              {([['card', '卡片'], ['spell', '拼写'], ['choice', '选择']] as const).map(([m, label]) => (
-                <button key={m} onClick={() => { setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null) }}
+              {([['card', '卡片'], ['spell', '拼写'], ['choice', '选择'], ['def', '释义']] as const).map(([m, label]) => (
+                <button key={m} onClick={() => {
+                  setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
+                }}
                   className={`px-3 py-1.5 transition-colors ${mode === m ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
                   {label}
                 </button>
@@ -255,12 +298,9 @@ function VocabContent() {
               <div className="flex-1 flex flex-col items-center justify-center text-center">
                 <div className="text-3xl font-bold">{word.term}</div>
                 {word.ipa && <div className="text-sm text-muted-foreground mt-1">{word.ipa}</div>}
-                {canSpeak && (
-                  <button onClick={() => speak(word.term)}
-                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
-                    <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '朗读' : 'Listen'}
-                  </button>
-                )}
+                {noVoice
+                  ? <div className="mt-3 text-xs text-amber-600">{lang === 'zh' ? '此设备没有英语语音库，无法朗读' : 'No English voice on this device'}</div>
+                  : <div className="mt-3">{speakButtons(word.term)}</div>}
               </div>
             )}
 
@@ -268,12 +308,8 @@ function VocabContent() {
               <div className="flex-1 flex flex-col items-center justify-center text-center">
                 <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '看中文写英文' : 'Spell the English term'}</div>
                 <div className="text-2xl font-semibold mb-1">{word.zh}</div>
-                {word.en_def && <div className="text-xs text-muted-foreground mb-4">{word.en_def}</div>}
-                {canSpeak && (
-                  <button onClick={() => speak(word.term)} className="mb-4 flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
-                    <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '听发音' : 'Listen'}
-                  </button>
-                )}
+                {word.en_def && <div className="text-sm text-muted-foreground mb-4">{word.en_def}</div>}
+                <div className="mb-4">{speakButtons(word.term)}</div>
                 <input value={answerInput} onChange={e => setAnswerInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !flipped && answerInput.trim()) submitSpelling() }}
                   disabled={flipped} autoFocus
@@ -292,15 +328,32 @@ function VocabContent() {
               <div className="flex-1 flex flex-col items-center justify-center text-center">
                 <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '选出正确的中文释义' : 'Pick the correct meaning'}</div>
                 <div className="text-3xl font-bold mb-1">{word.term}</div>
-                {canSpeak && (
-                  <button onClick={() => speak(word.term)} className="mb-4 flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
-                    <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '朗读' : 'Listen'}
-                  </button>
-                )}
+                <div className="mb-4">{speakButtons(word.term)}</div>
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                  {choices.map(c => {
+                  {optionList.map(c => {
                     const picked = choicePick === c
-                    const isRight = c === word.zh
+                    const isRight = c === correctOption
+                    let cls = 'border hover:bg-accent'
+                    if (flipped && isRight) cls = 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                    else if (flipped && picked) cls = 'border-red-300 bg-red-50 text-red-700'
+                    return (
+                      <button key={c} onClick={() => !flipped && submitChoice(c)} disabled={flipped}
+                        className={`px-4 py-4 border rounded-xl text-sm transition-colors ${cls}`}>{c}</button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {mode === 'def' && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '看英文释义，选出对应的英文单词' : 'Pick the word that matches the definition'}</div>
+                <div className="text-lg font-medium mb-1 max-w-md">{word.en_def || word.zh}</div>
+                {word.ipa && <div className="text-sm text-muted-foreground mb-4">{word.ipa}</div>}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {optionList.map(c => {
+                    const picked = choicePick === c
+                    const isRight = c === correctOption
                     let cls = 'border hover:bg-accent'
                     if (flipped && isRight) cls = 'border-emerald-400 bg-emerald-50 text-emerald-800'
                     else if (flipped && picked) cls = 'border-red-300 bg-red-50 text-red-700'
@@ -315,16 +368,24 @@ function VocabContent() {
 
             {/* Back / answer reveal */}
             {flipped && (
-              <div className="mt-6 pt-5 border-t space-y-2">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">{lang === 'zh' ? '答案：' : 'Answer: '}</span>
-                  <span className="font-semibold">{word.term}</span>
-                  <span className="text-muted-foreground"> · {word.zh}</span>
+              <div className="mt-6 pt-5 border-t text-center">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                  {lang === 'zh' ? '答案' : 'Answer'}
                 </div>
-                {word.en_def && <div className="text-sm text-muted-foreground">{word.en_def}</div>}
-                {word.example_en && <div className="text-sm">{word.example_en}</div>}
+                <div className="text-3xl font-bold">{word.term}</div>
+                <div className="text-xl font-semibold text-emerald-700 mt-1">{word.zh}</div>
+                {word.ipa && <div className="text-sm text-muted-foreground mt-1">{word.ipa}</div>}
+                <div className="mt-3">{speakButtons(word.term)}</div>
+                {word.image_url && (
+                  <img src={word.image_url} alt={word.term}
+                    className="mx-auto mt-4 max-h-56 rounded-xl border object-contain" loading="lazy" />
+                )}
+                {word.en_def && (
+                  <div className="mt-4 text-base font-medium">{word.en_def}</div>
+                )}
+                {word.example_en && <div className="mt-2 text-sm">{word.example_en}</div>}
                 {word.example_zh && <div className="text-xs text-muted-foreground">{word.example_zh}</div>}
-                {word.note && <div className="text-xs text-amber-700">⚠️ {word.note}</div>}
+                {word.note && <div className="mt-2 text-xs text-amber-700">⚠️ {word.note}</div>}
               </div>
             )}
           </div>
@@ -353,9 +414,7 @@ function VocabContent() {
             )}
 
             {flipped && mode !== 'card' && (
-              <button onClick={() => advance(word, mode === 'spell'
-                ? answerInput.trim().toLowerCase() !== word.term.trim().toLowerCase()
-                : choicePick !== word.zh)}
+              <button onClick={() => advance(word, lastOk === false)}
                 className="w-full py-4 bg-gray-900 text-white rounded-2xl text-sm font-medium hover:bg-black transition-colors">
                 {isLast ? (lang === 'zh' ? '完成' : 'Finish') : (lang === 'zh' ? '下一个' : 'Next')}
               </button>

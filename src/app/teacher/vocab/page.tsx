@@ -5,19 +5,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import type { Course, Chapter, Lesson } from '@/lib/types'
-import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X } from 'lucide-react'
+import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 type WordForm = {
   id?: string
   term: string; ipa: string; pos: string; zh: string
   en_def: string; example_en: string; example_zh: string
-  note: string; difficulty: number
+  note: string; difficulty: number; image_url: string
 }
 
 const EMPTY_WORD: WordForm = {
   term: '', ipa: '', pos: '', zh: '',
-  en_def: '', example_en: '', example_zh: '', note: '', difficulty: 1,
+  en_def: '', example_en: '', example_zh: '', note: '', difficulty: 1, image_url: '',
 }
 
 // AI output usually arrives wrapped in ```json fences; strip them before parsing.
@@ -59,6 +59,41 @@ function VocabAdminContent() {
   const [showImport, setShowImport] = useState(false)
   const [importText, setImportText] = useState('')
   const [importPreview, setImportPreview] = useState<any[]>([])
+  const [uploading, setUploading] = useState(false)
+
+  // Illustrations are pasted straight into the form; the existing upload route
+  // turns them into a data URL stored in vocab_words.image_url.
+  const uploadFile = async (file: File) => {
+    if (file.size > 300 * 1024) {
+      alert(`图片需小于 300KB，当前 ${Math.round(file.size / 1024)}KB。请先用截图工具缩小。`)
+      return
+    }
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file, 'img.png')
+      const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (json.url) setEditWord(w => (w ? { ...w, image_url: json.url } : w))
+      else alert('上传失败：' + (json.error || '服务器无响应'))
+    } catch (e: any) {
+      alert('上传异常：' + e.message)
+    }
+    setUploading(false)
+  }
+
+  const handlePasteImage = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const f = item.getAsFile()
+        if (f) uploadFile(f)
+        return
+      }
+    }
+  }
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -236,6 +271,9 @@ function VocabAdminContent() {
                 {words.map((w: any) => (
                   <div key={w.id} className="bg-card border rounded-xl p-4 flex items-start justify-between gap-4">
                     <div className="min-w-0">
+                      {w.image_url && (
+                        <img src={w.image_url} alt="" className="w-16 h-16 object-contain border rounded mb-2 bg-white" />
+                      )}
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="font-semibold">{w.term}</span>
                         {w.ipa && <span className="text-xs text-muted-foreground">{w.ipa}</span>}
@@ -247,7 +285,7 @@ function VocabAdminContent() {
                       {w.note && <div className="text-xs text-amber-700 mt-1">⚠️ {w.note}</div>}
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button onClick={() => setEditWord({ ...EMPTY_WORD, ...w })} title="编辑"
+                      <button onClick={() => setEditWord({ ...EMPTY_WORD, ...w, image_url: w.image_url || '' })} title="编辑"
                         className="p-2 rounded-lg hover:bg-accent transition-colors"><Edit3 className="w-4 h-4 text-muted-foreground" /></button>
                       <button onClick={() => deleteWord(w)} title="删除"
                         className="p-2 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4 text-red-500" /></button>
@@ -264,7 +302,7 @@ function VocabAdminContent() {
           used to discard typing by accident). */}
       {editWord && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto p-4">
-          <div className="bg-card rounded-2xl w-full max-w-2xl my-8">
+          <div className="bg-card rounded-2xl w-full max-w-2xl my-8" onPaste={handlePasteImage}>
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold">{editWord.id ? (lang === 'zh' ? '编辑词条' : 'Edit word') : (lang === 'zh' ? '新增词条' : 'Add word')}</h2>
               <button onClick={() => setEditWord(null)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
@@ -305,6 +343,35 @@ function VocabAdminContent() {
                   <option value={2}>2 · 中等</option>
                   <option value={3}>3 · 较难</option>
                 </select></label>
+
+              <div className="text-sm">
+                <div className="mb-1">插图（可选）—— 可直接把图片粘贴到本窗口任意位置</div>
+                <div className="flex items-start gap-3">
+                  {editWord.image_url
+                    ? <img src={editWord.image_url} alt="" className="w-28 h-28 object-contain border rounded-lg bg-white shrink-0" />
+                    : <div className="w-28 h-28 border-2 border-dashed rounded-lg flex items-center justify-center text-xs text-muted-foreground text-center px-2 shrink-0">
+                        {lang === 'zh' ? '暂无插图' : 'No image'}
+                      </div>}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs cursor-pointer hover:bg-accent transition-colors">
+                        <ImagePlus className="w-3.5 h-3.5" /> {lang === 'zh' ? '选择图片' : 'Choose'}
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }} />
+                      </label>
+                      {uploading && <span className="text-xs text-muted-foreground">{lang === 'zh' ? '上传中…' : 'Uploading…'}</span>}
+                      {editWord.image_url && (
+                        <button type="button" onClick={() => setEditWord({ ...editWord, image_url: '' })}
+                          className="text-xs text-red-600 hover:underline">{lang === 'zh' ? '移除图片' : 'Remove'}</button>
+                      )}
+                    </div>
+                    <input value={editWord.image_url.startsWith('data:') ? '' : editWord.image_url}
+                      onChange={e => setEditWord({ ...editWord, image_url: e.target.value })}
+                      placeholder={lang === 'zh' ? '或填写图片网址 https://…' : 'or paste an image URL'}
+                      className="w-full px-3 py-2 border rounded-lg bg-background text-xs" />
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t">
               <button onClick={() => setEditWord(null)} className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
