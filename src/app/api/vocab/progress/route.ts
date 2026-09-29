@@ -47,18 +47,23 @@ function nextSrs(currentBox: number, result: string) {
   return { box, dueAt: new Date(Date.now() + days * 86400000).toISOString() }
 }
 
-// Which courses should this student see? Their classes' courses; if they are in
-// no class (e.g. the teacher previewing), fall back to every course that has
-// vocabulary, so the page is still usable.
+// Which courses may this student practise vocabulary for? Their classes'
+// courses, PLUS every published course that has a word bank.
+//
+// The `is_published` part matters because a class points at exactly one course
+// (`classes.course_id`), so a class whose main course is e.g. 化学H can never
+// surface a separate vocabulary course like IGCSE 化学. Unpublishing the course
+// is the teacher's switch for hiding it again.
 async function scopeCourseIds(studentId: string): Promise<string[]> {
   const members = await fetchAllIn('class_members', 'student_id', [studentId], 'class_id')
   const classIds = [...new Set(members.map((m: any) => m.class_id).filter(Boolean))]
   const classes = classIds.length ? await fetchAllIn('classes', 'id', classIds, 'course_id') : []
-  const fromClasses = [...new Set(classes.map((c: any) => c.course_id).filter(Boolean))]
-  if (fromClasses.length > 0) return fromClasses
+  const fromClasses = classes.map((c: any) => c.course_id).filter(Boolean)
 
   const { data: courses } = await supabaseAdmin('courses', { query: `?is_published=eq.true&select=id` })
-  return (courses || []).map((c: any) => c.id)
+  const published = (courses || []).map((c: any) => c.id)
+
+  return [...new Set([...fromClasses, ...published])]
 }
 
 async function aggregate(courseIds: string[], studentId: string, perCourse: boolean) {
