@@ -80,8 +80,14 @@ function VocabContent() {
   // IGCSE uses British spelling but students still need to recognise American
   // pronunciation. Chrome populates getVoices() asynchronously.
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  // getVoices() is unreliable (Chrome often returns [] until voiceschanged, and
+  // some builds never list the system voice). speak() still works with a bare
+  // lang tag, so only treat genuinely missing speechSynthesis as "no voice" —
+  // hiding the buttons otherwise is what made pronunciation look broken.
+  const [ttsUnsupported, setTtsUnsupported] = useState(false)
   useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    if (typeof window === 'undefined') return
+    if (!('speechSynthesis' in window)) { setTtsUnsupported(true); return }
     const load = () => setVoices(window.speechSynthesis.getVoices())
     load()
     window.speechSynthesis.addEventListener('voiceschanged', load)
@@ -90,9 +96,10 @@ function VocabContent() {
   const norm = (l?: string) => (l || '').replace('_', '-').toLowerCase()
   const gbVoice = useMemo(() => voices.find(v => norm(v.lang).startsWith('en-gb')) || null, [voices])
   const usVoice = useMemo(() => voices.find(v => norm(v.lang).startsWith('en-us')) || null, [voices])
-  // Last resort so a machine with only "en" (no region) still speaks.
+  // Preferred voice per accent; falls back to any English voice, then to a bare
+  // lang tag which lets the OS pick.
   const anyEn = useMemo(() => gbVoice || usVoice || voices.find(v => norm(v.lang).startsWith('en')) || null, [voices])
-  const noVoice = !anyEn
+  const noVoice = ttsUnsupported
 
   const speak = (text: string, accent: 'gb' | 'us' = 'gb') => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
@@ -266,11 +273,6 @@ function VocabContent() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        {fx && (
-          <div key={fx.key} className="fx-mark" aria-hidden>
-            <span className={fx.kind === 'correct' ? 'text-emerald-500' : 'text-red-500'}>{fx.kind === 'correct' ? '✓' : '✗'}</span>
-          </div>
-        )}
         <main className="max-w-2xl mx-auto px-4 pt-24 pb-20">
           <div className="flex items-center justify-between mb-4">
             <button onClick={endSession} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -292,7 +294,14 @@ function VocabContent() {
             <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
 
-          <div className="bg-card border rounded-2xl p-8 min-h-[280px] flex flex-col">
+          <div className="relative bg-card border rounded-2xl p-8 min-h-[280px] flex flex-col">
+            {/* the right/wrong mark stays put until the next word */}
+            {fx && (
+              <span key={fx.key} aria-hidden
+                className={`fx-mark absolute right-4 top-4 leading-none ${fx.kind === 'correct' ? 'text-emerald-500' : 'text-red-500'}`}>
+                {fx.kind === 'correct' ? '✓' : '✗'}
+              </span>
+            )}
             {/* Front / prompt */}
             {mode === 'card' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center">

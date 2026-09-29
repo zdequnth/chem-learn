@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
+import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
@@ -61,6 +62,13 @@ function VocabAdminContent() {
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
 
+  // 词库管理 (authoring) vs 掌握情况 (student mastery stats)
+  const [tab, setTab] = useState<'bank' | 'stats'>('bank')
+  const [statScope, setStatScope] = useState<'course' | 'class'>('course')
+  const [statCourseId, setStatCourseId] = useState('')
+  const [statClassId, setStatClassId] = useState('')
+  const [classes, setClasses] = useState<any[]>([])
+
   // Illustrations are pasted straight into the form; the existing upload route
   // turns them into a data URL stored in vocab_words.image_url.
   const uploadFile = async (file: File) => {
@@ -103,6 +111,7 @@ function VocabAdminContent() {
 
   useEffect(() => {
     if (!profile) return
+    fetch('/api/classes').then(r => r.json()).then(j => setClasses(j.classes || [])).catch(() => {})
     ;(async () => {
       const res = await fetch('/api/courses')
       const json = await res.json()
@@ -219,6 +228,49 @@ function VocabAdminContent() {
           </div>
         </div>
 
+        {/* 词库管理 / 掌握情况 — vocabulary lives here, not inside 学情分析 */}
+        <div className="flex gap-1 border rounded-xl p-1 mb-5 w-fit">
+          <button onClick={() => setTab('bank')}
+            className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'bank' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
+            {lang === 'zh' ? '词库管理' : 'Word bank'}
+          </button>
+          <button onClick={() => setTab('stats')}
+            className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'stats' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
+            {lang === 'zh' ? '掌握情况' : 'Mastery'}
+          </button>
+        </div>
+
+        {tab === 'stats' ? (
+          <>
+            <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+              <div className="flex gap-1 border rounded-lg overflow-hidden text-xs">
+                <button onClick={() => setStatScope('course')}
+                  className={`px-3 py-1.5 transition-colors ${statScope === 'course' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
+                  {lang === 'zh' ? '按课程' : 'By course'}
+                </button>
+                <button onClick={() => setStatScope('class')}
+                  className={`px-3 py-1.5 transition-colors ${statScope === 'class' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
+                  {lang === 'zh' ? '按班级' : 'By class'}
+                </button>
+              </div>
+              {statScope === 'course' ? (
+                <select value={statCourseId} onChange={e => setStatCourseId(e.target.value)}
+                  className="px-3 py-2 border rounded-lg bg-background text-sm">
+                  <option value="">{lang === 'zh' ? '选择课程' : 'Course'}</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              ) : (
+                <select value={statClassId} onChange={e => setStatClassId(e.target.value)}
+                  className="px-3 py-2 border rounded-lg bg-background text-sm">
+                  <option value="">{lang === 'zh' ? '选择班级' : 'Class'}</option>
+                  {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+            </div>
+            <VocabAnalyticsPanel scope={statScope} courseId={statCourseId} classId={statClassId} />
+          </>
+        ) : (
+        <>
         {/* Cascading selects */}
         <div className="bg-card border rounded-2xl p-4 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <select value={selectedCourse} onChange={e => { setSelectedCourse(e.target.value); setSelectedChapter(''); setSelectedLesson('') }}
@@ -295,6 +347,8 @@ function VocabAdminContent() {
               </div>
             )}
           </>
+        )}
+        </>
         )}
       </main>
 

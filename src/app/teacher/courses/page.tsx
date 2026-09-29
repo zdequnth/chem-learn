@@ -84,6 +84,16 @@ export default function TeacherCoursesPage() {
     fetchCourses()
   }
 
+  const handleToggleKind = async (course: Course) => {
+    const next = (course as any).kind === 'vocab' ? 'gate' : 'vocab'
+    await fetch(`/api/courses/${course.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: next }),
+    })
+    fetchCourses()
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm('确定要删除这门课程吗？所有章节、课时和题目将被永久删除。')) return
     await fetch(`/api/courses?id=${id}`, { method: 'DELETE' })
@@ -148,13 +158,16 @@ export default function TeacherCoursesPage() {
             {courses.map(course => (
               <div key={course.id} className="bg-card rounded-xl border p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center text-2xl shrink-0">
-                    {course.icon || '🧪'}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${(course as any).kind === 'vocab' ? 'bg-gradient-to-br from-amber-100 to-amber-200' : 'bg-gradient-to-br from-emerald-100 to-emerald-200'}`}>
+                    {(course as any).kind === 'vocab' ? '📖' : (course.icon || '🧪')}
                   </div>
                   <div>
-                    <h3 className="font-semibold">{course.name}</h3>
+                    <h3 className="font-semibold">{(course as any).kind === 'vocab' ? `📖 ${course.name}` : course.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       {course.grade_level && <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
+                      {(course as any).kind === 'vocab'
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">背单词课程</span>
+                        : <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">过关课程</span>}
                       <span className={`text-xs px-2 py-0.5 rounded-full ${course.is_published ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                         {course.is_published ? '已发布' : '未发布'}
                       </span>
@@ -162,6 +175,10 @@ export default function TeacherCoursesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => handleToggleKind(course)}
+                    className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${(course as any).kind === 'vocab' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+                    {(course as any).kind === 'vocab' ? '改为过关课程' : '改为背单词课程'}
+                  </button>
                   <button onClick={() => handleTogglePublish(course)}
                     className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${course.is_published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                     {course.is_published ? '取消发布' : '发布'}

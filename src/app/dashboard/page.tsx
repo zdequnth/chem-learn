@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [joinMsg, setJoinMsg] = useState('')
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
+  const [vocabByCourse, setVocabByCourse] = useState<Record<string, any>>({})
   const [favorites, setFavorites] = useState<string[]>([])
   const [teacherClasses, setTeacherClasses] = useState<any[]>([])
 
@@ -91,6 +92,13 @@ export default function DashboardPage() {
     if (!user || isTeacher) return
     fetch('/api/student/dashboard').then(r => r.json()).then(json => {
       if (!json.error) setMyClasses(json.classes || [])
+    }).catch(() => {})
+    // Word progress for vocabulary courses, so their card can show 背单词 stats
+    // instead of the gate-test percentage.
+    fetch('/api/vocab/progress').then(r => r.json()).then(json => {
+      const map: Record<string, any> = {}
+      for (const c of (json.courses || [])) map[c.id] = c
+      setVocabByCourse(map)
     }).catch(() => {})
     fetchFavs()
   }, [user, isTeacher])
@@ -177,7 +185,46 @@ export default function DashboardPage() {
               {/* My classes with progress */}
               {myClasses.length > 0 && (
                 <div className="space-y-2">
-                  {myClasses.map((c: any) => (
+                  {myClasses.map((c: any) => {
+                    // A vocabulary class is NOT a gate-test course — give it its
+                    // own colour, label and destination so the two never look alike.
+                    if (c.courseKind === 'vocab') {
+                      const v = vocabByCourse[c.course_id] || { wordCount: 0, studied: 0, mastered: 0, due: 0 }
+                      const pct = v.wordCount > 0 ? Math.round((v.mastered / v.wordCount) * 100) : 0
+                      return (
+                        <div key={c.id} className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-amber-800 shrink-0">📖 {c.name}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-medium shrink-0">
+                              背单词
+                            </span>
+                            {c.courseName && (
+                              <Link href={`/vocab?course=${c.course_id}`}
+                                className="text-xs text-amber-700 hover:underline shrink-0">
+                                {c.courseName}
+                              </Link>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex-1 bg-amber-200 rounded-full h-2.5">
+                              <div className="bg-amber-500 h-2.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-xs text-amber-800 shrink-0">
+                              已学 {v.studied}/{v.wordCount} 词 · 掌握 {pct}%
+                            </span>
+                            {v.due > 0 && <span className="text-xs text-red-600 shrink-0">待复习 {v.due}</span>}
+                          </div>
+                          <Link href={`/vocab?course=${c.course_id}`}
+                            className="inline-block mt-2 px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition-colors">
+                            去背单词 →
+                          </Link>
+                          {c.message && (
+                            <p className="text-xs text-amber-700 mt-1 whitespace-pre-wrap">{c.message}</p>
+                          )}
+                        </div>
+                      )
+                    }
+                    return (
                     <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-blue-700 shrink-0">📚 {c.name}</span>
@@ -200,7 +247,8 @@ export default function DashboardPage() {
                         <p className="text-xs text-blue-600 mt-1 whitespace-pre-wrap">{c.message}</p>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

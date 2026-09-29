@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { Loader2, ArrowLeft, ChevronDown, ChevronRight, Printer } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
@@ -569,9 +568,6 @@ function AnalyticsContent() {
                 </div>
               )}
             </section>
-
-            {/* Panel 5: vocabulary mastery (self-contained; fetches its own data) */}
-            <VocabAnalyticsPanel scope={scope} courseId={courseId} classId={classId} />
 
           </div>
         )}

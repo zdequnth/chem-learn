@@ -182,17 +182,21 @@
   100% { transform: scale(1); opacity: 0; }
 }
 
-/* Big noun-only right/wrong mark for vocabulary practice (top-right corner). */
+/* Right/wrong mark for vocabulary practice. Sits in the corner of the word card
+   and stays there until the next word — it only animates its entrance. */
 .fx-mark {
-  position: fixed; top: 84px; right: 28px; z-index: 45; pointer-events: none;
-  font-size: clamp(56px, 12vw, 104px); line-height: 1; font-weight: 700;
-  animation: fx-pop 1100ms ease-out forwards;
+  font-size: 44px; font-weight: 700; pointer-events: none;
+  animation: fx-mark-in 260ms cubic-bezier(.2, .7, .3, 1) both;
+}
+@keyframes fx-mark-in {
+  0%   { transform: scale(.4); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fx-particle, .fx-dot { animation: none !important; opacity: 0 !important; }
   .fx-pop { animation: none !important; opacity: 0 !important; }
-  /* keep the mark visible (no fade) — it must not disappear for these users */
   .fx-mark { animation: none !important; }
 }
 

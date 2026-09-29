@@ -39,13 +39,14 @@ export async function GET() {
         ? supabaseAdmin('chapters', { query: `?course_id=in.(${courseIds.join(',')})&select=id,course_id` })
         : Promise.resolve({ data: [] }),
       courseIds.length > 0
-        ? supabaseAdmin('courses', { query: `?id=in.(${courseIds.join(',')})&select=id,name` })
+        ? supabaseAdmin('courses', { query: `?id=in.(${courseIds.join(',')})&select=id,name,kind` })
         : Promise.resolve({ data: [] }),
     ])
 
     const allChapters = chaptersRes.data || []
     const chapterIds = allChapters.map((ch: any) => ch.id)
     const coursesMap = new Map((coursesRes.data || []).map((c: any) => [c.id, c.name]))
+    const courseKind = new Map((coursesRes.data || []).map((c: any) => [c.id, c.kind || 'gate']))
 
     // Fetch all lessons in parallel
     const lessonsRes = chapterIds.length > 0
@@ -63,7 +64,13 @@ export async function GET() {
           (myProgress || []).some((p: any) => p.lesson_id === l.id && p.status === 'passed')
         ).length
       }
-      myClasses.push({ ...cls, passed, total, percent: total > 0 ? Math.round((passed / total) * 100) : 0, courseName: coursesMap.get(cls.course_id) || '' })
+      myClasses.push({
+        ...cls,
+        passed, total,
+        percent: total > 0 ? Math.round((passed / total) * 100) : 0,
+        courseName: coursesMap.get(cls.course_id) || '',
+        courseKind: courseKind.get(cls.course_id) || 'gate',
+      })
     }
   }
 

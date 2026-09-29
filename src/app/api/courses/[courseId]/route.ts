@@ -67,6 +67,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ cour
   }
 
   const body = await request.json()
+  // `kind` is a CHECK-constrained enum; drop bad values rather than letting the
+  // DB reject the whole update with an opaque 500.
+  if (body.kind !== undefined && body.kind !== 'gate' && body.kind !== 'vocab') delete body.kind
+
   const { data, error } = await supabaseAdmin('courses', {
     method: 'PATCH',
     body: body,

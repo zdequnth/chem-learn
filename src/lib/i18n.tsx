@@ -7,7 +7,7 @@ const translations: Record<string, Record<string, string>> = {
   dashboard: { zh: '仪表盘', en: 'Dashboard' },
   wrongBook: { zh: '错题本', en: 'Wrong Book' },
   vocab: { zh: '背单词', en: 'Vocabulary' },
-  vocabMgmt: { zh: '词汇管理', en: 'Vocabulary' },
+  vocabMgmt: { zh: '词汇', en: 'Vocabulary' },
   todayReview: { zh: '今日复习', en: 'Review Today' },
   knowKnown: { zh: '认识', en: 'Known' },
   knowFuzzy: { zh: '模糊', en: 'Fuzzy' },
