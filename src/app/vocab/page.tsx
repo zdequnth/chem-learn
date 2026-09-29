@@ -25,12 +25,17 @@ function isDue(w: VocabWordWithProgress) {
   return new Date(w.progress.due_at).getTime() <= Date.now()
 }
 
+// `review` must return exactly the words the "今日复习" list advertises
+// (overdue only) — otherwise the tab says 0 due but the session still runs.
+// `study` covers the whole lesson, but learns overdue words first.
 function buildQueue(words: VocabWordWithProgress[], mode: 'study' | 'review'): VocabWordWithProgress[] {
-  if (mode === 'study') return words
-  const due = words.filter(w => w.progress && isDue(w))
-    .sort((a, b) => new Date(a.progress!.due_at).getTime() - new Date(b.progress!.due_at).getTime())
+  const byDue = (a: VocabWordWithProgress, b: VocabWordWithProgress) =>
+    new Date(a.progress!.due_at).getTime() - new Date(b.progress!.due_at).getTime()
+  const due = words.filter(w => w.progress && isDue(w)).sort(byDue)
+  if (mode === 'review') return due.slice(0, SESSION_CAP)
   const fresh = words.filter(w => !w.progress)
-  return [...due, ...fresh].slice(0, SESSION_CAP)
+  const rest = words.filter(w => w.progress && !isDue(w)).sort(byDue)
+  return [...due, ...fresh, ...rest]
 }
 
 function shuffle<T>(arr: T[]): T[] {

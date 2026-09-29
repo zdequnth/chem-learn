@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Protected routes
-  const protectedPaths = ['/dashboard', '/play', '/courses', '/teacher', '/wrong-book', '/settings']
+  const protectedPaths = ['/dashboard', '/play', '/courses', '/teacher', '/wrong-book', '/vocab', '/settings']
   const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
 
   // Teacher-only routes
