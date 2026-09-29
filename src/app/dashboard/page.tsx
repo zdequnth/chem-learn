@@ -186,67 +186,61 @@ export default function DashboardPage() {
               {myClasses.length > 0 && (
                 <div className="space-y-2">
                   {myClasses.map((c: any) => {
-                    // A vocabulary class is NOT a gate-test course — give it its
-                    // own colour, label and destination so the two never look alike.
-                    if (c.courseKind === 'vocab') {
-                      const v = vocabByCourse[c.course_id] || { wordCount: 0, studied: 0, mastered: 0, due: 0 }
-                      const pct = v.wordCount > 0 ? Math.round((v.mastered / v.wordCount) * 100) : 0
-                      return (
-                        <div key={c.id} className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-amber-800 shrink-0">📖 {c.name}</span>
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-medium shrink-0">
-                              背单词
-                            </span>
-                            {c.courseName && (
-                              <Link href={`/vocab?course=${c.course_id}`}
-                                className="text-xs text-amber-700 hover:underline shrink-0">
-                                {c.courseName}
-                              </Link>
-                            )}
+                    // One card shape for both kinds — a vocabulary class differs by
+                    // colour/badge/destination, never by size. Three fixed rows
+                    // (identity / course+bar / message+action) keep every box equal.
+                    const isVocab = c.courseKind === 'vocab'
+                    const v = vocabByCourse[c.course_id] || { wordCount: 0, studied: 0, mastered: 0, due: 0 }
+                    const pct = isVocab
+                      ? (v.wordCount > 0 ? Math.round((v.mastered / v.wordCount) * 100) : 0)
+                      : c.percent
+                    const t = isVocab
+                      ? { box: 'bg-amber-50 border-amber-300', text: 'text-amber-800', track: 'bg-amber-200',
+                          bar: 'bg-amber-500', link: 'text-amber-700', badge: 'bg-amber-200 text-amber-900',
+                          btn: 'bg-amber-500 hover:bg-amber-600' }
+                      : { box: 'bg-blue-50 border-blue-200', text: 'text-blue-700', track: 'bg-blue-200',
+                          bar: 'bg-blue-500', link: 'text-emerald-600', badge: '',
+                          btn: 'bg-blue-500 hover:bg-blue-600' }
+                    return (
+                      <div key={c.id}
+                        className={`rounded-lg border px-3 py-2.5 min-h-[104px] flex flex-col justify-between gap-1.5 ${t.box}`}>
+                        {/* 1 — class identity + headline number */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-sm font-medium truncate ${t.text}`}>
+                            {isVocab ? '📖' : '📚'} {c.name}
+                          </span>
+                          {isVocab && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${t.badge}`}>背单词</span>
+                          )}
+                          <span className={`ml-auto shrink-0 text-xs tabular-nums ${t.text}`}>
+                            {isVocab ? `已学 ${v.studied}/${v.wordCount} 词 · 掌握 ${pct}%` : (c.total > 0 ? `${c.percent}%` : '—')}
+                          </span>
+                        </div>
+                        {/* 2 — course name + progress bar */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          {c.courseName && (
+                            <Link href={isVocab ? `/vocab?course=${c.course_id}` : `/courses/${c.course_id}`}
+                              className={`text-xs hover:underline truncate shrink-0 max-w-[9rem] ${t.link}`}>
+                              {c.courseName}
+                            </Link>
+                          )}
+                          <div className={`flex-1 rounded-full h-2.5 ${t.track}`}>
+                            <div className={`h-2.5 rounded-full transition-all ${t.bar}`} style={{ width: `${pct}%` }} />
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className="flex-1 bg-amber-200 rounded-full h-2.5">
-                              <div className="bg-amber-500 h-2.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs text-amber-800 shrink-0">
-                              已学 {v.studied}/{v.wordCount} 词 · 掌握 {pct}%
-                            </span>
-                            {v.due > 0 && <span className="text-xs text-red-600 shrink-0">待复习 {v.due}</span>}
-                          </div>
-                          <Link href={`/vocab?course=${c.course_id}`}
-                            className="inline-block mt-2 px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition-colors">
-                            去背单词 →
-                          </Link>
+                        </div>
+                        {/* 3 — teacher note and/or the vocab action */}
+                        <div className="flex items-center gap-2 min-w-0">
                           {c.message && (
-                            <p className="text-xs text-amber-700 mt-1 whitespace-pre-wrap">{c.message}</p>
+                            <p className={`text-xs line-clamp-2 min-w-0 ${t.text}`}>{c.message}</p>
+                          )}
+                          {isVocab && (
+                            <Link href={`/vocab?course=${c.course_id}`}
+                              className={`ml-auto shrink-0 px-3 py-1 rounded-lg text-xs font-medium text-white transition-colors ${t.btn}`}>
+                              去背单词 →
+                            </Link>
                           )}
                         </div>
-                      )
-                    }
-                    return (
-                    <div key={c.id} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-blue-700 shrink-0">📚 {c.name}</span>
-                        {c.courseName && (
-                          <Link href={`/courses/${c.course_id}`}
-                            className="text-xs text-emerald-600 hover:underline shrink-0">
-                            {c.courseName}
-                          </Link>
-                        )}
-                        {c.total > 0 && (
-                          <>
-                            <div className="flex-1 bg-blue-200 rounded-full h-2.5">
-                              <div className="bg-blue-500 h-2.5 rounded-full transition-all" style={{ width: `${c.percent}%` }} />
-                            </div>
-                            <span className="text-xs text-blue-600 w-10 text-right shrink-0">{c.percent}%</span>
-                          </>
-                        )}
                       </div>
-                      {c.message && (
-                        <p className="text-xs text-blue-600 mt-1 whitespace-pre-wrap">{c.message}</p>
-                      )}
-                    </div>
                     )
                   })}
                 </div>
