@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/providers'
-import { BookOpen, BarChart3, LogOut, User, Settings } from 'lucide-react'
+import { BookOpen, BarChart3, LogOut, User, Settings, BookMarked } from 'lucide-react'
 import { useState } from 'react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -27,9 +27,11 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-1">
               <Link href="/dashboard" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('dashboard', lang)}</Link>
               {!isTeacher && <Link href="/wrong-book" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('wrongBook', lang)}</Link>}
+              {!isTeacher && <Link href="/vocab" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('vocab', lang)}</Link>}
               {isTeacher && (<>
                 <Link href="/teacher/courses" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('courseMgmt', lang)}</Link>
                 <Link href="/teacher/questions" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('questionBank', lang)}</Link>
+                <Link href="/teacher/vocab" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('vocabMgmt', lang)}</Link>
                 <Link href="/teacher/analytics" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('analytics', lang)}</Link>
                 <Link href="/teacher/classes" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('classes', lang)}</Link>
                 <Link href="/admin/users" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('userMgmt', lang)}</Link>
@@ -53,6 +55,8 @@ export default function Navbar() {
                   <div className="text-sm font-medium">{profile?.display_name}</div>
                   <div className="text-xs text-muted-foreground">{isTeacher ? t('teacher', lang) : t('student', lang)}</div>
                 </div>
+                {!isTeacher && <button onClick={() => { router.push('/vocab'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><BookMarked className="w-4 h-4" /> {t('vocab', lang)}</button>}
+                {isTeacher && <button onClick={() => { router.push('/teacher/vocab'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><BookMarked className="w-4 h-4" /> {t('vocabMgmt', lang)}</button>}
                 <button onClick={() => { router.push('/settings'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors"><Settings className="w-4 h-4" /> {t('settings', lang)}</button>
                 <button onClick={() => { signOut(); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"><LogOut className="w-4 h-4" /> {t('signOut', lang)}</button>
               </div>

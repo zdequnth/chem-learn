@@ -24,6 +24,8 @@ export interface Database {
       wrong_question_book: { Row: WrongQuestionBook; Insert: WrongQuestionBookInsert; Update: WrongQuestionBookUpdate }
       ai_generation_logs: { Row: AIGenerationLog; Insert: AIGenerationLogInsert; Update: AIGenerationLogUpdate }
       daily_activity: { Row: DailyActivity; Insert: DailyActivityInsert; Update: DailyActivityUpdate }
+      vocab_words: { Row: VocabWord; Insert: VocabWordInsert; Update: VocabWordUpdate }
+      vocab_progress: { Row: VocabProgress; Insert: VocabProgressInsert; Update: VocabProgressUpdate }
     }
   }
 }
@@ -564,6 +566,82 @@ export interface DailyActivityUpdate {
   gate_tests_passed?: number
   questions_answered?: number
   time_spent_seconds?: number
+}
+
+// ============================================================
+// Vocab (背单词)
+// ============================================================
+export type VocabResult = 'known' | 'fuzzy' | 'unknown'
+
+export interface VocabWord {
+  id: string
+  lesson_id: string
+  term: string
+  ipa: string | null
+  pos: string | null
+  zh: string
+  en_def: string | null
+  example_en: string | null
+  example_zh: string | null
+  image_url: string | null
+  note: string | null
+  difficulty: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface VocabWordInsert {
+  lesson_id: string
+  term: string
+  zh: string
+  ipa?: string | null
+  pos?: string | null
+  en_def?: string | null
+  example_en?: string | null
+  example_zh?: string | null
+  image_url?: string | null
+  note?: string | null
+  difficulty?: number
+  sort_order?: number
+}
+
+export type VocabWordUpdate = Partial<Omit<VocabWordInsert, 'lesson_id'>>
+
+// SRS state for one student × one word. Mastery is derived from `box`
+// (box >= 3), never from `last_result`.
+export interface VocabProgress {
+  id: string
+  student_id: string
+  word_id: string
+  last_result: VocabResult | null
+  box: number
+  due_at: string
+  correct_count: number
+  wrong_count: number
+  last_seen_at: string | null
+  updated_at: string
+}
+
+export interface VocabProgressInsert {
+  student_id: string
+  word_id: string
+  last_result?: VocabResult
+  box?: number
+  due_at?: string
+}
+
+export interface VocabProgressUpdate {
+  last_result?: VocabResult | null
+  box?: number
+  due_at?: string
+  correct_count?: number
+  wrong_count?: number
+  last_seen_at?: string | null
+}
+
+export interface VocabWordWithProgress extends VocabWord {
+  progress: Pick<VocabProgress, 'last_result' | 'box' | 'due_at'> | null
 }
 
 // ============================================================

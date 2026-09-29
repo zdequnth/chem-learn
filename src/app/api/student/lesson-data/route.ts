@@ -56,6 +56,11 @@ export async function GET(request: Request) {
     videoLinks = vl || []
   }
 
+  // How many vocabulary words this lesson has (drives the 背单词 card on the hub)
+  const { data: vocabRows } = await supabaseAdmin('vocab_words', {
+    query: `?lesson_id=eq.${lessonId}&select=id`,
+  })
+
   return NextResponse.json({
     lesson,
     chapter,
@@ -64,5 +69,6 @@ export async function GET(request: Request) {
     lockedUntil: lockData?.[0]?.locked_until || null,
     knowledgePoints: kps || [],
     videoLinks,
+    vocabCount: (vocabRows || []).length,
   })
 }

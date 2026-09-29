@@ -25,6 +25,7 @@ export default function LessonHubPage() {
   const [videoLinks, setVideoLinks] = useState<Record<string, VideoLink[]>>({})
   const [progress, setProgress] = useState<StudentProgress | null>(null)
   const [lockInfo, setLockInfo] = useState<{ lockedUntil: string | null; failCount: number }>({ lockedUntil: null, failCount: 0 })
+  const [vocabCount, setVocabCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function LessonHubPage() {
       setCourse(json.course)
       setProgress(json.progress)
       setKnowledgePoints(json.knowledgePoints || [])
+      setVocabCount(json.vocabCount || 0)
 
       // Video links
       const map: Record<string, VideoLink[]> = {}
@@ -154,6 +156,21 @@ export default function LessonHubPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Vocabulary */}
+            {vocabCount > 0 && (
+              <Link href={`/vocab?lessonId=${lessonId}&course=${course?.id || ''}`}
+                className="block bg-card border rounded-2xl p-6 mb-6 hover:shadow-md hover:border-emerald-300 transition-all">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-xl">📖</div>
+                  <h3 className="font-semibold">{t('vocab', lang)}</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{vocabCount} 词</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {lang === 'zh' ? '先认识本课时的专业词汇，再去做题会更顺。' : 'Learn this lesson\'s key terms first.'}
+                </p>
+              </Link>
             )}
 
             {/* Actions */}

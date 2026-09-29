@@ -6,6 +6,12 @@ const translations: Record<string, Record<string, string>> = {
   // Navbar & Common
   dashboard: { zh: '仪表盘', en: 'Dashboard' },
   wrongBook: { zh: '错题本', en: 'Wrong Book' },
+  vocab: { zh: '背单词', en: 'Vocabulary' },
+  vocabMgmt: { zh: '词汇管理', en: 'Vocabulary' },
+  todayReview: { zh: '今日复习', en: 'Review Today' },
+  knowKnown: { zh: '认识', en: 'Known' },
+  knowFuzzy: { zh: '模糊', en: 'Fuzzy' },
+  knowUnknown: { zh: '不认识', en: "Don't Know" },
   courseMgmt: { zh: '课程管理', en: 'Courses' },
   questionBank: { zh: '题库', en: 'Q-Bank' },
   analytics: { zh: '学情分析', en: 'Analytics' },
