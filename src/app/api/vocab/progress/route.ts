@@ -29,21 +29,30 @@ async function fetchAllIn(table: string, column: string, ids: string[], select =
   return out
 }
 
-// A word counts as mastered once its Leitner box has survived a few spaced
-// reviews. Self-ratings (last_result) are deliberately NOT used for this.
-const MASTERED_BOX = 3
+// Mastered = the box has been raised twice by OBJECTIVE answers (spelling /
+// choice / definition). A flashcard "认识" can never get a word here.
+const MASTERED_BOX = 2
 
 // Interval (in days) awarded for reaching the given box. Box 0 means "still
 // learning" and never gets a long interval. Always >= 1 day so due_at is never
 // written in the past — otherwise the review queue could never drain.
 const BOX_DAYS: Record<number, number> = { 0: 1, 1: 1, 2: 3, 3: 7, 4: 16, 5: 35 }
 
-function nextSrs(currentBox: number, result: string) {
-  let box: number
-  if (result === 'known') box = Math.min(currentBox + 1, 5)
-  else if (result === 'fuzzy') box = Math.max(currentBox - 1, 0)
-  else box = 0
-  const days = BOX_DAYS[box] ?? 1
+// Only objective modes may raise the box. Tapping "认识" on a flashcard is a
+// self-assessment — students reliably over-report it — so the card mode may
+// only ever hold a word back (never promote it). Mastery therefore means "twice
+// verified by spelling / choice / definition", not "I looked at it".
+const OBJECTIVE_MODES = new Set(['spell', 'choice', 'def'])
+
+function nextSrs(currentBox: number, result: string, objective: boolean) {
+  let box = currentBox
+  if (result === 'known') {
+    if (objective) box = Math.min(currentBox + 1, 5)
+  } else if (result === 'unknown') {
+    box = 0
+  }
+  // 'fuzzy' leaves the box alone: it is neither evidence for nor against.
+  const days = result === 'known' && objective ? (BOX_DAYS[box] ?? 1) : 1
   return { box, dueAt: new Date(Date.now() + days * 86400000).toISOString() }
 }
 
@@ -164,16 +173,20 @@ export async function GET(request: Request) {
   return NextResponse.json({ courses: list })
 }
 
-// POST {wordId, result} → record a self-assessment and advance the SRS schedule.
+// POST {wordId, result, mode} → record an answer and advance the SRS schedule.
+// `mode` decides whether the answer is allowed to raise the box (see nextSrs).
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { wordId, result } = await request.json()
+  const { wordId, result, mode } = await request.json()
   if (!wordId || !['known', 'fuzzy', 'unknown'].includes(result)) {
     return NextResponse.json({ error: '参数不对' }, { status: 400 })
   }
+  // Absent/unknown mode → treat as non-objective, so a stale client cannot
+  // inflate mastery by mistake.
+  const objective = OBJECTIVE_MODES.has(String(mode))
 
   const { data: w } = await supabaseAdmin('vocab_words', { query: `?id=eq.${wordId}&select=id` })
   if (!w?.[0]) return NextResponse.json({ error: '词条不存在' }, { status: 404 })
@@ -187,13 +200,13 @@ export async function POST(request: Request) {
   })
   const existing = cur?.[0] || null
 
-  const { box, dueAt } = nextSrs(existing?.box ?? 0, result)
+  const { box, dueAt } = nextSrs(existing?.box ?? 0, result, objective)
   const now = new Date().toISOString()
   const payload: any = {
     last_result: result,
     box,
     due_at: dueAt,
-    correct_count: (existing?.correct_count ?? 0) + (result === 'known' ? 1 : 0),
+    correct_count: (existing?.correct_count ?? 0) + (result === 'known' && objective ? 1 : 0),
     wrong_count: (existing?.wrong_count ?? 0) + (result === 'unknown' ? 1 : 0),
     last_seen_at: now,
     updated_at: now,

@@ -17,7 +17,6 @@ type CourseRow = { id: string; name: string; wordCount: number; studied: number;
 
 type StudyMode = 'card' | 'spell' | 'choice' | 'def'
 
-const MASTERED_BOX = 3
 const SESSION_CAP = 30
 
 // A word is "due" when it has never been answered, or its scheduled review time
@@ -202,7 +201,8 @@ function VocabContent() {
     const word = queue![pos]
     fetch('/api/vocab/progress', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wordId: word.id, result }),
+      // mode lets the server tell an objective answer from a self-assessment
+      body: JSON.stringify({ wordId: word.id, result, mode: 'card' }),
     }).catch(() => {})
     advance(word, result !== 'known')
   }
@@ -216,7 +216,8 @@ function VocabContent() {
     setFx({ kind: ok ? 'correct' : 'wrong', key: Date.now() })
     fetch('/api/vocab/progress', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wordId: word.id, result: ok ? 'known' : 'unknown' }),
+      // spell / choice / def are objective, so they may raise the box
+      body: JSON.stringify({ wordId: word.id, result: ok ? 'known' : 'unknown', mode }),
     }).catch(() => {})
   }
 
@@ -290,9 +291,15 @@ function VocabContent() {
             </div>
           </div>
 
-          <div className="h-1.5 bg-gray-200 rounded-full mb-6 overflow-hidden">
+          <div className="h-1.5 bg-gray-200 rounded-full mb-2 overflow-hidden">
             <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
+
+          <p className="text-xs text-muted-foreground mb-5">
+            {mode === 'card'
+              ? (lang === 'zh' ? '卡片是预习：这里的「认识」只是自己感觉，不计入「掌握」。掌握要靠 拼写 / 选择 / 释义 答对两次。' : 'Flashcards are for preview — self-rated "known" does not count as mastery. Spelling / choice / definition must be right twice.')
+              : (lang === 'zh' ? '答对会计入「掌握」，同一词累计答对两次即算掌握。' : 'A correct answer counts towards mastery — twice and the word is mastered.')}
+          </p>
 
           <div className="relative bg-card border rounded-2xl p-8 min-h-[280px] flex flex-col">
             {/* the right/wrong mark stays put until the next word */}
@@ -489,6 +496,12 @@ function VocabContent() {
                 )}
               </button>
             </div>
+
+            <p className="text-xs text-muted-foreground mb-5">
+              {lang === 'zh'
+                ? '「已学」= 学过的词数；「掌握」= 在 拼写 / 选择 / 释义 里答对了两次的词。只点卡片的「认识」不算掌握。'
+                : '"Studied" = words you have opened; "Mastered" = words answered right twice in spelling / choice / definition. Tapping "known" on a flashcard does not count.'}
+            </p>
 
             {busy && <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>}
 

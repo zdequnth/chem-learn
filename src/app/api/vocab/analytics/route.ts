@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 const CHUNK = 120
 const PAGE = 1000
-const MASTERED_BOX = 3
+const MASTERED_BOX = 2
 
 function chunk<T>(arr: T[], size = CHUNK): T[][] {
   const out: T[][] = []
