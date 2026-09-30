@@ -74,6 +74,7 @@ function VocabContent() {
   const [lastOk, setLastOk] = useState<boolean | null>(null)
   const [fx, setFx] = useState<{ kind: 'correct' | 'wrong'; key: number } | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState(0)
   const requeued = useRef<Set<string>>(new Set())
 
@@ -258,6 +259,22 @@ function VocabContent() {
     }
     return [...byChapter.values()].sort((a, b) => a.order - b.order)
   }, [lessons])
+
+  // On first load, fold away chapters the student has already finished, so the
+  // ones still to do are immediately visible. Runs once — later updates (e.g.
+  // finishing a chapter in this session) must not silently fold it.
+  const collapseInit = useRef(false)
+  useEffect(() => {
+    if (collapseInit.current || grouped.length === 0) return
+    collapseInit.current = true
+    const init: Record<string, boolean> = {}
+    for (const ch of grouped) {
+      if (ch.rows.length > 0 && ch.rows.every(r => r.wordCount > 0 && r.mastered >= r.wordCount)) {
+        init[ch.title] = true
+      }
+    }
+    if (Object.keys(init).length > 0) setCollapsed(init)
+  }, [grouped])
 
   // Options for the choice/definition modes. Memoised on the current word (not
   // on `pos`/`queue`) so they neither reshuffle when the answer is revealed nor
@@ -549,31 +566,64 @@ function VocabContent() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {grouped.map(ch => (
-                    <div key={ch.title} className="bg-card border rounded-2xl p-5">
-                      <h2 className="font-semibold mb-3">{ch.order + 1}. {ch.title}</h2>
-                      <div className="space-y-2">
-                        {ch.rows.map(l => {
-                          const pct = l.wordCount ? Math.round((l.mastered / l.wordCount) * 100) : 0
-                          return (
-                            <div key={l.id} className="flex items-center justify-between gap-3 border rounded-xl p-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-medium truncate">{l.title}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  {l.wordCount} 词 · 已学 {l.studied} · 掌握 {pct}%
-                                  {l.due > 0 && <span className="text-red-600"> · 待复习 {l.due}</span>}
+                  {grouped.map(ch => {
+                    const chDone = ch.rows.every(r => r.wordCount > 0 && r.mastered >= r.wordCount)
+                    const chOpen = !collapsed[ch.title]
+                    return (
+                      <div key={ch.title} className="bg-card border rounded-2xl p-5">
+                        <button onClick={() => setCollapsed(c => ({ ...c, [ch.title]: !!chOpen }))}
+                          className="w-full flex items-center gap-3 text-left">
+                          <h2 className="text-xl font-bold">
+                            {ch.order + 1}. {ch.title}
+                          </h2>
+                          {chDone && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium shrink-0">
+                              {lang === 'zh' ? '✓ 已全部掌握' : '✓ all mastered'}
+                            </span>
+                          )}
+                          <span className="ml-auto shrink-0 text-muted-foreground">
+                            {chOpen ? '▾' : '▸'}
+                          </span>
+                        </button>
+                        <div className="h-px bg-gray-200 my-3" />
+                        {chOpen && (
+                          <div className="space-y-2">
+                            {ch.rows.map(l => {
+                              const pct = l.wordCount ? Math.round((l.mastered / l.wordCount) * 100) : 0
+                              const done = pct >= 100
+                              // finished → solid green; part-way → a green bar filled to pct%
+                              const fill = done
+                                ? { background: 'rgba(16,185,129,0.30)', borderColor: '#34d399' }
+                                : pct > 0
+                                  ? {
+                                      background: `linear-gradient(to right, rgba(16,185,129,0.18) 0 ${pct}%, rgba(0,0,0,0) ${pct}% 100%)`,
+                                    }
+                                  : {}
+                              return (
+                                <div key={l.id} style={fill}
+                                  className="flex items-center justify-between gap-3 border rounded-xl p-3">
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium truncate">
+                                      {l.title}
+                                      {done && <span className="ml-2 text-emerald-700">✓</span>}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                      {l.wordCount} 词 · 已学 {l.studied} · 掌握 {pct}%
+                                      {l.due > 0 && <span className="text-red-600"> · 待复习 {l.due}</span>}
+                                    </div>
+                                  </div>
+                                  <button onClick={() => startSession(l.id, 'study')}
+                                    className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium border bg-white/70 hover:bg-accent transition-colors">
+                                    {l.studied > 0 ? (lang === 'zh' ? '继续' : 'Continue') : (lang === 'zh' ? '开始' : 'Start')}
+                                  </button>
                                 </div>
-                              </div>
-                              <button onClick={() => startSession(l.id, 'study')}
-                                className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors">
-                                {l.studied > 0 ? (lang === 'zh' ? '继续' : 'Continue') : (lang === 'zh' ? '开始' : 'Start')}
-                              </button>
-                            </div>
-                          )
-                        })}
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )
             )}

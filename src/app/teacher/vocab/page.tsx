@@ -57,6 +57,7 @@ function VocabAdminContent() {
   const [loading, setLoading] = useState(true)
   const [editWord, setEditWord] = useState<WordForm | null>(null)
   const [saving, setSaving] = useState(false)
+  const [zoom, setZoom] = useState<string | null>(null)
 
   const [showImport, setShowImport] = useState(false)
   const [importText, setImportText] = useState('')
@@ -355,7 +356,9 @@ function VocabAdminContent() {
                   <div key={w.id} className="bg-card border rounded-xl p-4 flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       {w.image_url && (
-                        <img src={w.image_url} alt="" className="w-16 h-16 object-contain border rounded mb-2 bg-white" />
+                        <button type="button" onClick={() => setZoom(w.image_url)} title={lang === "zh" ? "点击放大" : "Click to enlarge"}>
+                          <img src={w.image_url} alt="" className="w-24 h-24 object-contain border rounded mb-2 bg-white cursor-zoom-in hover:border-emerald-400" />
+                        </button>
                       )}
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="font-semibold">{w.term}</span>
@@ -433,7 +436,9 @@ function VocabAdminContent() {
                 <div className="mb-1">插图（可选）—— 可直接把图片粘贴到本窗口任意位置</div>
                 <div className="flex items-start gap-3">
                   {editWord.image_url
-                    ? <img src={editWord.image_url} alt="" className="w-28 h-28 object-contain border rounded-lg bg-white shrink-0" />
+                    ? <button type="button" onClick={() => setZoom(editWord.image_url)} title={lang === "zh" ? "点击放大" : "Click to enlarge"}>
+                        <img src={editWord.image_url} alt="" className="w-28 h-28 object-contain border rounded-lg bg-white shrink-0 cursor-zoom-in hover:border-emerald-400" />
+                      </button>
                     : <div className="w-28 h-28 border-2 border-dashed rounded-lg flex items-center justify-center text-xs text-muted-foreground text-center px-2 shrink-0">
                         {lang === 'zh' ? '暂无插图' : 'No image'}
                       </div>}
@@ -524,6 +529,14 @@ function VocabAdminContent() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* full-screen image, so a teacher can check a diagram properly */}
+      {zoom && (
+        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3"
+          onClick={() => setZoom(null)}>
+          <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg bg-white object-contain" />
         </div>
       )}
     </div>
