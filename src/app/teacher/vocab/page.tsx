@@ -66,7 +66,6 @@ function VocabAdminContent() {
   // 词库管理 (authoring) / 掌握情况 (student mastery stats) / 协作者
   const [tab, setTab] = useState<'bank' | 'stats' | 'collab'>('bank')
   const [statScope, setStatScope] = useState<'course' | 'class'>('course')
-  const [statCourseId, setStatCourseId] = useState('')
   const [statClassId, setStatClassId] = useState('')
   const [classes, setClasses] = useState<any[]>([])
 
@@ -256,13 +255,23 @@ function VocabAdminContent() {
         </div>
 
         {tab === 'collab' ? (
-          selectedCourse ? (
-            <CourseCollaborators courseId={selectedCourse} />
-          ) : (
-            <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-              {lang === 'zh' ? '请先选择课程' : 'Pick a course first'}
+          <>
+            <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium">{lang === 'zh' ? '课程' : 'Course'}</span>
+              <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
+                className="px-3 py-2 border rounded-lg bg-background text-sm">
+                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <span className="text-xs text-muted-foreground">
+                {lang === 'zh' ? '协作者按课程独立，每门课程各自维护自己的名单。' : 'Collaborators are kept per course.'}
+              </span>
             </div>
-          )
+            {selectedCourse
+              ? <CourseCollaborators courseId={selectedCourse} />
+              : <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
+                  {lang === 'zh' ? '请先选择课程' : 'Pick a course first'}
+                </div>}
+          </>
         ) : tab === 'stats' ? (
           <>
             <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
@@ -277,9 +286,8 @@ function VocabAdminContent() {
                 </button>
               </div>
               {statScope === 'course' ? (
-                <select value={statCourseId} onChange={e => setStatCourseId(e.target.value)}
+                <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
                   className="px-3 py-2 border rounded-lg bg-background text-sm">
-                  <option value="">{lang === 'zh' ? '选择课程' : 'Course'}</option>
                   {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               ) : (
@@ -290,7 +298,7 @@ function VocabAdminContent() {
                 </select>
               )}
             </div>
-            <VocabAnalyticsPanel scope={statScope} courseId={statCourseId} classId={statClassId} />
+            <VocabAnalyticsPanel scope={statScope} courseId={selectedCourse} classId={statClassId} />
           </>
         ) : (
         <>
