@@ -53,7 +53,10 @@ export async function POST(request: Request) {
 
     // Hand back a path on our own domain, not the raw Storage URL — see
     // /api/img/[...path] for why (students cannot reach supabase.co directly).
-    return NextResponse.json({ url: `/api/img/${BUCKET}/${name}` })
+    // The bucket is implied by /api/img, so the path must NOT repeat it: the
+    // route joins what follows /api/img into a key inside BUCKET, and a
+    // duplicated "images/" turned every upload into a 404.
+    return NextResponse.json({ url: `/api/img/${name}` })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
