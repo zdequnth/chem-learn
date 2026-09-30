@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `图片需小于 1MB，当前 ${Math.round(file.size / 1024)}KB` }, { status: 400 })
     }
 
-    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`
+    const name = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${name}`, {
       method: 'POST',
       headers: {
@@ -51,7 +51,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '上传失败：' + text.slice(0, 200) }, { status: 500 })
     }
 
-    return NextResponse.json({ url: `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${name}` })
+    // Hand back a path on our own domain, not the raw Storage URL — see
+    // /api/img/[...path] for why (students cannot reach supabase.co directly).
+    return NextResponse.json({ url: `/api/img/${BUCKET}/${name}` })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
