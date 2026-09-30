@@ -64,6 +64,7 @@ function VocabContent() {
 
   // Active study session
   const [queue, setQueue] = useState<VocabWordWithProgress[] | null>(null)
+  const [wordPool, setWordPool] = useState<VocabWordWithProgress[]>([])
   const [again, setAgain] = useState<VocabWordWithProgress[]>([])
   const [pos, setPos] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -157,8 +158,21 @@ function VocabContent() {
     setBusy(false)
     if (q.length === 0) { alert(lang === 'zh' ? '这个课时没有可学的词' : 'No words to study'); return }
     requeued.current = new Set()
+    // The whole lesson is kept as the distractor pool, so a word re-shown after
+    // a mistake still gets four options (the re-queue holds only missed words).
+    setWordPool(words)
     setQueue(q); setAgain([]); setPos(0); setFlipped(false)
     setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null); setDone(0)
+    // Warm the image cache up front so flipping a card does not wait on the
+    // network — images are served from our own domain and cached immutably.
+    if (typeof window !== 'undefined') {
+      for (const w of words) {
+        if (!w.image_url) continue
+        const img = new window.Image()
+        img.decoding = 'async'
+        img.src = w.image_url
+      }
+    }
   }
 
   // Entering from a lesson hub (/play/[lessonId]) jumps straight into study.
@@ -193,7 +207,10 @@ function VocabContent() {
     const nextPos = pos + 1
     setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
     if (nextPos < queue!.length) { setPos(nextPos); setAgain(nextAgain); return }
-    if (nextAgain.length > 0) { setQueue(nextAgain); setAgain([]); setPos(0); requeued.current = new Set(); return }
+    // `requeued` is deliberately NOT cleared here — clearing it would let a word
+    // be re-queued on every pass, so a student who kept pressing "不认识" could
+    // never reach the end of the session.
+    if (nextAgain.length > 0) { setQueue(nextAgain); setAgain([]); setPos(0); return }
     endSession()
   }
 
@@ -241,24 +258,29 @@ function VocabContent() {
     return [...byChapter.values()].sort((a, b) => a.order - b.order)
   }, [lessons])
 
-  // Options for the choice/definition modes, memoised per question so they do
-  // NOT reshuffle when the answer is revealed (which happens on every flip).
+  // Options for the choice/definition modes. Memoised on the current word (not
+  // on `pos`/`queue`) so they neither reshuffle when the answer is revealed nor
+  // collapse to a single option when the queue shrinks to the re-asked words.
+  const currentWordId = queue && queue.length > 0 ? queue[pos]?.id : null
+  // Stable reference while a session runs, so the memo below is not invalidated
+  // (and the options are not reshuffled) when the queue swaps to re-asked words.
+  const optionSource = wordPool.length > 0 ? wordPool : (queue || [])
   const optionList = useMemo(() => {
-    if (!queue || queue.length === 0) return []
-    const w = queue[pos]
+    if (!currentWordId) return []
+    const w = optionSource.find(x => x.id === currentWordId)
     if (!w) return []
     const correct = mode === 'def' ? w.term : w.zh
     const seen = new Set([correct])
     const pool: string[] = []
-    for (const other of queue) {
+    for (const other of optionSource) {
       if (other.id === w.id) continue
       const v = mode === 'def' ? other.term : other.zh
-      if (seen.has(v)) continue
+      if (!v || seen.has(v)) continue
       seen.add(v)
       pool.push(v)
     }
     return shuffle([correct, ...shuffle(pool).slice(0, 3)])
-  }, [queue, pos, mode])
+  }, [currentWordId, mode, optionSource])
 
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
