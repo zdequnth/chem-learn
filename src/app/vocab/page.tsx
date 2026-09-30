@@ -73,6 +73,7 @@ function VocabContent() {
   const [choicePick, setChoicePick] = useState<string | null>(null)
   const [lastOk, setLastOk] = useState<boolean | null>(null)
   const [fx, setFx] = useState<{ kind: 'correct' | 'wrong'; key: number } | null>(null)
+  const [zoom, setZoom] = useState<string | null>(null)
   const [done, setDone] = useState(0)
   const requeued = useRef<Set<string>>(new Set())
 
@@ -415,8 +416,14 @@ function VocabContent() {
                 {word.ipa && <div className="text-sm text-muted-foreground mt-1">{word.ipa}</div>}
                 <div className="mt-3">{speakButtons(word.term)}</div>
                 {word.image_url && (
-                  <img src={word.image_url} alt={word.term}
-                    className="mx-auto mt-4 max-h-56 rounded-xl border object-contain" loading="lazy" />
+                  <button type="button" onClick={() => setZoom(word.image_url)}
+                    className="block mx-auto mt-4 group">
+                    <img src={word.image_url} alt={word.term}
+                      className="mx-auto max-h-72 w-auto rounded-xl border object-contain cursor-zoom-in" loading="lazy" />
+                    <span className="block mt-1 text-xs text-muted-foreground group-hover:text-foreground">
+                      {lang === 'zh' ? '点图放大' : 'Tap to enlarge'}
+                    </span>
+                  </button>
                 )}
                 {word.en_def && (
                   <div className="mt-4 text-base font-medium">{word.en_def}</div>
@@ -463,6 +470,14 @@ function VocabContent() {
             {lang === 'zh' ? `已完成 ${done} · 剩余 ${queue.length - pos + again.length}` : `Done ${done} · Left ${queue.length - pos + again.length}`}
           </div>
         </main>
+
+        {/* full-screen image, for diagrams with small labels */}
+        {zoom && (
+          <div className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-3"
+            onClick={() => setZoom(null)}>
+            <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg bg-white object-contain" />
+          </div>
+        )}
       </div>
     )
   }
