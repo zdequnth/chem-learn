@@ -35,7 +35,7 @@ SelfPass 的「背单词」不是独立的刷词 App，而是挂在**课程 → 
 4. 检查 AI 的输出
 5. 粘贴导入
 6. 配图（可选）
-7. 建班级 / 加协作者
+7. 发布课程 / 建班级 / 加协作者
 
 ---
 
@@ -195,7 +195,7 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 #### 第 5 步　粘贴导入
 
 1. 课程管理 → 点你的背单词课程旁的 **`📖 词库`**
-2. 顶部有三个标签：**词库管理 / 掌握情况 / 协作者**，默认在「词库管理」
+2. 顶部有两个标签：**词库管理 / 掌握情况**，默认在「词库管理」
 3. 三个下拉框依次选 **课程 → 章节 → 课时**（选到课时才会显示词表）
 4. 点 **「粘贴 JSON 导入」**
 5. 把 AI 给的 JSON **整段粘进文本框**（连 ` ```json ` 围栏一起粘也行，会自动去掉）
@@ -254,9 +254,9 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 3. 把邀请码发给学生，学生自助加入；也可以直接搜索姓名把学生加进来
 
 **加协作者（多位老师一起建词库）**
-1. 进 `📖 词库` → **协作者** 标签
-2. 按课程添加其他老师——**协作者按课程独立**，每门课各自维护名单
-3. 协作者拥有该课程的全部编辑权限（词库、章节、课时）
+1. 课程管理 → 点这门课右边的 **编辑**，进入课程结构页
+2. 页面顶部有 **协作者** 区域（只有课程创建者能看到）→ 输入姓名/邮箱添加其他老师
+3. **协作者按课程独立**，每门课各自维护名单；协作者拥有该课程的全部编辑权限（词库、章节、课时）
 
 ---
 
@@ -421,16 +421,16 @@ continue on any device. You can watch each student's mastery in the backend.
    Feed it the textbook text for one chapter, and paste the prompt.
 4. **Check the AI output** - JSON validity, word count, British spelling, IPA,
    duplicates, invented words.
-5. **Paste and import** - `📖 Word bank` on the course → tabs *Word bank / Mastery /
-   Collaborators* → pick course → chapter → lesson → **Paste JSON** → **Parse** →
-   review → **Import**.
+5. **Paste and import** - `📖 Word bank` on the course → tabs *Word bank / Mastery*
+   → pick course → chapter → lesson → **Paste JSON** → **Parse** → review → **Import**.
 6. **Add images (optional)** - edit a word → upload. PNG/JPG/WebP/GIF only, under
    1 MB. To replace an image you must use a new filename (images are cached forever).
 7. **Publish, create a class, add collaborators** - back in Course Management click
    **发布 (Publish)** on your course. Students see a course if their class links it
    **or** if it is published. Then Class Management → new class → link the course →
-   share the invite code. Add co-teachers under the *Collaborators* tab (kept per
-   course, with full edit rights).
+   share the invite code. To add co-teachers, open the course editor (Course
+   Management → *Edit*) - the **Collaborators** panel is at the top, for owners only.
+   Collaborators are kept per course and get full edit rights.
 
 ### Import rules you must know
 

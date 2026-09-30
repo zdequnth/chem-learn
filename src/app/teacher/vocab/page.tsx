@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
-import CourseCollaborators from '@/components/CourseCollaborators'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { VOCAB_DIFFICULTIES, normaliseDifficulty } from '@/lib/types'
 import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
@@ -71,8 +70,9 @@ function VocabAdminContent() {
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
 
-  // 词库管理 (authoring) / 掌握情况 (student mastery stats) / 协作者
-  const [tab, setTab] = useState<'bank' | 'stats' | 'collab'>('bank')
+  // 词库管理 (authoring) / 掌握情况 (student mastery stats)
+  // Collaborators are managed on the course editor page, not here.
+  const [tab, setTab] = useState<'bank' | 'stats'>('bank')
   const [statScope, setStatScope] = useState<'course' | 'class'>('course')
   const [statClassId, setStatClassId] = useState('')
   const [classes, setClasses] = useState<any[]>([])
@@ -151,8 +151,8 @@ function VocabAdminContent() {
   useEffect(() => { if (selectedChapter) localStorage.setItem('vocabmgmt.chapter', selectedChapter) }, [selectedChapter])
   useEffect(() => { if (selectedLesson) localStorage.setItem('vocabmgmt.lesson', selectedLesson) }, [selectedLesson])
 
-  // Always keep a valid course selected, so the 掌握情况 / 协作者 tabs work even
-  // when the teacher lands here without a ?course= (or with a stale one).
+  // Always keep a valid course selected, so the 掌握情况 tab works even when the
+  // teacher lands here without a ?course= (or with a stale one).
   useEffect(() => {
     if (courses.length === 0) return
     setSelectedCourse(prev => (prev && courses.some(c => c.id === prev)) ? prev : courses[0].id)
@@ -256,31 +256,9 @@ function VocabAdminContent() {
             className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'stats' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
             {lang === 'zh' ? '掌握情况' : 'Mastery'}
           </button>
-          <button onClick={() => setTab('collab')}
-            className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'collab' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
-            {lang === 'zh' ? '协作者' : 'Collaborators'}
-          </button>
         </div>
 
-        {tab === 'collab' ? (
-          <>
-            <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium">{lang === 'zh' ? '课程' : 'Course'}</span>
-              <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
-                className="px-3 py-2 border rounded-lg bg-background text-sm">
-                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <span className="text-xs text-muted-foreground">
-                {lang === 'zh' ? '协作者按课程独立，每门课程各自维护自己的名单。' : 'Collaborators are kept per course.'}
-              </span>
-            </div>
-            {selectedCourse
-              ? <CourseCollaborators courseId={selectedCourse} />
-              : <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-                  {lang === 'zh' ? '请先选择课程' : 'Pick a course first'}
-                </div>}
-          </>
-        ) : tab === 'stats' ? (
+        {tab === 'stats' ? (
           <>
             <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
               <div className="flex gap-1 border rounded-lg overflow-hidden text-xs">
