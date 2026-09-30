@@ -130,27 +130,47 @@ export default function TeacherClassesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {classes.map(cls => (
-              <Link key={cls.id} href={`/teacher/classes/${cls.id}`}
-                className="bg-card rounded-xl border p-5 block hover:shadow-md hover:border-emerald-200 transition-all">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg">{cls.name}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {cls.student_count} 名学生</span>
-                      <span onClick={e => { e.preventDefault(); copyInviteCode(cls.invite_code) }}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 cursor-pointer">
-                        <Copy className="w-3.5 h-3.5" /> 邀请码: {cls.invite_code}
-                      </span>
+            {classes.map(cls => {
+              // A class takes the colour of the course it belongs to, so a
+              // vocabulary class never looks like a gate-test one.
+              const course = courses.find(c => c.id === cls.course_id)
+              const isVocab = (course as any)?.kind === 'vocab'
+              return (
+                <Link key={cls.id} href={`/teacher/classes/${cls.id}`}
+                  className={`rounded-xl border p-5 block hover:shadow-md transition-all ${isVocab
+                    ? 'bg-amber-50 border-amber-300 hover:border-amber-400'
+                    : 'bg-card border-gray-200 hover:border-emerald-300'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg flex items-center gap-2">
+                        {isVocab && <span>📖</span>}
+                        {cls.name}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isVocab
+                          ? 'bg-amber-200 text-amber-900' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {isVocab ? '背单词' : '过关'}
+                        </span>
+                        {course && (
+                          <span className={`text-xs font-normal ${isVocab ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                            {course.name}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {cls.student_count} 名学生</span>
+                        <span onClick={e => { e.preventDefault(); copyInviteCode(cls.invite_code) }}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700 cursor-pointer">
+                          <Copy className="w-3.5 h-3.5" /> 邀请码: {cls.invite_code}
+                        </span>
+                      </div>
                     </div>
+                    <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
+                      className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
-                    className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
       </main>

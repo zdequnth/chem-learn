@@ -19,6 +19,8 @@ export async function POST(request: Request) {
         icon: body.icon || '🧪',
         owner_id: user.id,
         is_published: false,
+        // The kind is decided once, here, and cannot be changed later.
+        kind: body.kind === 'vocab' ? 'vocab' : 'gate',
         sort_order: body.sort_order || 0,
       },
       query: '?select=*',

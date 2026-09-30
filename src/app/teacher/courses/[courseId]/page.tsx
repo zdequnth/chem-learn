@@ -172,6 +172,9 @@ export default function CourseDetailPage() {
     try {
       const res = await fetch(`/api/courses/${courseId}`)
       const json = await res.json()
+      // A vocabulary course has no chapters or lessons to edit here — this whole
+      // page is the gate-test editor, so send the teacher to the word bank.
+      if (json.course?.kind === 'vocab') { router.replace(`/teacher/vocab?course=${courseId}`); return }
       if (json.course) {
         setCourse(json.course)
         setCourseForm({

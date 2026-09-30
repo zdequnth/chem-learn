@@ -19,7 +19,7 @@ export default function TeacherCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [newCourse, setNewCourse] = useState({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry' })
+  const [newCourse, setNewCourse] = useState({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate' })
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -59,6 +59,7 @@ export default function TeacherCoursesPage() {
           grade_level: newCourse.grade_level.trim(),
           icon: newCourse.icon || '🧪',
           subject: newCourse.subject,
+          kind: newCourse.kind,
           sort_order: courses.length,
         }),
       })
@@ -67,7 +68,7 @@ export default function TeacherCoursesPage() {
         alert('创建失败: ' + json.error)
       } else {
         setShowCreate(false)
-        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry' })
+        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate' })
         fetchCourses()
       }
     } catch (e: any) {
@@ -84,15 +85,8 @@ export default function TeacherCoursesPage() {
     fetchCourses()
   }
 
-  const handleToggleKind = async (course: Course) => {
-    const next = (course as any).kind === 'vocab' ? 'gate' : 'vocab'
-    await fetch(`/api/courses/${course.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: next }),
-    })
-    fetchCourses()
-  }
+  // A course's kind is fixed when it is created — the two kinds behave so
+  // differently that switching after the fact only causes confusion.
 
   const handleDelete = async (id: string) => {
     if (!confirm('确定要删除这门课程吗？所有章节、课时和题目将被永久删除。')) return
@@ -126,6 +120,27 @@ export default function TeacherCoursesPage() {
             <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-semibold mb-4">{t('newCourse', lang)}</h2>
               <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">
+                    {lang === 'zh' ? '课程类型（创建后不可更改）' : 'Course type (fixed after creation)'}
+                  </div>
+                  <div className="flex gap-2">
+                    {([['gate', '📚 过关课程'], ['vocab', '📖 背单词课程']] as const).map(([k, label]) => (
+                      <button key={k} type="button" onClick={() => setNewCourse({ ...newCourse, kind: k })}
+                        className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                          newCourse.kind === k
+                            ? (k === 'vocab' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white')
+                            : 'hover:bg-accent'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {newCourse.kind === 'vocab'
+                      ? (lang === 'zh' ? '学生点进这门课会直接进入背单词，不显示关卡测试。' : 'Students go straight to the word list; no gate tests.')
+                      : (lang === 'zh' ? '正常的章节 → 课时 → 关卡测试。' : 'Normal chapters → lessons → gate tests.')}
+                  </p>
+                </div>
                 <select value={newCourse.subject} onChange={e => setNewCourse({ ...newCourse, subject: e.target.value })}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                   {[{k:'Chinese',n:lang==='zh'?'语文 📖':'Chinese 📖'},{k:'Math',n:lang==='zh'?'数学 📐':'Math 📐'},{k:'English',n:lang==='zh'?'英语 🌍':'English 🌍'},{k:'Second foreign Language',n:lang==='zh'?'二外 🗣️':'2nd Lang 🗣️'},{k:'Physics',n:lang==='zh'?'物理 ⚛️':'Physics ⚛️'},{k:'Chemistry',n:lang==='zh'?'化学 🧪':'Chemistry 🧪'},{k:'Biology',n:lang==='zh'?'生物 🧬':'Biology 🧬'},{k:'Humanities',n:lang==='zh'?'人文 📜':'Humanities 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
@@ -175,18 +190,23 @@ export default function TeacherCoursesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleToggleKind(course)}
-                    className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${(course as any).kind === 'vocab' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
-                    {(course as any).kind === 'vocab' ? '改为过关课程' : '改为背单词课程'}
-                  </button>
                   <button onClick={() => handleTogglePublish(course)}
                     className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${course.is_published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                     {course.is_published ? '取消发布' : '发布'}
                   </button>
-                  <Link href={`/teacher/courses/${course.id}`}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors">
-                    <Edit3 className="w-3 h-3" /> 编辑
-                  </Link>
+                  {/* A vocabulary course has no chapters/lessons to edit — its
+                      "edit" is the word bank. */}
+                  {(course as any).kind === 'vocab' ? (
+                    <Link href={`/teacher/vocab?course=${course.id}`}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                      <Edit3 className="w-3 h-3" /> 词库
+                    </Link>
+                  ) : (
+                    <Link href={`/teacher/courses/${course.id}`}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors">
+                      <Edit3 className="w-3 h-3" /> 编辑
+                    </Link>
+                  )}
                   <button onClick={() => handleDelete(course.id)}
                     className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors">
                     删除
