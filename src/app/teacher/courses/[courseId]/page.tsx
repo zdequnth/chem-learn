@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
+import CourseCollaborators from '@/components/CourseCollaborators'
 import { KatexHtml, getPdfUrl } from '@/components/KatexSpan'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { ArrowLeft, Plus, ChevronDown, ChevronRight, Edit3, Trash2, Loader2, ArrowUp, ArrowDown, Image, Save, X } from 'lucide-react'
@@ -41,11 +42,6 @@ export default function CourseDetailPage() {
   const [isCourseOwner, setIsCourseOwner] = useState(false)
   const [isCollaborator, setIsCollaborator] = useState(false)
   const canEdit = isCourseOwner || isCollaborator || (profile?.role === 'admin')
-  const [collaborators, setCollaborators] = useState<any[]>([])
-  const [collabInput, setCollabInput] = useState('')
-  const [collabMsg, setCollabMsg] = useState('')
-  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
-  const [showTeacherList, setShowTeacherList] = useState(false)
   const [modalKp, setModalKp] = useState<any>(null)
   const [modalLessonId, setModalLessonId] = useState('')
   const [modalTitle, setModalTitle] = useState('')
@@ -164,7 +160,6 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!profile) return
     fetchData()
-    fetchCollaborators()
   }, [profile, courseId])
 
   const fetchData = async () => {
@@ -200,37 +195,6 @@ export default function CourseDetailPage() {
     }
   }
 
-  const fetchCollaborators = async () => {
-    const res = await fetch(`/api/courses/collaborators?courseId=${courseId}`)
-    const json = await res.json()
-    setCollaborators(json.collaborators || [])
-  }
-
-  const loadTeachers = async () => {
-    if (availableTeachers.length > 0) { setShowTeacherList(!showTeacherList); return }
-    const res = await fetch('/api/courses/collaborators?courseId=' + courseId + '&listTeachers=1')
-    const json = await res.json()
-    setAvailableTeachers(json.teachers || [])
-    setShowTeacherList(true)
-  }
-
-  const handleAddCollaborator = async (name?: string) => {
-    const input = name || collabInput.trim()
-    if (!input) return
-    setCollabMsg('')
-    setShowTeacherList(false)
-    const res = await fetch('/api/courses/collaborators', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId, teacherEmail: input }),
-    })
-    const json = await res.json()
-    if (json.error) { setCollabMsg('❌ ' + json.error) }
-    else {
-      setCollabInput('')
-      fetchCollaborators()
-    }
-  }
 
   const openKpModal = (kp: any, lessonId: string) => {
     setModalKp(kp); setModalLessonId(lessonId)
@@ -321,11 +285,6 @@ export default function CourseDetailPage() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_key: !current }),
     }).catch(() => { fetchData() }) // rollback on failure
-  }
-
-  const handleRemoveCollaborator = async (teacherId: string) => {
-    await fetch(`/api/courses/collaborators?courseId=${courseId}&teacherId=${teacherId}`, { method: 'DELETE' })
-    fetchCollaborators()
   }
 
   const handleSaveCourse = async () => {
@@ -634,42 +593,8 @@ export default function CourseDetailPage() {
 
             {/* Collaborators (owner only) */}
             {isCourseOwner && (
-              <div className="bg-card rounded-2xl border p-6 mb-6">
-                <h2 className="text-lg font-semibold mb-3">协作者管理</h2>
-                <div className="flex gap-2 mb-3">
-                  <div className="relative flex-1">
-                    <button onClick={loadTeachers}
-                      className="w-full px-3 py-2 text-sm border rounded-lg outline-none text-left flex items-center justify-between hover:border-emerald-500">
-                      <span className={collabInput ? '' : 'text-muted-foreground'}>{collabInput || '选择教师...'}</span>
-                      <span className="text-xs text-muted-foreground">▼</span>
-                    </button>
-                    {showTeacherList && availableTeachers.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
-                        {availableTeachers.filter((t: any) =>
-                          !collaborators.find((c: any) => c.id === t.id)
-                        ).map((t: any) => (
-                          <button key={t.id} onClick={() => { setCollabInput(t.display_name); setShowTeacherList(false) }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50">{t.display_name}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => handleAddCollaborator()} disabled={!collabInput}
-                    className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">添加</button>
-                </div>
-                {collabMsg && <p className="text-sm mb-2">{collabMsg}</p>}
-                {collaborators.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {collaborators.map((c: any) => (
-                      <span key={c.id} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">
-                        👤 {c.display_name}
-                        <button onClick={() => handleRemoveCollaborator(c.id)} className="ml-1 text-red-400 hover:text-red-600">✕</button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">暂无协作者。添加其他教师后，他们也能编辑此课程的章节、课时和题目。</p>
-                )}
+              <div className="mb-6">
+                <CourseCollaborators courseId={courseId} />
               </div>
             )}
 

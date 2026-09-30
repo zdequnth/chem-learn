@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
+import CourseCollaborators from '@/components/CourseCollaborators'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
@@ -62,8 +63,8 @@ function VocabAdminContent() {
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
 
-  // 词库管理 (authoring) vs 掌握情况 (student mastery stats)
-  const [tab, setTab] = useState<'bank' | 'stats'>('bank')
+  // 词库管理 (authoring) / 掌握情况 (student mastery stats) / 协作者
+  const [tab, setTab] = useState<'bank' | 'stats' | 'collab'>('bank')
   const [statScope, setStatScope] = useState<'course' | 'class'>('course')
   const [statCourseId, setStatCourseId] = useState('')
   const [statClassId, setStatClassId] = useState('')
@@ -142,6 +143,13 @@ function VocabAdminContent() {
   useEffect(() => { if (selectedCourse) localStorage.setItem('vocabmgmt.course', selectedCourse) }, [selectedCourse])
   useEffect(() => { if (selectedChapter) localStorage.setItem('vocabmgmt.chapter', selectedChapter) }, [selectedChapter])
   useEffect(() => { if (selectedLesson) localStorage.setItem('vocabmgmt.lesson', selectedLesson) }, [selectedLesson])
+
+  // Always keep a valid course selected, so the 掌握情况 / 协作者 tabs work even
+  // when the teacher lands here without a ?course= (or with a stale one).
+  useEffect(() => {
+    if (courses.length === 0) return
+    setSelectedCourse(prev => (prev && courses.some(c => c.id === prev)) ? prev : courses[0].id)
+  }, [courses])
 
   const filteredChapters = allChapters.filter((ch: any) => ch.course_id === selectedCourse)
   const filteredLessons = allLessons.filter((l: any) => l.chapter_id === selectedChapter)
@@ -241,9 +249,21 @@ function VocabAdminContent() {
             className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'stats' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
             {lang === 'zh' ? '掌握情况' : 'Mastery'}
           </button>
+          <button onClick={() => setTab('collab')}
+            className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'collab' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
+            {lang === 'zh' ? '协作者' : 'Collaborators'}
+          </button>
         </div>
 
-        {tab === 'stats' ? (
+        {tab === 'collab' ? (
+          selectedCourse ? (
+            <CourseCollaborators courseId={selectedCourse} />
+          ) : (
+            <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
+              {lang === 'zh' ? '请先选择课程' : 'Pick a course first'}
+            </div>
+          )
+        ) : tab === 'stats' ? (
           <>
             <div className="bg-card border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
               <div className="flex gap-1 border rounded-lg overflow-hidden text-xs">
