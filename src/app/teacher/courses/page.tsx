@@ -194,19 +194,19 @@ export default function TeacherCoursesPage() {
                     className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${course.is_published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                     {course.is_published ? '取消发布' : '发布'}
                   </button>
-                  {/* A vocabulary course has no chapters/lessons to edit — its
-                      "edit" is the word bank. */}
-                  {(course as any).kind === 'vocab' ? (
+                  {/* A vocabulary course needs both: the chapter/lesson editor
+                      and its word bank. */}
+                  {(course as any).kind === 'vocab' && (
                     <Link href={`/teacher/vocab?course=${course.id}`}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors">
-                      <Edit3 className="w-3 h-3" /> 词库
-                    </Link>
-                  ) : (
-                    <Link href={`/teacher/courses/${course.id}`}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors">
-                      <Edit3 className="w-3 h-3" /> 编辑
+                      📖 词库
                     </Link>
                   )}
+                  <Link href={`/teacher/courses/${course.id}`}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${(course as any).kind === 'vocab'
+                      ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                    <Edit3 className="w-3 h-3" /> 编辑
+                  </Link>
                   <button onClick={() => handleDelete(course.id)}
                     className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors">
                     删除

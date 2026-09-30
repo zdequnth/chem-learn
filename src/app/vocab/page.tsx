@@ -26,17 +26,28 @@ function isDue(w: VocabWordWithProgress) {
   return new Date(w.progress.due_at).getTime() <= Date.now()
 }
 
+// Must match MASTERED_BOX in /api/vocab/progress — a word is mastered once its
+// box has been raised twice by objective answers.
+const MASTERED_BOX = 2
+
 // `review` must return exactly the words the "今日复习" list advertises
 // (overdue only) — otherwise the tab says 0 due but the session still runs.
-// `study` covers the whole lesson, but learns overdue words first.
+// `study` ("继续") is the rest of the lesson: overdue words first, then the ones
+// not yet mastered. Words already mastered and not yet due are left out, so a
+// student who has done 10 of 11 words is not made to redo all 11.
 function buildQueue(words: VocabWordWithProgress[], mode: 'study' | 'review'): VocabWordWithProgress[] {
   const byDue = (a: VocabWordWithProgress, b: VocabWordWithProgress) =>
     new Date(a.progress!.due_at).getTime() - new Date(b.progress!.due_at).getTime()
   const due = words.filter(w => w.progress && isDue(w)).sort(byDue)
   if (mode === 'review') return due.slice(0, SESSION_CAP)
+
   const fresh = words.filter(w => !w.progress)
-  const rest = words.filter(w => w.progress && !isDue(w)).sort(byDue)
-  return [...due, ...fresh, ...rest]
+  const unmastered = words
+    .filter(w => w.progress && !isDue(w) && (w.progress.box ?? 0) < MASTERED_BOX)
+    .sort((a, b) => (a.progress!.box ?? 0) - (b.progress!.box ?? 0))
+  const queue = [...due, ...fresh, ...unmastered]
+  // Nothing left to work on → let them go through the whole lesson again.
+  return queue.length > 0 ? queue : words
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -593,10 +604,10 @@ function VocabContent() {
                               const done = pct >= 100
                               // finished → solid green; part-way → a green bar filled to pct%
                               const fill = done
-                                ? { background: 'rgba(16,185,129,0.30)', borderColor: '#34d399' }
+                                ? { background: 'rgba(16,185,129,0.42)', borderColor: '#34d399' }
                                 : pct > 0
                                   ? {
-                                      background: `linear-gradient(to right, rgba(16,185,129,0.18) 0 ${pct}%, rgba(0,0,0,0) ${pct}% 100%)`,
+                                      background: `linear-gradient(to right, rgba(16,185,129,0.11) 0 ${pct}%, rgba(0,0,0,0) ${pct}% 100%)`,
                                     }
                                   : {}
                               return (
@@ -614,7 +625,11 @@ function VocabContent() {
                                   </div>
                                   <button onClick={() => startSession(l.id, 'study')}
                                     className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium border bg-white/70 hover:bg-accent transition-colors">
-                                    {l.studied > 0 ? (lang === 'zh' ? '继续' : 'Continue') : (lang === 'zh' ? '开始' : 'Start')}
+                                    {done
+                                      ? (lang === 'zh' ? '复习' : 'Review')
+                                      : l.studied > 0
+                                        ? (lang === 'zh' ? '继续' : 'Continue')
+                                        : (lang === 'zh' ? '开始' : 'Start')}
                                   </button>
                                 </div>
                               )

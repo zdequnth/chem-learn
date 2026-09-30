@@ -167,9 +167,6 @@ export default function CourseDetailPage() {
     try {
       const res = await fetch(`/api/courses/${courseId}`)
       const json = await res.json()
-      // A vocabulary course has no chapters or lessons to edit here — this whole
-      // page is the gate-test editor, so send the teacher to the word bank.
-      if (json.course?.kind === 'vocab') { router.replace(`/teacher/vocab?course=${courseId}`); return }
       if (json.course) {
         setCourse(json.course)
         setCourseForm({
@@ -556,6 +553,21 @@ export default function CourseDetailPage() {
           <div className="text-center py-20"><p className="text-muted-foreground">课程不存在</p></div>
         ) : (
           <>
+            {/* A vocabulary course uses this same editor for its chapters and
+                lessons, so mark clearly which kind of course this is. */}
+            {(course as any).kind === 'vocab' && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+                <span className="text-3xl">📖</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-amber-900">背单词课程</div>
+                  <div className="text-sm text-amber-800">这里管理章节和课时；单词本身在「词库」里维护。</div>
+                </div>
+                <Link href={`/teacher/vocab?course=${courseId}`}
+                  className="ml-auto shrink-0 px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">
+                  去词库管理 →
+                </Link>
+              </div>
+            )}
             {/* Course Header */}
             <div className="bg-card rounded-2xl border p-6 mb-6">
               {editCourse ? (
@@ -579,9 +591,14 @@ export default function CourseDetailPage() {
               ) : (
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-2xl flex items-center justify-center text-3xl">{course.icon}</div>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl ${(course as any).kind === 'vocab' ? 'bg-gradient-to-br from-amber-100 to-amber-200' : 'bg-gradient-to-br from-emerald-100 to-emerald-200'}`}>{(course as any).kind === 'vocab' ? '📖' : course.icon}</div>
                     <div>
-                      <h1 className="text-2xl font-bold">{course.name}</h1>
+                      <h1 className="text-2xl font-bold flex items-center gap-2">
+                        {course.name}
+                        {(course as any).kind === 'vocab' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium align-middle">背单词课程</span>
+                        )}
+                      </h1>
                       {course.grade_level && <span className="text-sm px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
                       {course.subject && <span className="text-sm px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full ml-1">{course.subject}</span>}
                     </div>
