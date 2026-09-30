@@ -175,8 +175,8 @@ function ImportForm() {
         e.preventDefault()
         const file = item.getAsFile()
         if (!file) { alert('无法读取图片'); continue }
-        if (file.size > 300 * 1024) {
-          alert('图片需小于300KB，当前: ' + Math.round(file.size / 1024) + 'KB。请先用截图工具缩小图片。')
+        if (file.size > 1024 * 1024) {
+          alert('图片需小于1MB，当前: ' + Math.round(file.size / 1024) + 'KB。请先用截图工具缩小图片。')
           continue
         }
         setUploadingImage(true)

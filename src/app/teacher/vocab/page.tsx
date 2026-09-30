@@ -69,11 +69,11 @@ function VocabAdminContent() {
   const [statClassId, setStatClassId] = useState('')
   const [classes, setClasses] = useState<any[]>([])
 
-  // Illustrations are pasted straight into the form; the existing upload route
-  // turns them into a data URL stored in vocab_words.image_url.
+  // Illustrations are pasted straight into the form; the upload route puts the
+  // file in Supabase Storage and hands back a public URL for image_url.
   const uploadFile = async (file: File) => {
-    if (file.size > 300 * 1024) {
-      alert(`图片需小于 300KB，当前 ${Math.round(file.size / 1024)}KB。请先用截图工具缩小。`)
+    if (file.size > 1024 * 1024) {
+      alert(`图片需小于 1MB，当前 ${Math.round(file.size / 1024)}KB。请先用截图工具缩小。`)
       return
     }
     setUploading(true)
