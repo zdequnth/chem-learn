@@ -118,7 +118,7 @@ SelfPass 的「背单词」不是独立的刷词 App，而是挂在**课程 → 
   "example_en": "一个化学语境的完整英文例句",
   "example_zh": "上面例句的中文翻译",
   "note": "易错点 / 易混词 / 记忆提示，一句话。没有就填空字符串",
-  "difficulty": 1 或 2 或 3（1=基础常见，2=中等，3=较难或少见）
+  "difficulty": "核心必背" | "重要理解" | "拓展阅读"（不填按「重要理解」）
 }
 
 【硬性要求】
@@ -137,7 +137,7 @@ SelfPass 的「背单词」不是独立的刷词 App，而是挂在**课程 → 
     "en_def": "The smallest particle of an element that can exist.",
     "example_en": "An atom of sodium has 11 protons.",
     "example_zh": "一个钠原子有 11 个质子。",
-    "note": "与 molecule、ion 区分：原子是元素的最小单位。", "difficulty": 1 }
+    "note": "与 molecule、ion 区分：原子是元素的最小单位。", "difficulty": "核心必背" }
 ]
 ```
 
@@ -152,7 +152,8 @@ SelfPass 的「背单词」不是独立的刷词 App，而是挂在**课程 → 
 
 每个词一个对象，字段：term(英文), ipa(英式音标), pos(n./v./adj.),
 zh(中文,不超过8字), en_def(九年级能懂的英文解释),
-example_en(化学例句), example_zh(例句中文), note(易错提示), difficulty(1-3)。
+example_en(化学例句), example_zh(例句中文), note(易错提示),
+difficulty(核心必背/重要理解/拓展阅读)。
 
 要求：
 - 收 10–14 个词，包括化学概念、仪器、材料、部件方位词；不收无关日常词
@@ -202,7 +203,7 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 7. 逐条快速核对，不要的点条目上的删除按钮
 8. 点 **「确认导入 N 条」**
 
-导入后可以逐条 **编辑**（术语 / 音标 / 词性 / 中文 / 英文释义 / 例句 / 例句翻译 / 易错点 / 难度 / 配图），也可以手动新增、删除。
+导入后可以逐条 **编辑**（术语 / 音标 / 词性 / 中文 / 英文释义 / 例句 / 例句翻译 / 易错点 / 掌握优先级 / 配图），也可以手动新增、删除。
 
 ##### ⚠️ 导入规则（务必知道，不然会踩坑）
 
@@ -211,7 +212,7 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 | **只有 `term` 和 `zh` 必填** | 其它字段留空也可以，卡片上就不显示那一行 |
 | **同一课时内 term 重复 → 跳过** | 注意是**跳过，不是覆盖**！想改已有的词，用「编辑」，别指望重新导入覆盖 |
 | **顺序按数组顺序追加到末尾** | 想让某个词排前面，就在数组里放前面 |
-| **`difficulty` 只认 1 / 2 / 3** | 写了别的值（比如 4、0、不写）会自动变成 1 |
+| **`difficulty` 只认三档** | 只能填「核心必背 / 重要理解 / 拓展阅读」；写 1/2/3 也认（映射为这三档）；其它值或不填一律按「重要理解」 |
 | **删除单个词条会连带删除学生的学习进度** | 删之前想清楚 |
 | **可以重复导入** | 已经有的词会被跳过，不会变成两份 |
 
@@ -271,7 +272,7 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 | `example_en` | | 化学语境的英文例句 |
 | `example_zh` | | 上面例句的中文翻译 |
 | `note` | | 易错点 / 易混词 / 记忆提示 |
-| `difficulty` | | 1 / 2 / 3，其它值会变成 1 |
+| `difficulty` | | 掌握优先级，三选一：`核心必背`（必须会拼会解释）/ `重要理解`（认得并理解）/ `拓展阅读`（见过即可）。不填按「重要理解」 |
 | `image_url` | | 一般留空，用上传方式配图 |
 
 ---
@@ -288,7 +289,13 @@ AI 一定会出错。粘贴前花 2 分钟过一遍：
 
 **掌握度规则**：只有**拼写 / 选择题**这类客观题答对才会提升掌握度；卡片上自评"认识"**不会**提升（防止学生自己点过去）。所以同一课时里，拼写要能拼、词义要能区分，词与词**不能太像**。
 
-`difficulty` 目前主要用于老师端筛选和统计，学生端都会背到。
+`difficulty`（掌握优先级）分三档，学生端三轮都会背到，它只是给老师和学生一个"先背哪一批"的次序：
+
+- **核心必背** —— 必须会拼、会解释。基础概念（atom / ion / mole）、考纲标准物质、仪器名、反应类型
+- **重要理解** —— 要认得、能理解，拼写次要。具体化合物（`magnesium chloride`）、一般性质/过程词
+- **拓展阅读** —— 见过即可。商品名（`Teflon`）、细分矿物（`galena`）、偏门工业词、过细的有机命名、生物/地理支撑词
+
+标注时请用**绝对标准**，不要"跟本章其他词比"——否则越到后面章，难度会整体漂高。判断口径：*如果学生在考试里拼不出/解释不了这个词会不会被扣分？* 会 → 核心必背。
 
 ---
 
@@ -339,7 +346,7 @@ JSON 格式不对。最常见的是：AI 输出了多段代码块（每课时一
 
 【字段】term(英文原写法), ipa(音标,带斜杠), pos(n./v./adj.), zh(中文2-8字),
 en_def(该年级能懂的简单英文解释), example_en(学科语境例句), example_zh(例句中文),
-note(易错/易混提示,没有填空字符串), difficulty(1-3)
+note(易错/易混提示,没有填空字符串), difficulty(核心必背/重要理解/拓展阅读)
 
 【硬性要求】
 1. 顶层是数组；2. term 和 zh 必填，其余可为空字符串；3. 不要重复 term；
@@ -372,7 +379,8 @@ select generously, not just abstract concepts.
 [Fields] term, ipa (with slashes), pos (n./v./adj.), zh (Chinese, 2-8 characters),
 en_def (simple definition a grade-____ student understands),
 example_en (subject-specific sentence), example_zh (translation of the example),
-note (common mistakes / confusables, "" if none), difficulty (1-3)
+note (common mistakes / confusables, "" if none),
+difficulty (核心必背 / 重要理解 / 拓展阅读)
 
 [Hard requirements]
 1. Top level is an array; 2. term and zh are required, others may be "";
@@ -431,7 +439,7 @@ continue on any device. You can watch each student's mastery in the backend.
 | Only `term` and `zh` are required | Other fields may be blank |
 | Duplicate `term` in the same lesson → **skipped, not overwritten** | Use *Edit* to change an existing word |
 | Order | Words are appended in array order |
-| `difficulty` | Only 1 / 2 / 3; anything else becomes 1 |
+| `difficulty` | One of `核心必背` (must be able to spell + explain) / `重要理解` (recognise and understand) / `拓展阅读` (read-only). `1`/`2`/`3` are also accepted and mapped onto these. Anything else, or blank, becomes `重要理解` |
 | Deleting a word | Also deletes students' progress for that word |
 | Re-importing | Existing words are skipped, never duplicated |
 

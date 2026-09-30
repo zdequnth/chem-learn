@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
 import CourseCollaborators from '@/components/CourseCollaborators'
 import type { Course, Chapter, Lesson } from '@/lib/types'
+import { VOCAB_DIFFICULTIES, normaliseDifficulty } from '@/lib/types'
 import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -14,12 +15,18 @@ type WordForm = {
   id?: string
   term: string; ipa: string; pos: string; zh: string
   en_def: string; example_en: string; example_zh: string
-  note: string; difficulty: number; image_url: string
+  note: string; difficulty: string; image_url: string
 }
 
 const EMPTY_WORD: WordForm = {
   term: '', ipa: '', pos: '', zh: '',
-  en_def: '', example_en: '', example_zh: '', note: '', difficulty: 1, image_url: '',
+  en_def: '', example_en: '', example_zh: '', note: '', difficulty: '重要理解', image_url: '',
+}
+
+const DIFF_CHIP: Record<string, string> = {
+  '核心必背': 'bg-rose-50 text-rose-700',
+  '重要理解': 'bg-amber-50 text-amber-700',
+  '拓展阅读': 'bg-slate-100 text-slate-600',
 }
 
 // AI output usually arrives wrapped in ```json fences; strip them before parsing.
@@ -37,7 +44,7 @@ function parseWordJson(text: string): any[] {
     example_en: String(w?.example_en ?? '').trim(),
     example_zh: String(w?.example_zh ?? '').trim(),
     note: String(w?.note ?? '').trim(),
-    difficulty: [1, 2, 3].includes(Number(w?.difficulty)) ? Number(w.difficulty) : 1,
+    difficulty: normaliseDifficulty(w?.difficulty),
   })).filter((w: any) => w.term && w.zh)
 }
 
@@ -364,7 +371,7 @@ function VocabAdminContent() {
                         <span className="font-semibold">{w.term}</span>
                         {w.ipa && <span className="text-xs text-muted-foreground">{w.ipa}</span>}
                         {w.pos && <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{w.pos}</span>}
-                        <span className="text-xs text-muted-foreground">难度 {w.difficulty}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${DIFF_CHIP[w.difficulty as keyof typeof DIFF_CHIP] ?? ''}`}>{w.difficulty}</span>
                       </div>
                       <div className="text-sm mt-1">{w.zh}</div>
                       {w.en_def && <div className="text-xs text-muted-foreground mt-0.5">{w.en_def}</div>}
@@ -424,13 +431,14 @@ function VocabAdminContent() {
               <label className="text-sm block">易错点 / 辨析 note
                 <input value={editWord.note} onChange={e => setEditWord({ ...editWord, note: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border rounded-lg bg-background" /></label>
-              <label className="text-sm block">难度（1-3）
-                <select value={editWord.difficulty} onChange={e => setEditWord({ ...editWord, difficulty: Number(e.target.value) })}
+              <label className="text-sm block">掌握优先级
+                <select value={editWord.difficulty} onChange={e => setEditWord({ ...editWord, difficulty: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border rounded-lg bg-background">
-                  <option value={1}>1 · 基础</option>
-                  <option value={2}>2 · 中等</option>
-                  <option value={3}>3 · 较难</option>
-                </select></label>
+                  {VOCAB_DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <span className="block mt-1 text-xs text-muted-foreground">
+                  核心必背＝必须会拼会解释　重要理解＝认得并理解　拓展阅读＝见过即可
+                </span></label>
 
               <div className="text-sm">
                 <div className="mb-1">插图（可选）—— 可直接把图片粘贴到本窗口任意位置</div>
@@ -487,8 +495,8 @@ function VocabAdminContent() {
             <div className="p-5 space-y-3">
               <p className="text-xs text-muted-foreground">
                 {lang === 'zh'
-                  ? '字段：term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty。顶层可以是数组或 { "words": [...] }；```json 围栏会自动去掉。只有 term 和 zh 是必填。'
-                  : 'Fields: term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty. Top level may be an array or { "words": [...] }.'}
+                  ? '字段：term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty。顶层可以是数组或 { "words": [...] }；```json 围栏会自动去掉。只有 term 和 zh 是必填。difficulty 填「核心必背 / 重要理解 / 拓展阅读」（写 1/2/3 也认），不填按「重要理解」。'
+                  : 'Fields: term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty. Top level may be an array or { "words": [...] }. Only term and zh are required. difficulty accepts 核心必背 / 重要理解 / 拓展阅读 (1/2/3 also works); defaults to 重要理解.'}
               </p>
               <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportPreview([]) }}
                 rows={10} placeholder={'[\n  { "term": "atom", "ipa": "/ˈætəm/", "zh": "原子", ... }\n]'}

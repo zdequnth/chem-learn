@@ -573,6 +573,19 @@ export interface DailyActivityUpdate {
 // ============================================================
 export type VocabResult = 'known' | 'fuzzy' | 'unknown'
 
+// 三档掌握优先级：必须会拼会解释 / 认得并理解 / 见过即可
+export const VOCAB_DIFFICULTIES = ['核心必背', '重要理解', '拓展阅读'] as const
+export type VocabDifficulty = typeof VOCAB_DIFFICULTIES[number]
+
+// Accepts the labels, or the legacy 1/2/3 numbers from older AI output.
+export function normaliseDifficulty(v: unknown): VocabDifficulty {
+  if (typeof v === 'string' && (VOCAB_DIFFICULTIES as readonly string[]).includes(v)) return v as VocabDifficulty
+  const n = Number(v)
+  if (n === 1) return '核心必背'
+  if (n === 3) return '拓展阅读'
+  return '重要理解'
+}
+
 export interface VocabWord {
   id: string
   lesson_id: string
@@ -585,7 +598,7 @@ export interface VocabWord {
   example_zh: string | null
   image_url: string | null
   note: string | null
-  difficulty: number
+  difficulty: VocabDifficulty
   sort_order: number
   created_at: string
   updated_at: string
@@ -602,7 +615,7 @@ export interface VocabWordInsert {
   example_zh?: string | null
   image_url?: string | null
   note?: string | null
-  difficulty?: number
+  difficulty?: VocabDifficulty
   sort_order?: number
 }
 

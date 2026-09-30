@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { normaliseDifficulty } from '@/lib/types'
 import { NextResponse } from 'next/server'
 
 async function checkLessonAccess(userId: string, lessonId: string): Promise<boolean> {
@@ -21,8 +22,7 @@ const TEXT_FIELDS = ['term', 'ipa', 'pos', 'zh', 'en_def', 'example_en', 'exampl
 function cleanWord(raw: any) {
   const out: any = {}
   for (const f of TEXT_FIELDS) out[f] = typeof raw?.[f] === 'string' ? raw[f].trim() || null : null
-  const d = Number(raw?.difficulty)
-  out.difficulty = d >= 1 && d <= 3 ? Math.round(d) : 1
+  out.difficulty = normaliseDifficulty(raw?.difficulty)
   return out
 }
 
