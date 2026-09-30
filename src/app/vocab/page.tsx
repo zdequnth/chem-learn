@@ -536,7 +536,7 @@ function VocabContent() {
                 <div className="space-y-6">
                   {grouped.map(ch => (
                     <div key={ch.title} className="bg-card border rounded-2xl p-5">
-                      <h2 className="font-semibold mb-3">{ch.title}</h2>
+                      <h2 className="font-semibold mb-3">{ch.order + 1}. {ch.title}</h2>
                       <div className="space-y-2">
                         {ch.rows.map(l => {
                           const pct = l.wordCount ? Math.round((l.mastered / l.wordCount) * 100) : 0
@@ -574,7 +574,7 @@ function VocabContent() {
                     <div key={l.id} className="bg-card border rounded-2xl p-4 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{l.title}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{l.chapterTitle} · 待复习 {l.due} 词</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{l.chapterOrder + 1}. {l.chapterTitle} · 待复习 {l.due} 词</div>
                       </div>
                       <button onClick={() => startSession(l.id, 'review')}
                         className="shrink-0 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">

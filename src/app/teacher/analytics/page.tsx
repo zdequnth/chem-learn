@@ -152,7 +152,9 @@ function AnalyticsContent() {
   useEffect(() => {
     if (!profile) return
     fetch('/api/courses').then((r) => r.json()).then((j) => {
-      const list = (j.courses || []) as { id: string; name: string }[]
+      // This page analyses questions and knowledge points — a vocabulary course
+      // has neither, so it is not offered here (see 词汇 → 掌握情况 instead).
+      const list = ((j.courses || []) as any[]).filter((c) => c.kind !== 'vocab')
       setCourses(list)
       if (list.length > 0) setCourseId((prev) => (list.some((c) => c.id === prev) ? prev : list[0].id))
     })

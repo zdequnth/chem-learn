@@ -115,7 +115,10 @@ function VocabAdminContent() {
     ;(async () => {
       const res = await fetch('/api/courses')
       const json = await res.json()
-      const clist = (json.courses || []) as Course[]
+      // Only vocabulary courses belong on this page — a gate-test course has no
+      // word bank, and preloading chapters/lessons for every course would pull
+      // a lot of pointless data.
+      const clist = ((json.courses || []) as Course[]).filter(c => (c as any).kind === 'vocab')
       setCourses(clist)
       const allCh: Chapter[] = []
       const allLn: Lesson[] = []
@@ -282,7 +285,7 @@ function VocabAdminContent() {
             disabled={!selectedCourse}
             className="w-full px-3 py-2 border rounded-lg bg-background text-sm disabled:opacity-50">
             <option value="">{lang === 'zh' ? '选择章节' : 'Chapter'}</option>
-            {filteredChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
+            {filteredChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{(ch.sort_order ?? 0) + 1}. {ch.title}</option>)}
           </select>
           <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)}
             disabled={!selectedChapter}

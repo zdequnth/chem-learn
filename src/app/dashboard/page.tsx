@@ -354,44 +354,64 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Quick links */}
+              {/* Quick links — centred, to match the count cards above */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Link href="/teacher/courses" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                <Link href="/teacher/courses" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">📚</div>
                   <div className="font-semibold group-hover:text-emerald-600">课程管理</div>
                   <div className="text-xs text-muted-foreground mt-1">课程、章节、课时与题库</div>
                 </Link>
-                <Link href="/teacher/analytics" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                <Link href="/teacher/analytics" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">📊</div>
                   <div className="font-semibold group-hover:text-emerald-600">学情分析</div>
                   <div className="text-xs text-muted-foreground mt-1">薄弱知识点、高错题、尝试与用时</div>
                 </Link>
-                <Link href="/teacher/classes" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group">
+                <Link href="/teacher/classes" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">🏫</div>
                   <div className="font-semibold group-hover:text-emerald-600">班级管理</div>
                   <div className="text-xs text-muted-foreground mt-1">学生进度、邀请码</div>
                 </Link>
               </div>
 
-              {/* Per-course quick entry to analytics */}
+              {/* Per-course entry, coloured by course kind */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">学情速览 · 按课程查看</h3>
+                <h3 className="text-lg font-semibold mb-3">课程速览 · 按课程查看</h3>
                 <div className="space-y-2">
-                  {[...courses].map((course: any) => (
-                    <div key={course.id} className="bg-card rounded-xl border p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xl">{course.icon || '🧪'}</span>
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{course.name}</div>
-                          <div className="text-xs text-muted-foreground">{course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? '已发布' : '未发布'}</div>
+                  {[...courses].map((course: any) => {
+                    const isVocab = course.kind === 'vocab'
+                    return (
+                      <div key={course.id}
+                        className={`rounded-xl border p-4 flex items-center justify-between ${isVocab ? 'bg-amber-50 border-amber-300' : 'bg-card border-gray-200'}`}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-xl">{isVocab ? '📖' : (course.icon || '🧪')}</span>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate flex items-center gap-2">
+                              {course.name}
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${isVocab
+                                ? 'bg-amber-200 text-amber-900' : 'bg-emerald-50 text-emerald-700'}`}>
+                                {isVocab ? '背单词' : '过关'}
+                              </span>
+                            </div>
+                            <div className={`text-xs ${isVocab ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                              {course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? '已发布' : '未发布'}
+                            </div>
+                          </div>
                         </div>
+                        {/* a vocab course has no quiz analytics — its entry is the word bank */}
+                        {isVocab ? (
+                          <Link href={`/teacher/vocab?course=${course.id}`}
+                            className="shrink-0 px-3 py-1.5 text-xs bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors">
+                            词库与掌握情况 →
+                          </Link>
+                        ) : (
+                          <Link href={`/teacher/analytics?scope=course&courseId=${course.id}`}
+                            className="shrink-0 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-600 rounded-lg font-medium hover:bg-emerald-100 transition-colors">
+                            查看学情 →
+                          </Link>
+                        )}
                       </div>
-                      <Link href={`/teacher/analytics?scope=course&courseId=${course.id}`}
-                        className="shrink-0 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-600 rounded-lg font-medium hover:bg-emerald-100 transition-colors">
-                        查看学情 →
-                      </Link>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>

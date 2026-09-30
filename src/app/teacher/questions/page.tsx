@@ -109,7 +109,8 @@ function QuestionsContent() {
   const fetchCourses = async () => {
     const res = await fetch('/api/courses')
     const json = await res.json()
-    const clist = (json.courses || []) as Course[]
+    // Vocabulary courses have no question bank — keep them out of this page.
+    const clist = ((json.courses || []) as Course[]).filter(c => (c as any).kind !== 'vocab')
     setCourses(clist)
     // Preload all chapters and lessons for all courses
     const allCh: Chapter[] = []
@@ -305,7 +306,7 @@ function QuestionsContent() {
             <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
               <option value="">{lang==='zh'?'选择章节':'Select Chapter'}</option>
-              {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {filteredChapters.map((c: any) => <option key={c.id} value={c.id}>{(c.sort_order ?? 0) + 1}. {c.title}</option>)}
             </select>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
