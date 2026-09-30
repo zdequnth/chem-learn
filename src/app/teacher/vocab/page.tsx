@@ -47,6 +47,28 @@ function parseWordJson(text: string): any[] {
   })).filter((w: any) => w.term && w.zh)
 }
 
+// A network drop mid-request makes fetch reject; without this the caller's
+// `saving` flag stayed true forever and the Save button was dead until a reload.
+// The timeout matters here because the connection to the API goes through a
+// proxy that can stall instead of failing.
+async function sendJson(url: string, method: string, body: unknown) {
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  })
+  const text = await res.text()
+  let json: any
+  try {
+    json = text ? JSON.parse(text) : {}
+  } catch {
+    json = { error: text.slice(0, 200) || `HTTP ${res.status}` }
+  }
+  if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`)
+  return json
+}
+
 function VocabAdminContent() {
   const router = useRouter()
   const sp = useSearchParams()
@@ -173,25 +195,20 @@ function VocabAdminContent() {
     if (!editWord) return
     if (!editWord.term.trim() || !editWord.zh.trim()) { alert('术语和中文释义不能为空'); return }
     setSaving(true)
-    if (editWord.id) {
-      const res = await fetch('/api/vocab/words', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editWord),
-      })
-      const json = await res.json().catch(() => ({} as any))
-      if (!res.ok || json.error) { alert('保存失败：' + (json.error || res.status)); setSaving(false); return }
-    } else {
-      const res = await fetch('/api/vocab/words', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lesson_id: selectedLesson, words: [editWord] }),
-      })
-      const json = await res.json().catch(() => ({} as any))
-      if (!res.ok || json.error) { alert('保存失败：' + (json.error || res.status)); setSaving(false); return }
-      if (json.saved === 0) { alert('该词已存在，未重复添加'); setSaving(false); return }
+    try {
+      if (editWord.id) {
+        await sendJson('/api/vocab/words', 'PUT', editWord)
+      } else {
+        const json = await sendJson('/api/vocab/words', 'POST', { lesson_id: selectedLesson, words: [editWord] })
+        if (json.saved === 0) { alert('该词已存在，未重复添加'); return }
+      }
+      setEditWord(null)
+      refetch()
+    } catch (e: any) {
+      alert('保存失败：' + (e?.message || e))
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setEditWord(null)
-    refetch()
   }
 
   const deleteWord = async (w: any) => {
@@ -215,18 +232,18 @@ function VocabAdminContent() {
   const confirmImport = async () => {
     if (importPreview.length === 0) return
     setSaving(true)
-    const res = await fetch('/api/vocab/words', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lesson_id: selectedLesson, words: importPreview }),
-    })
-    const json = await res.json().catch(() => ({} as any))
-    setSaving(false)
-    if (!res.ok || json.error) { alert('导入失败：' + (json.error || res.status)); return }
-    alert(`导入完成：新增 ${json.saved} 条${json.skipped ? `，跳过 ${json.skipped} 条（重复或字段不全）` : ''}`)
-    setShowImport(false)
-    setImportText('')
-    setImportPreview([])
-    refetch()
+    try {
+      const json = await sendJson('/api/vocab/words', 'POST', { lesson_id: selectedLesson, words: importPreview })
+      alert(`导入完成：新增 ${json.saved} 条${json.skipped ? `，跳过 ${json.skipped} 条（重复或字段不全）` : ''}`)
+      setShowImport(false)
+      setImportText('')
+      setImportPreview([])
+      refetch()
+    } catch (e: any) {
+      alert('导入失败：' + (e?.message || e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (authLoading || !user) {
