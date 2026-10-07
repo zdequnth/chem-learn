@@ -8,6 +8,8 @@ const translations: Record<string, Record<string, string>> = {
   wrongBook: { zh: '错题本', en: 'Wrong Book' },
   vocab: { zh: '背单词', en: 'Vocabulary' },
   vocabMgmt: { zh: '词汇', en: 'Vocabulary' },
+  mockExam: { zh: '模拟考', en: 'Mock Exams' },
+  mockMgmt: { zh: '模拟考', en: 'Mock Exams' },
   todayReview: { zh: '今日复习', en: 'Review Today' },
   knowKnown: { zh: '认识', en: 'Known' },
   knowFuzzy: { zh: '模糊', en: 'Fuzzy' },

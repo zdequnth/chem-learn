@@ -42,7 +42,10 @@ function MockAdminContent() {
   const [papers, setPapers] = useState<PaperRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  // editor state
+  // editor state. `open` is what shows the editor — it used to be implied by
+  // "title or questions are non-empty", but both are set INSIDE the editor, so
+  // 「新建试卷」 produced no visible change at all.
+  const [open, setOpen] = useState(false)
   const [paperId, setPaperId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState(60)
@@ -85,7 +88,7 @@ function MockAdminContent() {
   // course changed → reload papers + the bound course outline
   useEffect(() => {
     if (!courseId) return
-    setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false)
+    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false)
     loadPapers(courseId)
     fetch(`/api/mock/outline?courseId=${courseId}`).then(r => r.json()).then((j) => {
       setOutline(j.chapters || [])
@@ -94,7 +97,7 @@ function MockAdminContent() {
   }, [courseId])
 
   const openPaper = async (id: string, titleHint: string, durationHint: number) => {
-    setBusy('load'); setPaperId(id); setTitle(titleHint); setDuration(durationHint)
+    setBusy('load'); setOpen(true); setPaperId(id); setTitle(titleHint); setDuration(durationHint)
     try {
       const j = await fetch(`/api/mock/papers/${id}`).then(r => r.json())
       if (j.error) { alert('读取失败：' + j.error); return }
@@ -111,6 +114,7 @@ function MockAdminContent() {
   }
 
   const startNewPaper = () => {
+    setOpen(true)
     setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false)
   }
 
@@ -308,7 +312,7 @@ function MockAdminContent() {
             </div>
 
             {/* editor */}
-            {(paperId || questions.length > 0 || title) && (
+            {open && (
               <div className="space-y-4">
                 <div className="bg-card border rounded-2xl p-5">
                   <div className="flex flex-wrap items-center gap-3">
@@ -326,6 +330,10 @@ function MockAdminContent() {
                       className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
                       {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       {paperId ? (lang === 'zh' ? '另存为新试卷' : 'Save as new') : (lang === 'zh' ? '保存试卷' : 'Save paper')}
+                    </button>
+                    <button onClick={() => { if (!dirty || confirm('有未保存的改动，确定关闭？')) setOpen(false) }}
+                      className="px-3 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
+                      {lang === 'zh' ? '关闭' : 'Close'}
                     </button>
                   </div>
                   {paperId && (

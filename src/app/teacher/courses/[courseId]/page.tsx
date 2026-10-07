@@ -637,7 +637,10 @@ export default function CourseDetailPage() {
               </div>
             )}
 
-            {/* Chapters & Lessons */}
+            {/* Chapters & Lessons. A mock course has none of its own — its
+                questions hang off the BOUND gate course's lessons — so showing
+                an empty chapter editor here would just invite pointless work. */}
+            {(course as any).kind !== 'mock' && (
             <div className="bg-card rounded-2xl border p-6">
               <h2 className="text-lg font-semibold mb-4">章节与课时 ({chapters.length} 章)</h2>
 
@@ -785,6 +788,7 @@ export default function CourseDetailPage() {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </main>
