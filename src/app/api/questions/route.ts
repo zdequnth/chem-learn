@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { NOT_MOCK } from '@/lib/mock-exam'
 import { NextResponse } from 'next/server'
 
 async function checkLessonAccess(userId: string, lessonId: string): Promise<boolean> {
@@ -25,6 +26,7 @@ async function deleteQuestionDependents(questionIds: string[]) {
     const list = questionIds.slice(i, i + 150).join(',')
     await supabaseAdmin('gate_test_answers', { method: 'DELETE', query: `?question_id=in.(${list})` })
     await supabaseAdmin('boss_test_answers', { method: 'DELETE', query: `?question_id=in.(${list})` })
+    await supabaseAdmin('mock_test_answers', { method: 'DELETE', query: `?question_id=in.(${list})` })
   }
 }
 
@@ -39,7 +41,7 @@ export async function GET(request: Request) {
 
   // Get questions with options via join
   const { data: questions } = await supabaseAdmin('questions', {
-    query: `?lesson_id=eq.${lessonId}&order=created_at.desc&select=*`,
+    query: `?lesson_id=eq.${lessonId}${NOT_MOCK}&order=created_at.desc&select=*`,
   })
 
   // Get options for all questions
@@ -132,6 +134,7 @@ export async function PUT(request: Request) {
     if (ex.length > options.length) {
       await supabaseAdmin('gate_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
       await supabaseAdmin('boss_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
+      await supabaseAdmin('mock_test_answers', { method: 'PATCH', body: { selected_option_id: null }, query: `?question_id=eq.${id}` })
       const extra = ex.slice(options.length).map((o: any) => o.id)
       if (extra.length > 0) {
         await supabaseAdmin('question_options', { method: 'DELETE', query: `?id=in.(${extra.join(',')})` })
@@ -163,11 +166,13 @@ export async function DELETE(request: Request) {
     if (!await checkLessonAccess(user.id, lessonId)) {
       return NextResponse.json({ error: '无权操作' }, { status: 403 })
     }
-    const { data: qs } = await supabaseAdmin('questions', { query: `?lesson_id=eq.${lessonId}&select=id` })
+    // "Empty this lesson's questions" must not touch mock-exam questions, or it
+    // would silently gut every paper built on this lesson.
+    const { data: qs } = await supabaseAdmin('questions', { query: `?lesson_id=eq.${lessonId}${NOT_MOCK}&select=id` })
     await deleteQuestionDependents((qs || []).map((q: any) => q.id))
     const { error } = await supabaseAdmin('questions', {
       method: 'DELETE',
-      query: `?lesson_id=eq.${lessonId}`,
+      query: `?lesson_id=eq.${lessonId}${NOT_MOCK}`,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true, deletedAll: true })

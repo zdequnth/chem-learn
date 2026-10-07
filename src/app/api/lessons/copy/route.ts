@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { NOT_MOCK } from '@/lib/mock-exam'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -63,9 +64,10 @@ export async function POST(request: Request) {
     }
   }
 
-  // 3. Copy questions + options
+  // 3. Copy questions + options (never mock-exam ones — they would end up here
+  //    with no paper to belong to)
   const { data: questions } = await supabaseAdmin('questions', {
-    query: `?lesson_id=eq.${sourceLessonId}&select=*`,
+    query: `?lesson_id=eq.${sourceLessonId}${NOT_MOCK}&select=*`,
   })
   for (const q of (questions || [])) {
     const targetKpId = q.knowledge_point_id ? (kpIdMap.get(q.knowledge_point_id) || null) : null

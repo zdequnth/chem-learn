@@ -244,8 +244,11 @@ export async function GET(request: Request) {
   const profiles = await fetchAllIn('profiles', 'id', studentIds, 'id,display_name')
   const nameById = new Map<string, string>(profiles.map((p: any) => [p.id, p.display_name]))
 
-  // Content
-  const questions = await fetchAllIn('questions', 'lesson_id', lessonIds, 'id,lesson_id,knowledge_point_id,stem,question_type,image_url')
+  // Content. Mock-exam questions sit on these lessons too but belong to a paper,
+  // so they must not appear as part of this course's question bank. (filtered in
+  // JS because fetchAllIn only takes one equality filter)
+  const questions = (await fetchAllIn('questions', 'lesson_id', lessonIds, 'id,lesson_id,knowledge_point_id,stem,question_type,image_url'))
+    .filter((q: any) => q.question_type !== 'mock')
   const knowledgePoints = await fetchAllIn('knowledge_points', 'lesson_id', lessonIds, 'id,lesson_id,title,sort_order')
   const questionOptions = await fetchAllIn('question_options', 'question_id', questions.map((q: any) => q.id), 'id,question_id,content,is_correct,display_order')
   const optionsByQuestion = new Map<string, any[]>()
