@@ -799,6 +799,8 @@ export interface MockReviewQuestion {
   selectedOptionId: string | null
   correctOptionId: string | null
   isCorrect: boolean
+  // The student marked this one during the exam ("not sure, come back to it").
+  flagged: boolean
 }
 
 export interface MockReview {

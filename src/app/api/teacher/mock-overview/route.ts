@@ -45,13 +45,15 @@ export async function GET(request: Request) {
 
   // student → paper → best score. A student may sit a paper more than once; the
   // best attempt is the one that represents their ability.
-  const cell = new Map<string, Map<string, { percentage: number; correct: number; total: number; submittedAt: string | null }>>()
+  // The sessionId rides along so a teacher can click a score and see that
+  // student's answers on that paper.
+  const cell = new Map<string, Map<string, { sessionId: string; percentage: number; correct: number; total: number; submittedAt: string | null }>>()
   for (const s of visible) {
     const row = cell.get(s.student_id) || new Map()
     const prev = row.get(s.paper_id)
     const pct = Number(s.score_percentage ?? 0)
     if (!prev || pct > prev.percentage) {
-      row.set(s.paper_id, { percentage: pct, correct: s.total_correct, total: s.total_questions, submittedAt: s.submitted_at })
+      row.set(s.paper_id, { sessionId: s.id, percentage: pct, correct: s.total_correct, total: s.total_questions, submittedAt: s.submitted_at })
     }
     cell.set(s.student_id, row)
   }

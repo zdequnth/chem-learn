@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
-import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff } from 'lucide-react'
+import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff, Flag } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const theme = kindTheme('mock')
@@ -19,6 +19,7 @@ interface ExamQuestion {
   stem: string
   imageUrl: string | null
   selectedOptionId: string | null
+  flagged?: boolean
   options: { id: string; content: string }[]
 }
 
@@ -38,6 +39,8 @@ function MockExamContent() {
   const [sessionId, setSessionId] = useState('')
   const [questions, setQuestions] = useState<ExamQuestion[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [flags, setFlags] = useState<Record<string, boolean>>({})
+  const [onlyFlagged, setOnlyFlagged] = useState(false)
   const [idx, setIdx] = useState(0)
   const [expiresAt, setExpiresAt] = useState('')
   const [durationSeconds, setDurationSeconds] = useState(0)
@@ -97,6 +100,7 @@ function MockExamContent() {
         if (j.state === 'in_progress') {
           setSessionId(j.sessionId); setQuestions(j.questions || [])
           setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
+          setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
           setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
           setPhase('exam'); return
         }
@@ -117,6 +121,7 @@ function MockExamContent() {
       applyServerNow(j.serverNow)
       setSessionId(j.sessionId); setTitle(j.title); setQuestions(j.questions || [])
       setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
+      setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
       setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
       setIdx(0); setPhase('exam')
     } catch (e: any) {
@@ -162,6 +167,21 @@ function MockExamContent() {
     } catch {
       setOffline(true)   // kept locally; the next successful write catches up
     }
+  }
+
+  // Flagging is its own action: it must not disturb the answer, so the request
+  // carries only `flagged`.
+  const toggleFlag = async (q: ExamQuestion) => {
+    const next = !flags[q.questionId]
+    setFlags(prev => ({ ...prev, [q.questionId]: next }))
+    try {
+      const res = await fetch('/api/test/mock/answer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, questionId: q.questionId, flagged: next }),
+      })
+      const j = await res.json()
+      if (j.expired || j.submitted) gradeAndShow(j.review)
+    } catch { /* kept locally; the exam does not depend on this landing */ }
   }
 
   const openKp = async (questionId: string, stem: string, explanation: string) => {
@@ -244,6 +264,11 @@ function MockExamContent() {
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`w-7 h-7 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
                   {q.isCorrect ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-rose-600" />}
+                  {q.flagged && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
+                      <Flag className="w-3 h-3" /> 考试时标记过
+                    </span>
+                  )}
                   {(q.chapterTitle || q.lessonTitle) && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                       {q.chapterTitle}{q.lessonRef ? ` › ${q.lessonRef}` : ''} {q.lessonTitle}
@@ -363,24 +388,40 @@ function MockExamContent() {
           </div>
         )}
 
-        {/* question number palette */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        {/* question number palette. Flagged questions get the amber dot, so the
+            ones the student wanted to come back to are findable at a glance. */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
           {questions.map((q, i) => {
             const done = !!answers[q.questionId]
+            const on = !!flags[q.questionId]
+            if (onlyFlagged && !on) return null
             return (
               <button key={q.questionId} onClick={() => setIdx(i)}
-                className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
+                className={`relative w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
                   i === idx ? 'ring-2 ring-violet-400 ' : ''
                 }${done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
                 {i + 1}
+                {on && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />}
               </button>
             )
           })}
+          <button onClick={() => setOnlyFlagged(v => !v)}
+            className={`ml-1 px-2.5 h-9 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+            {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
+          </button>
         </div>
 
         {cur && (
           <div className="bg-card border rounded-2xl p-5">
-            <div className="text-xs text-muted-foreground mb-2">第 {idx + 1} 题 / 共 {questions.length} 题</div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs text-muted-foreground">第 {idx + 1} 题 / 共 {questions.length} 题</span>
+              <button onClick={() => toggleFlag(cur)}
+                className={`ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  flags[cur.questionId] ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+                <Flag className="w-3.5 h-3.5" />
+                {flags[cur.questionId] ? '已标记（回头再看）' : '标记这题'}
+              </button>
+            </div>
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
             {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
             <div className="space-y-2">

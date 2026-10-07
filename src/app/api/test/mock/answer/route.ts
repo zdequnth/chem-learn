@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { sessionId, questionId, selectedOptionId } = await request.json()
+  const { sessionId, questionId, selectedOptionId, flagged } = await request.json()
   if (!sessionId || !questionId) return NextResponse.json({ error: '参数不全' }, { status: 400 })
 
   const session = await loadSession(sessionId)
@@ -28,19 +28,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ expired: true, review: await buildReview(done) })
   }
 
-  // The option must belong to this question — cheap guard against a stray id.
-  if (selectedOptionId) {
-    const { data: opt } = await supabaseAdmin('question_options', {
-      query: `?id=eq.${selectedOptionId}&select=question_id`,
-    })
-    if (opt?.[0]?.question_id !== questionId) {
-      return NextResponse.json({ error: '选项不属于这道题' }, { status: 400 })
+  const patch: Record<string, unknown> = {}
+
+  // Selecting an option and flagging a question are separate actions, so only the
+  // field that was actually sent is written — flagging must not clear an answer.
+  if (selectedOptionId !== undefined) {
+    // The option must belong to this question — cheap guard against a stray id.
+    if (selectedOptionId) {
+      const { data: opt } = await supabaseAdmin('question_options', {
+        query: `?id=eq.${selectedOptionId}&select=question_id`,
+      })
+      if (opt?.[0]?.question_id !== questionId) {
+        return NextResponse.json({ error: '选项不属于这道题' }, { status: 400 })
+      }
     }
+    patch.selected_option_id = selectedOptionId || null
+    patch.answered_at = new Date().toISOString()
   }
+  if (typeof flagged === 'boolean') patch.flagged = flagged
+
+  if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true })
 
   await supabaseAdmin('mock_test_answers', {
     method: 'PATCH',
-    body: { selected_option_id: selectedOptionId || null, answered_at: new Date().toISOString() },
+    body: patch,
     query: `?session_id=eq.${sessionId}&question_id=eq.${questionId}`,
   })
 

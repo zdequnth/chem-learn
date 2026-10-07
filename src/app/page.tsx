@@ -63,6 +63,41 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* The three course types. Above the subject grid because this is how the
+          platform is organised — the subject is just where you start. */}
+      <section id="modes" className="py-14 px-4 max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold mb-2">三种课程，对应学习的三个阶段</h2>
+          <p className="text-muted-foreground">上课、积累词汇、考前冲刺，各有各的练法</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[
+            {
+              icon: '🧪', name: '通关课程', when: '上新课时用',
+              shell: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-800',
+              desc: '一个章节、一个课时地过：连续答对 7 题（或 10 题内正确率 ≥90%）才算过关，没过关不能进入下一课时。',
+            },
+            {
+              icon: '📖', name: '背单词课程', when: '日常积累用',
+              shell: 'bg-amber-50 border-amber-200', title: 'text-amber-800',
+              desc: '按课时背专业词汇。卡片、发音、拼写、选择题四种练法，按间隔重复安排复习。只有客观题答对才提升掌握度，自己点"认识"不算。',
+            },
+            {
+              icon: '📝', name: '模拟考课程', when: '考前冲刺用',
+              shell: 'bg-violet-50 border-violet-200', title: 'text-violet-800',
+              desc: '绑定一门通关课程，限时做完整套题。倒计时内自由作答、可以回头改答案，交卷后才看分数，并标出每题对应哪一章哪一课时。',
+            },
+          ].map(m => (
+            <div key={m.name} className={`rounded-2xl border p-6 ${m.shell}`}>
+              <div className="text-3xl mb-3">{m.icon}</div>
+              <div className={`font-semibold text-lg ${m.title}`}>{m.name}</div>
+              <div className="text-xs text-muted-foreground mb-2">{m.when}</div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{m.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Subjects Grid */}
       <section id="subjects" className="py-12 px-4 max-w-5xl mx-auto">
         <div className="text-center mb-10">
@@ -80,28 +115,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-20 px-4 max-w-3xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold mb-4">学习流程</h2>
-          <p className="text-muted-foreground text-lg">游戏化闯关，让学习不再枯燥</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {[
-            { icon: '📚', title: '知识树', desc: '查看知识点清单和视频链接，系统学习每个概念' },
-            { icon: '🎯', title: '关卡测试', desc: '连续答对7题或正确率≥90%即通关，答错3题锁定10分钟' },
-          ].map((f, i) => (
-            <div key={i} className="bg-card rounded-2xl p-8 shadow-sm border text-center">
-              <div className="text-4xl mb-4">{f.icon}</div>
-              <h3 className="text-xl font-semibold mb-2">{f.title}</h3>
-              <p className="text-muted-foreground">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Philosophy */}
+      {/* Philosophy — before the flow, because it is the reason the flow is
+          shaped the way it is. */}
       <section className="py-20 px-4 bg-gradient-to-r from-emerald-50 via-white to-emerald-50">
         <div className="max-w-3xl mx-auto text-center">
           <div className="text-sm font-medium text-emerald-600 mb-3 tracking-wide uppercase">教学理念</div>
@@ -127,6 +142,27 @@ export default function HomePage() {
               <p>答错自动记入错题本，针对性复习直到完全掌握</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-20 px-4 max-w-3xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-bold mb-4">学习流程</h2>
+          <p className="text-muted-foreground text-lg">游戏化闯关，让学习不再枯燥</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {[
+            { icon: '📚', title: '知识树', desc: '查看知识点清单和视频链接，系统学习每个概念' },
+            { icon: '🎯', title: '关卡测试', desc: '连续答对7题或正确率≥90%即通关，答错3题锁定10分钟' },
+          ].map((f, i) => (
+            <div key={i} className="bg-card rounded-2xl p-8 shadow-sm border text-center">
+              <div className="text-4xl mb-4">{f.icon}</div>
+              <h3 className="text-xl font-semibold mb-2">{f.title}</h3>
+              <p className="text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 

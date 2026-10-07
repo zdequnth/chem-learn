@@ -69,6 +69,9 @@ function MockAdminContent() {
   const [showOverview, setShowOverview] = useState(false)
   const [overview, setOverview] = useState<any>(null)
   const [overviewClass, setOverviewClass] = useState('')
+  const [overviewCourse, setOverviewCourse] = useState('')
+  const [detail, setDetail] = useState<any>(null)
+  const [detailFor, setDetailFor] = useState<string | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -287,13 +290,22 @@ function MockAdminContent() {
 
   // Students × papers matrix for the whole course — the "how is he doing across
   // several mock exams" view, which a single paper's results cannot answer.
-  const openOverview = async (cls = overviewClass) => {
-    setShowOverview(true); setOverview(null)
+  const openOverview = async (cid = courseId, cls = '') => {
+    setShowOverview(true); setOverview(null); setOverviewCourse(cid); setOverviewClass(cls)
     try {
-      const j = await fetch(`/api/teacher/mock-overview?courseId=${courseId}&classId=${cls}`).then(r => r.json())
+      const j = await fetch(`/api/teacher/mock-overview?courseId=${cid}&classId=${cls}`).then(r => r.json())
       if (j.error) { alert('读取失败：' + j.error); setShowOverview(false); return }
       setOverview(j)
     } catch { setShowOverview(false) }
+  }
+
+  const openDetail = async (sessionId: string) => {
+    setDetailFor(sessionId); setDetail(null)
+    try {
+      const j = await fetch(`/api/teacher/mock-session-detail?sessionId=${sessionId}`).then(r => r.json())
+      if (j.error) { alert('读取失败：' + j.error); setDetailFor(null); return }
+      setDetail(j)
+    } catch { setDetailFor(null) }
   }
   const qWarn = useMemo(() => ({
     lesson: questions.filter(q => !q.lessonId).length,
@@ -742,18 +754,22 @@ function MockAdminContent() {
               <div className="py-16 text-center"><Loader2 className="w-6 h-6 text-violet-500 animate-spin inline" /></div>
             ) : (
               <div className="p-5">
-                {overview.classes?.length > 0 && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xs text-muted-foreground">班级</span>
-                    <select value={overview.classId || ''}
-                      onChange={e => { setOverviewClass(e.target.value); openOverview(e.target.value) }}
-                      className="px-2 py-1.5 border rounded-lg bg-background text-xs">
-                      <option value="">全部班级</option>
-                      {overview.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <span className="text-xs text-muted-foreground">同一个学生多次考同一套卷，取最好的一次</span>
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="text-xs text-muted-foreground">课程</span>
+                  <select value={overviewCourse}
+                    onChange={e => openOverview(e.target.value, '')}
+                    className="px-2 py-1.5 border rounded-lg bg-background text-xs">
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <span className="text-xs text-muted-foreground ml-2">班级</span>
+                  <select value={overviewClass}
+                    onChange={e => openOverview(overviewCourse, e.target.value)}
+                    className="px-2 py-1.5 border rounded-lg bg-background text-xs">
+                    <option value="">全部班级</option>
+                    {(overview.classes || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <span className="text-xs text-muted-foreground">同一套卷多次考取最好的一次；点分数看该生这一场的逐题对错</span>
+                </div>
 
                 {overview.students.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">还没有交卷记录。</p>
@@ -785,7 +801,10 @@ function MockAdminContent() {
                               return (
                                 <td key={p.id} className="py-2 px-2 text-center tabular-nums">
                                   {v ? (
-                                    <span className={v.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}>{v.percentage}%</span>
+                                    <button onClick={() => openDetail(v.sessionId)}
+                                      className={`px-1.5 py-0.5 rounded hover:bg-accent transition-colors ${v.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                      {v.percentage}%
+                                    </button>
                                   ) : <span className="text-gray-300">—</span>}
                                 </td>
                               )
@@ -807,6 +826,66 @@ function MockAdminContent() {
                 <p className="text-xs text-muted-foreground mt-4">
                   趋势 = 最近一次成绩 − 第一次成绩（同一套卷取最好一次）。点每套卷旁边的「成绩」可以看那一场的逐题情况。
                 </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* one student, one paper: every question with what they chose */}
+      {detailFor && (
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setDetailFor(null)}>
+          <div className="bg-card rounded-2xl w-full max-w-3xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-semibold">
+                {detail?.studentName || '…'}
+                <span className="text-sm font-normal text-muted-foreground"> · {detail?.review?.paperTitle || ''}</span>
+                {detail?.review && (
+                  <span className={`ml-2 text-sm font-semibold ${detail.review.score.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {detail.review.score.percentage}%
+                  </span>
+                )}
+              </h2>
+              <button onClick={() => setDetailFor(null)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            {!detail ? (
+              <div className="py-16 text-center"><Loader2 className="w-6 h-6 text-violet-500 animate-spin inline" /></div>
+            ) : (
+              <div className="p-5 space-y-3">
+                <div className="text-xs text-muted-foreground">
+                  答对 {detail.review.score.correct}/{detail.review.score.total}
+                  {detail.review.score.unanswered > 0 && ` · 未作答 ${detail.review.score.unanswered}`}
+                  {detail.review.submitReason === 'timeout' && ' · 超时自动交卷'}
+                </div>
+                {detail.review.questions.map((q: any, i: number) => (
+                  <div key={q.questionId} className="border rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className={`w-6 h-6 rounded-md text-xs font-semibold flex items-center justify-center ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
+                      {!q.isCorrect && q.selectedOptionId == null && <span className="text-xs text-gray-500">未作答</span>}
+                      {q.flagged && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">考试时标记过</span>}
+                      {(q.chapterTitle || q.lessonTitle) && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          {q.lessonRef ? `${q.lessonRef} ` : ''}{q.lessonTitle || q.chapterTitle}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
+                    <div className="space-y-1">
+                      {q.options.map((o: any, oi: number) => {
+                        const right = o.id === q.correctOptionId
+                        const picked = o.id === q.selectedOptionId
+                        return (
+                          <div key={o.id} className={`flex items-start gap-2 px-2 py-1 rounded text-sm ${right ? 'bg-emerald-50' : picked ? 'bg-rose-50' : ''}`}>
+                            <span className="font-medium text-muted-foreground shrink-0">{'ABCDEFGH'[oi]}.</span>
+                            <span className="flex-1"><KatexHtml text={cleanOption(o.content)} /></span>
+                            {right && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
+                            {picked && !right && <span className="text-xs text-rose-700 shrink-0">他选的</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

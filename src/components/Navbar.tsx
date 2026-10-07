@@ -31,10 +31,15 @@ export default function Navbar() {
               {!isTeacher && <Link href="/mock" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('mockExam', lang)}</Link>}
               {isTeacher && (<>
                 <Link href="/teacher/courses" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('courseMgmt', lang)}</Link>
-                <Link href="/teacher/questions" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('questionBank', lang)}</Link>
-                <Link href="/teacher/vocab" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('vocabMgmt', lang)}</Link>
-                <Link href="/teacher/mock" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('mockMgmt', lang)}</Link>
-                <Link href="/teacher/analytics" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('analytics', lang)}</Link>
+                {/* The two gate-mode pages sit together in the gate colour, so the
+                    nav reads as "one group per way of teaching" rather than as a
+                    flat list of seven unrelated links. */}
+                <span className="flex items-center gap-0.5 rounded-xl bg-emerald-50 border border-emerald-200 px-1 py-0.5">
+                  <Link href="/teacher/questions" className="px-2.5 py-1.5 rounded-lg text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">{t('gateQuestionBank', lang)}</Link>
+                  <Link href="/teacher/analytics" className="px-2.5 py-1.5 rounded-lg text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">{t('analytics', lang)}</Link>
+                </span>
+                <Link href="/teacher/vocab" className="px-3 py-1.5 rounded-lg text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">{t('vocabMgmt', lang)}</Link>
+                <Link href="/teacher/mock" className="px-3 py-1.5 rounded-lg text-sm font-medium text-violet-800 bg-violet-50 border border-violet-200 hover:bg-violet-100 transition-colors">{t('mockMgmt', lang)}</Link>
                 <Link href="/teacher/classes" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('classes', lang)}</Link>
                 <Link href="/admin/users" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">{t('userMgmt', lang)}</Link>
               </>)}
@@ -59,8 +64,8 @@ export default function Navbar() {
                 </div>
                 {!isTeacher && <button onClick={() => { router.push('/vocab'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><BookMarked className="w-4 h-4" /> {t('vocab', lang)}</button>}
                 {!isTeacher && <button onClick={() => { router.push('/mock'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><FileText className="w-4 h-4" /> {t('mockExam', lang)}</button>}
-                {isTeacher && <button onClick={() => { router.push('/teacher/vocab'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><BookMarked className="w-4 h-4" /> {t('vocabMgmt', lang)}</button>}
-                {isTeacher && <button onClick={() => { router.push('/teacher/mock'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors md:hidden"><FileText className="w-4 h-4" /> {t('mockMgmt', lang)}</button>}
+                {isTeacher && <button onClick={() => { router.push('/teacher/vocab'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-800 hover:bg-amber-50 transition-colors md:hidden"><BookMarked className="w-4 h-4" /> {t('vocabMgmt', lang)}</button>}
+                {isTeacher && <button onClick={() => { router.push('/teacher/mock'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-violet-800 hover:bg-violet-50 transition-colors md:hidden"><FileText className="w-4 h-4" /> {t('mockMgmt', lang)}</button>}
                 <button onClick={() => { router.push('/settings'); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors"><Settings className="w-4 h-4" /> {t('settings', lang)}</button>
                 <button onClick={() => { signOut(); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"><LogOut className="w-4 h-4" /> {t('signOut', lang)}</button>
               </div>

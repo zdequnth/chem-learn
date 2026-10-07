@@ -280,7 +280,7 @@ export async function buildReview(session: SessionRow) {
   const refByLesson = new Map((outline?.lessons || []).map((l) => [l.lessonId, l]))
 
   const { data: answers } = await supabaseAdmin('mock_test_answers', {
-    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,is_correct`,
+    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,is_correct,flagged`,
   })
   const rows = (answers || []) as any[]
   const qIds = rows.map((r) => r.question_id)
@@ -315,6 +315,7 @@ export async function buildReview(session: SessionRow) {
       selectedOptionId: r.selected_option_id,
       correctOptionId: options.find((o) => o.is_correct)?.id ?? null,
       isCorrect: !!r.is_correct,
+      flagged: !!r.flagged,
     }
   })
 
@@ -343,7 +344,7 @@ export async function buildReview(session: SessionRow) {
  */
 export async function buildExamPaper(session: SessionRow) {
   const { data: answers } = await supabaseAdmin('mock_test_answers', {
-    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id`,
+    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,flagged`,
   })
   const rows = (answers || []) as any[]
   const qIds = rows.map((r) => r.question_id)
@@ -362,6 +363,7 @@ export async function buildExamPaper(session: SessionRow) {
       sortOrder: r.sort_order,
       stem: q?.stem ?? '',
       imageUrl: q?.image_url ?? null,
+      flagged: !!r.flagged,
       selectedOptionId: r.selected_option_id,
       options: ((opts || []) as any[]).filter((o) => o.question_id === r.question_id).map((o) => ({ id: o.id, content: o.content })),
     }
