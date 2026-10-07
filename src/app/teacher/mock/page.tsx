@@ -517,8 +517,8 @@ function MockAdminContent() {
                     </ol>
                     <p className="mt-1.5 text-blue-800/80">
                       {lang === 'zh'
-                        ? '表格、公式、化学式它会自动转好；结构图、装置图这类纯图片题目转不出来 —— AI 拆完题后，你在对应那道题上直接截图粘贴即可。'
-                        : 'Tables, formulas and chemical equations convert automatically; pure image questions (diagrams) do not — screenshot and paste those onto the question after parsing.'}
+                        ? '表格、公式、化学式、图片它都会一并转出来，扫描版和手写也认。但复杂版面偶尔会错位，尤其是选项里的图可能对不到正确的题目上 —— 发现对错位的，直接在对应那道题上截图粘贴一张即可。'
+                        : 'Tables, formulas, chemical equations and images all come through, including scanned and handwritten papers. Complex layouts can still misalign though — especially images inside options — so screenshot and paste a replacement onto any question that lands wrong.'}
                     </p>
                   </div>
 
