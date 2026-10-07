@@ -38,17 +38,52 @@ export async function uploadImageBuffer(buf: Buffer, contentType: string): Promi
  * Copy a remote image (e.g. the CDN link a PDF parser handed back) into our own
  * storage. Without this the image would render for the teacher but break for
  * students, who cannot reach third-party hosts from this network.
+ *
+ * PDF parsers hand back full-resolution crops, so scans routinely exceed
+ * MAX_IMAGE_BYTES. Shrink to fit rather than reject — a slightly smaller diagram
+ * is far better than a missing one.
  */
 export async function importRemoteImage(url: string): Promise<{ url?: string; error?: string }> {
   try {
     const res = await fetch(url)
     if (!res.ok) return { error: `取图失败 HTTP ${res.status}` }
-    const type = (res.headers.get('content-type') || '').split(';')[0].trim()
-    const buf = Buffer.from(await res.arrayBuffer())
+    let type: string = (res.headers.get('content-type') || '').split(';')[0].trim()
+    let buf: Buffer = Buffer.from(await res.arrayBuffer())
+    if (buf.length > MAX_IMAGE_BYTES) {
+      const shrunk = await shrinkImage(buf, type)
+      if (!shrunk) return { error: `图片需小于 1MB，当前 ${Math.round(buf.length / 1024)}KB，自动压缩也压不下来` }
+      buf = shrunk.buf
+      type = shrunk.contentType
+    }
     return await uploadImageBuffer(buf, type)
   } catch (e: any) {
     return { error: '取图出错：' + (e?.message || e) }
   }
+}
+
+/**
+ * Step an oversized image down until it fits. Tries smaller dimensions and
+ * lower JPEG quality in turn; PNG input keeps a transparent palette as long as
+ * it fits, then falls back to JPEG on white.
+ */
+async function shrinkImage(
+  buf: Buffer,
+  contentType: string,
+): Promise<{ buf: Buffer; contentType: string } | null> {
+  const sharp = (await import('sharp')).default
+  const keepPng = contentType === 'image/png'
+  for (const width of [1800, 1400, 1100, 800, 600]) {
+    const resized = () => sharp(buf).resize({ width, withoutEnlargement: true })
+    if (keepPng) {
+      const png = await resized().png({ compressionLevel: 9, palette: true }).toBuffer()
+      if (png.length <= MAX_IMAGE_BYTES) return { buf: png, contentType: 'image/png' }
+    }
+    for (const quality of [82, 70, 58]) {
+      const jpg = await resized().flatten({ background: '#ffffff' }).jpeg({ quality }).toBuffer()
+      if (jpg.length <= MAX_IMAGE_BYTES) return { buf: jpg, contentType: 'image/jpeg' }
+    }
+  }
+  return null
 }
 
 /** True for images already on our domain (nothing to import). */
