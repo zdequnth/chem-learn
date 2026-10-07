@@ -35,6 +35,20 @@ export async function POST(request: Request) {
     query: '?select=*',
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Mirror the initial course into class_courses, so a class created the old way
+  // is immediately visible to the new binding UI and the student dashboard.
+  const created = Array.isArray(data) ? data[0] : data
+  if (created?.id && body.course_id) {
+    const { data: courseRows } = await supabaseAdmin('courses', {
+      query: `?id=eq.${body.course_id}&select=kind`,
+    })
+    await supabaseAdmin('class_courses', {
+      method: 'POST',
+      body: { class_id: created.id, course_id: body.course_id, kind: courseRows?.[0]?.kind || 'gate' },
+    }).catch(() => {})
+  }
+
   return NextResponse.json(data)
 }
 

@@ -27,6 +27,9 @@ export default function TeacherClassesPage() {
 
   const [classes, setClasses] = useState<ClassData[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [bindFor, setBindFor] = useState<{ id: string; name: string } | null>(null)
+  const [bindings, setBindings] = useState<{ id: string; kind: string; courseId: string; courseName: string }[] | null>(null)
+  const [bindPick, setBindPick] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
@@ -79,6 +82,39 @@ export default function TeacherClassesPage() {
   const copyInviteCode = (code: string) => {
     navigator.clipboard.writeText(code)
     alert('邀请码已复制：' + code)
+  }
+
+  // ── course bindings: one course per kind
+  const openBind = async (classId: string, className: string) => {
+    setBindFor({ id: classId, name: className })
+    setBindings(null)
+    const j = await fetch(`/api/class-courses?classId=${classId}`).then(r => r.json()).catch(() => ({}))
+    setBindings(j.bindings || [])
+  }
+
+  const bindCourse = async (kind: string) => {
+    const courseId = bindPick[kind]
+    if (!courseId) return
+    const bound = (bindings || []).find(b => b.kind === kind)
+    if (bound && kind !== 'gate') {
+      if (!confirm(`这个班已经绑定了「${bound.courseName}」，换成新的？\n（学生的词汇进度按词记、模拟考成绩按卷子记，都不受影响）`)) return
+    }
+    const r = await fetch('/api/class-courses', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: bindFor!.id, courseId }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || j.error) return alert('绑定失败：' + (j.error || r.status))
+    setBindPick(p => ({ ...p, [kind]: '' }))
+    openBind(bindFor!.id, bindFor!.name)
+  }
+
+  const unbindCourse = async (kind: string, name: string) => {
+    if (!confirm(`解除与「${name}」的绑定？`)) return
+    const r = await fetch(`/api/class-courses?classId=${bindFor!.id}&kind=${kind}`, { method: 'DELETE' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || j.error) return alert('解除失败：' + (j.error || r.status))
+    openBind(bindFor!.id, bindFor!.name)
   }
 
   if (authLoading || !profile) {
@@ -163,10 +199,16 @@ export default function TeacherClassesPage() {
                         </span>
                       </div>
                     </div>
-                    <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
-                      className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={e => { e.preventDefault(); openBind(cls.id, cls.name) }}
+                        className="px-3 py-1.5 text-xs rounded-lg border font-medium hover:bg-accent transition-colors">
+                        绑定课程
+                      </button>
+                      <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
+                        className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </Link>
               )
@@ -174,6 +216,72 @@ export default function TeacherClassesPage() {
           </div>
         )}
       </main>
+
+      {/* Course bindings: one course per kind. The gate course is locked once set
+          (student progress hangs off its lessons); the other two can be swapped. */}
+      {bindFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setBindFor(null)}>
+          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-1">绑定课程</h2>
+            <p className="text-sm text-muted-foreground mb-4">{bindFor.name}</p>
+
+            {!bindings ? (
+              <div className="py-10 text-center"><Loader2 className="w-6 h-6 animate-spin inline text-gray-400" /></div>
+            ) : (
+              <div className="space-y-4">
+                {([
+                  ['gate', '🧪 通关课程', '决定这个班的进度条算哪门课；绑定后不可更改'],
+                  ['vocab', '📖 背单词课程', '可选；绑上后学生首页会多一张卡片'],
+                  ['mock', '📝 模拟考课程', '可选；绑上后学生首页会多一张卡片'],
+                ] as const).map(([kind, label, hint]) => {
+                  const bound = bindings.find(b => b.kind === kind)
+                  const options = courses.filter(c => (c.kind ?? 'gate') === kind)
+                  return (
+                    <div key={kind} className="border rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-sm font-medium">{label}</span>
+                        {bound ? (
+                          <>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{bound.courseName}</span>
+                            {kind === 'gate'
+                              ? <span className="text-xs text-muted-foreground">已锁定</span>
+                              : <button onClick={() => unbindCourse(kind, bound.courseName)}
+                                  className="text-xs text-red-500 hover:underline">解除</button>}
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">未绑定</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <select value={bindPick[kind] || ''} onChange={e => setBindPick(p => ({ ...p, [kind]: e.target.value }))}
+                          className="flex-1 px-3 py-2 border rounded-lg bg-background text-sm">
+                          <option value="">{bound ? '换成…' : '选择课程…'}</option>
+                          {options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <button onClick={() => bindCourse(kind)} disabled={!bindPick[kind]}
+                          className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40">
+                          {bound ? '更换' : '绑定'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        {hint}
+                        {options.length === 0 && ` · 你还没有${label.slice(2)}`}
+                      </p>
+                    </div>
+                  )
+                })}
+                <p className="text-xs text-muted-foreground">
+                  一类课程只能绑一个。背单词 / 模拟考课程也可以不绑，直接「发布」那门课就对学生可见。
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-5">
+              <button onClick={() => setBindFor(null)} className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

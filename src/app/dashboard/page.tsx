@@ -210,7 +210,7 @@ export default function DashboardPage() {
                           bar: 'bg-blue-500', link: 'text-emerald-600', badge: '',
                           btn: 'bg-blue-500 hover:bg-blue-600' }
                     return (
-                      <div key={c.id}
+                      <div key={c.key || c.id}
                         className={`rounded-lg border px-3 py-2 min-h-[86px] flex flex-col justify-between gap-1.5 min-w-0 ${t.box}`}>
                         {/* 1 — class + course + headline number */}
                         <div className="flex items-center gap-1.5 min-w-0">
