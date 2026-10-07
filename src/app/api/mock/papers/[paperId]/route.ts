@@ -53,7 +53,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   }
 
   return NextResponse.json({
-    paper: { id: paper!.id, title: paper!.title, durationMinutes: paper!.duration_minutes, courseId: paper!.mock_course_id },
+    paper: { id: paper!.id, title: paper!.title, durationMinutes: paper!.duration_minutes, courseId: paper!.mock_course_id, isPublished: !!paper!.is_published },
     courseName: course?.name ?? '',
     sourceCourseName: outline?.courseName ?? null,
     questions,
@@ -74,6 +74,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
   const patch: any = { updated_at: new Date().toISOString() }
   if (typeof body.title === 'string' && body.title.trim()) patch.title = body.title.trim()
   if (body.durationMinutes !== undefined) patch.duration_minutes = Math.min(600, Math.max(1, Number(body.durationMinutes) || 60))
+  // A paper starts unpublished; the teacher publishes it once the AI's questions
+  // have been reviewed. Students only ever see published papers.
+  if (typeof body.isPublished === 'boolean') patch.is_published = body.isPublished
 
   const { error: e } = await supabaseAdmin('mock_papers', { method: 'PATCH', body: patch, query: `?id=eq.${paperId}` })
   if (e) return NextResponse.json({ error: e.message }, { status: 500 })

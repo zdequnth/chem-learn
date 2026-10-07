@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
 
   const { data: paperRows } = await supabaseAdmin('mock_papers', {
-    query: `?id=eq.${paperId}&select=id,title,duration_minutes,mock_course_id`,
+    query: `?id=eq.${paperId}&select=id,title,duration_minutes,mock_course_id,is_published`,
   })
   const paper = paperRows?.[0]
   if (!paper) return NextResponse.json({ error: '试卷不存在' }, { status: 404 })
@@ -31,6 +31,14 @@ export async function POST(request: Request) {
   })
   let session: SessionRow | null = (existingRows?.[0] as SessionRow) ?? null
   let state: 'started' | 'resumed' = 'started'
+
+  // Unpublished means unreviewed: block a NEW start. An exam already under way
+  // is allowed to continue even if the paper was unpublished meanwhile — pulling
+  // the paper out from under a student mid-exam would be worse than letting them
+  // finish it.
+  if (!paper.is_published && !session) {
+    return NextResponse.json({ error: '这套卷子还没有发布' }, { status: 403 })
+  }
 
   if (session) {
     if (isPastDeadline(session)) {

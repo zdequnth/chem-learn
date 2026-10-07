@@ -38,9 +38,9 @@ export async function GET() {
   const visible = courses || []
   if (visible.length === 0) return NextResponse.json({ courses: [] })
 
-  // Only offer a course that actually has a paper to sit.
+  // Only offer a course that actually has a PUBLISHED paper to sit.
   const { data: papers } = await supabaseAdmin('mock_papers', {
-    query: `?mock_course_id=in.(${visible.map((c: any) => c.id).join(',')})&select=mock_course_id`,
+    query: `?mock_course_id=in.(${visible.map((c: any) => c.id).join(',')})&is_published=eq.true&select=mock_course_id`,
   })
   const hasPaper = new Set((papers || []).map((p: any) => p.mock_course_id))
 

@@ -18,8 +18,10 @@ export async function GET(request: Request) {
   const course = courseRows?.[0]
   if (!course || course.kind !== 'mock') return NextResponse.json({ error: '课程不存在' }, { status: 404 })
 
+  // Only published papers — a paper the teacher has not approved yet is invisible
+  // to students.
   const { data: papers } = await supabaseAdmin('mock_papers', {
-    query: `?mock_course_id=eq.${courseId}&order=sort_order&select=id,title,duration_minutes`,
+    query: `?mock_course_id=eq.${courseId}&is_published=eq.true&order=sort_order&select=id,title,duration_minutes`,
   })
   const ids = (papers || []).map((p: any) => p.id)
 

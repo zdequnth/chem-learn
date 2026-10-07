@@ -18,8 +18,12 @@ export async function GET(request: Request) {
   const { error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
   if (error) return NextResponse.json({ error }, { status: status || 400 })
 
+  // select=* rather than a column list: `is_published` arrives with migration 017,
+  // and naming a column that does not exist yet makes PostgREST reject the whole
+  // query — which would take the paper list down instead of just showing
+  // everything as unpublished.
   const { data: papers } = await supabaseAdmin('mock_papers', {
-    query: `?mock_course_id=eq.${courseId}&order=sort_order&select=id,title,duration_minutes,sort_order`,
+    query: `?mock_course_id=eq.${courseId}&order=sort_order&select=*`,
   })
   const ids = (papers || []).map((p: any) => p.id)
   const counts = new Map<string, number>()
@@ -42,6 +46,7 @@ export async function GET(request: Request) {
       durationMinutes: p.duration_minutes,
       questionCount: counts.get(p.id) || 0,
       attemptCount: attempts.get(p.id) || 0,
+      isPublished: !!p.is_published,
     })),
   })
 }

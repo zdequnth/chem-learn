@@ -28,7 +28,7 @@ interface DraftQuestion {
   options: DraftOption[]
   aiGenerated: boolean
 }
-interface PaperRow { id: string; title: string; durationMinutes: number; questionCount: number; attemptCount: number }
+interface PaperRow { id: string; title: string; durationMinutes: number; questionCount: number; attemptCount: number; isPublished: boolean }
 
 function MockAdminContent() {
   const router = useRouter()
@@ -50,11 +50,13 @@ function MockAdminContent() {
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState(60)
   const [questions, setQuestions] = useState<DraftQuestion[]>([])
+  const [published, setPublished] = useState(false)
 
   const [outline, setOutline] = useState<OutChapter[]>([])
   const [sourceName, setSourceName] = useState<string | null>(null)
   const [importText, setImportText] = useState('')
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -101,7 +103,7 @@ function MockAdminContent() {
     try {
       const j = await fetch(`/api/mock/papers/${id}`).then(r => r.json())
       if (j.error) { alert('读取失败：' + j.error); return }
-      setTitle(j.paper.title); setDuration(j.paper.durationMinutes)
+      setTitle(j.paper.title); setDuration(j.paper.durationMinutes); setPublished(!!j.paper.isPublished)
       setQuestions((j.questions || []).map((q: any) => ({
         id: q.id, stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
         imageUrl: q.imageUrl || '', lessonId: q.lessonId, lessonRef: q.lessonRef,
@@ -115,42 +117,57 @@ function MockAdminContent() {
 
   const startNewPaper = () => {
     setOpen(true)
-    setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false)
+    setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false); setPublished(false)
+  }
+
+  const togglePublish = async (id: string, next: boolean) => {
+    const r = await fetch(`/api/mock/papers/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPublished: next }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || j.error) return alert('操作失败：' + (j.error || r.status))
+    if (paperId === id) setPublished(next)
+    loadPapers(courseId)
   }
 
   const handleParse = async () => {
     if (!importText.trim()) return alert('先粘贴试卷文本')
     if (!courseId) return
-    setBusy('parse')
+    setBusy('parse'); setProgress(null)
+    let i = 0, total = 1, failed = 0
     try {
-      const res = await fetch('/api/ai/parse-mock-paper', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: importText, courseId }),
-      })
-      const j = await res.json()
-      if (!res.ok || j.error) { alert('解析失败：' + (j.error || res.status)); return }
-      const add: DraftQuestion[] = (j.questions || []).map((q: any) => ({
-        stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
-        imageUrl: q.imageUrl || '', lessonId: q.lessonId || '', lessonRef: q.lessonRef,
-        chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
-        options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
-        aiGenerated: true,
-      }))
-      setQuestions(prev => [...prev, ...add])
-      setDirty(true)
-      const noKs = add.filter(q => !q.lessonId).length
-      const noOpts = add.filter(q => q.options.length < 2).length
-      const noAns = add.filter(q => q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length
-      alert(
-        `解析完成：新增 ${add.length} 题` +
-        (noKs ? `\n⚠️ ${noKs} 题没能自动对应章节课时，请手动选` : '') +
-        (noOpts ? `\n⚠️ ${noOpts} 题的选项没拆出来，需要手工补（已在列表里，别漏掉）` : '') +
-        (noAns ? `\n⚠️ ${noAns} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查` : '') +
-        (j.failed?.length ? `\n${j.failed.length} 段解析失败，可再点一次` : '')
-      )
+      // One batch per request, looping here. A whole paper is 10+ LLM calls;
+      // sending them all in one request blew the serverless timeout, and the
+      // platform's error page is what surfaced as "is not valid JSON".
+      while (i < total) {
+        const res = await fetch('/api/ai/parse-mock-paper', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: importText, courseId, batchIndex: i }),
+        })
+        const raw = await res.text()
+        let j: any = {}
+        try { j = raw ? JSON.parse(raw) : {} }
+        catch { throw new Error(`第 ${i + 1} 批的响应不是 JSON（HTTP ${res.status}）`) }
+        if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+
+        total = j.totalBatches || 1
+        if (j.failed?.length) failed++
+        const batch: DraftQuestion[] = (j.questions || []).map((q: any) => ({
+          stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
+          imageUrl: q.imageUrl || '', lessonId: q.lessonId || '', lessonRef: q.lessonRef,
+          chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
+          options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
+          aiGenerated: true,
+        }))
+        if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
+        i++
+        setProgress({ done: i, total })
+      }
+      if (failed) alert(`解析完成，但有 ${failed} 批失败。再点一次「AI 解析」会从头再跑一遍（已解析的题不会重复添加，手动核对时去重即可）。`)
     } catch (e: any) {
-      alert('解析出错：' + (e?.message || e))
-    } finally { setBusy('') }
+      alert('解析出错：' + (e?.message || e) + (i > 0 ? `\n第 ${i} 批之前的题目已经放进列表，没丢。` : ''))
+    } finally { setBusy(''); setProgress(null) }
   }
 
   const patchQ = (i: number, patch: Partial<DraftQuestion>) => {
@@ -247,6 +264,11 @@ function MockAdminContent() {
   }
 
   const lessonOptions = useMemo(() => outline.flatMap(c => c.lessons.map(l => ({ ...l, chapter: c.title }))), [outline])
+  const qWarn = useMemo(() => ({
+    lesson: questions.filter(q => !q.lessonId).length,
+    options: questions.filter(q => q.options.length < 2).length,
+    answer: questions.filter(q => q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length,
+  }), [questions])
   const refLabel = (q: DraftQuestion) => {
     if (!q.lessonId) return { text: '未指定课时', cls: 'bg-rose-50 text-rose-700 border-rose-200' }
     const hit = lessonOptions.find(l => l.id === q.lessonId)
@@ -297,16 +319,28 @@ function MockAdminContent() {
             <div className="bg-card border rounded-2xl divide-y mb-6">
               {papers.length === 0 && <div className="p-6 text-sm text-muted-foreground">{lang === 'zh' ? '这门课还没有试卷。点「新建试卷」，粘一份试卷文本让 AI 拆题。' : 'No papers yet.'}</div>}
               {papers.map(p => (
-                <div key={p.id} className={`p-4 flex items-center gap-3 ${paperId === p.id ? 'bg-violet-50' : ''}`}>
+                <div key={p.id} className={`p-4 flex items-center gap-3 flex-wrap ${paperId === p.id ? 'bg-violet-50' : ''}`}>
                   <FileText className="w-5 h-5 text-violet-500 shrink-0" />
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{p.title}</div>
+                    <div className="font-medium truncate flex items-center gap-2">
+                      {p.title}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {p.isPublished ? '已发布' : '未发布'}
+                      </span>
+                    </div>
                     <div className="text-xs text-muted-foreground">{p.durationMinutes} 分钟 · {p.questionCount} 题 · {p.attemptCount} 人次考过</div>
                   </div>
-                  <button onClick={() => openPaper(p.id, p.title, p.durationMinutes)} className={`ml-auto shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
-                    {lang === 'zh' ? '编辑' : 'Edit'}
-                  </button>
-                  <button onClick={() => deletePaper(p.id, p.title)} className="shrink-0 p-1.5 text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button onClick={() => togglePublish(p.id, !p.isPublished)}
+                      className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                        p.isPublished ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
+                      {p.isPublished ? '取消发布' : '发布'}
+                    </button>
+                    <button onClick={() => openPaper(p.id, p.title, p.durationMinutes)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
+                      {lang === 'zh' ? '编辑' : 'Edit'}
+                    </button>
+                    <button onClick={() => deletePaper(p.id, p.title)} className="shrink-0 p-1.5 text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -336,11 +370,29 @@ function MockAdminContent() {
                       {lang === 'zh' ? '关闭' : 'Close'}
                     </button>
                   </div>
-                  {paperId && (
-                    <p className="text-xs text-amber-700 mt-2">
-                      ⚠️ 已保存的试卷改完再点保存会**新建一份**，不会覆盖原卷——学生已经考过的记录不受影响。
-                    </p>
-                  )}
+                  <div className="text-xs mt-2 space-y-1">
+                    {paperId ? (
+                      <>
+                        <p className={`flex items-center gap-2 ${published ? 'text-emerald-700' : 'text-gray-600'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${published ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {published ? '已发布' : '未发布'}
+                          </span>
+                          {published ? '学生现在看得到这套卷子。' : '学生看不到这套卷子——审完确认无误再发布。'}
+                          <button onClick={() => togglePublish(paperId, !published)}
+                            className={`px-2 py-0.5 rounded-md font-medium ${published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
+                            {published ? '取消发布' : '立即发布'}
+                          </button>
+                        </p>
+                        <p className="text-amber-700">
+                          ⚠️ 已保存的试卷改完再点保存会**新建一份**，不会覆盖原卷——学生已经考过的记录不受影响。
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-gray-600">
+                        新卷子保存后默认是**未发布**的，学生看不到；审核确认无误后在上面的列表里点「发布」。
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* import */}
@@ -355,12 +407,29 @@ function MockAdminContent() {
                     <button onClick={handleParse} disabled={busy !== ''}
                       className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
                       {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      {busy === 'parse' ? (lang === 'zh' ? 'AI 解析中…（约 10-30 秒）' : 'Parsing…') : (lang === 'zh' ? 'AI 解析' : 'Parse')}
+                      {busy === 'parse'
+                        ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
+                        : (lang === 'zh' ? 'AI 解析' : 'Parse')}
                     </button>
                     <span className="text-xs text-muted-foreground">
                       {lang === 'zh' ? '解析结果会追加到下面；这套试卷没有答案，AI 会自己解题，答案和解析都是草稿，请逐题核对。' : ''}
                     </span>
                   </div>
+                  {progress && (
+                    <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full bg-violet-500 transition-all"
+                        style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
+                    </div>
+                  )}
+                  {/* Warnings recomputed from the list itself, so they stay correct
+                      across a multi-batch import instead of flashing per batch. */}
+                  {(qWarn.lesson || qWarn.options || qWarn.answer) > 0 && (
+                    <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-0.5">
+                      {qWarn.lesson > 0 && <div>⚠️ {qWarn.lesson} 题没能自动对应章节课时，请手动选</div>}
+                      {qWarn.options > 0 && <div>⚠️ {qWarn.options} 题的选项没拆出来，需要手工补（在列表里，别漏掉）</div>}
+                      {qWarn.answer > 0 && <div>⚠️ {qWarn.answer} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查</div>}
+                    </div>
+                  )}
                 </div>
 
                 {/* question review */}

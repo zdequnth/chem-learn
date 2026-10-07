@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { text, courseId } = await request.json()
+  const { text, courseId, batchIndex: rawBatchIndex } = await request.json()
   if (!text?.trim()) return NextResponse.json({ error: '请粘贴试卷文本' }, { status: 400 })
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
 
@@ -145,19 +145,20 @@ export async function POST(request: Request) {
     .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
     .replace(/\\\[/g, '$$$').replace(/\\\]/g, '$$$')
 
-  const raw: any[] = []
-  const failed: string[] = []
-  for (const chunk of splitIntoBatches(cleanText)) {
-    const prompt = buildPrompt(chunk, outline.courseName, outline.promptList)
-    let result = await parseChunk(client, prompt)
-    if (!result.ok) result = await parseChunk(client, prompt) // retry once, failures are random
-    if (result.ok) raw.push(...result.questions)
-    else failed.push(chunk.slice(0, 80))
-  }
+  // ONE batch per request, with the client looping over batchIndex. A whole paper
+  // is 10+ LLM calls; doing them in a single request exceeded the serverless
+  // timeout and the platform returned an HTML error page, which surfaced in the
+  // browser as "Unexpected token 'A' ... is not valid JSON". Splitting the text is
+  // deterministic, so the client can just ask for batch 0, 1, 2 … in turn.
+  const batches = splitIntoBatches(cleanText)
+  const batchIndex = Math.min(Math.max(0, Number(rawBatchIndex) || 0), batches.length - 1)
+  const chunk = batches[batchIndex]
 
-  if (raw.length === 0) {
-    return NextResponse.json({ error: 'AI 解析失败，请检查文本格式', raw: failed[0] || '' }, { status: 500 })
-  }
+  const prompt = buildPrompt(chunk, outline.courseName, outline.promptList)
+  let result = await parseChunk(client, prompt)
+  if (!result.ok) result = await parseChunk(client, prompt) // retry once, failures are random
+  const raw: any[] = result.ok ? result.questions : []
+  const failed: string[] = result.ok ? [] : [chunk.slice(0, 80)]
 
   // Validate every lessonRef against the outline. The model can only ever name a
   // lesson that exists; anything else becomes null and the teacher picks.
@@ -186,5 +187,5 @@ export async function POST(request: Request) {
   const suspect = questions.filter(
     (q) => q.options.length < 2 || q.options.filter((o: any) => o.isCorrect).length !== 1,
   ).length
-  return NextResponse.json({ questions, failed, suspect })
+  return NextResponse.json({ questions, failed, suspect, batchIndex, totalBatches: batches.length })
 }

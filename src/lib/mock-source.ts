@@ -97,7 +97,7 @@ export async function loadPaperForTeacher(
   isAdmin = false,
 ): Promise<{ paper?: any; course?: MockCourse; error?: string; status?: number }> {
   const { data } = await supabaseAdmin('mock_papers', {
-    query: `?id=eq.${paperId}&select=id,mock_course_id,title,duration_minutes,sort_order`,
+    query: `?id=eq.${paperId}&select=*`,
   })
   const paper = data?.[0]
   if (!paper) return { error: '试卷不存在', status: 404 }
