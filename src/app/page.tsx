@@ -71,11 +71,15 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold mb-2">三种课程，对应学习的三个阶段</h2>
           <p className="text-muted-foreground">同一个平台，三套不同的练法</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Podium: the gate course stands in the middle and taller, the other two
+            flank it a step lower. Mobile keeps source order, so the core course
+            still comes first there. */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
           {[
             {
               icon: '🧪', name: '通关课程', tag: '核心', when: '上新课',
-              shell: 'bg-emerald-50 border-emerald-300',
+              shell: 'bg-emerald-50 border-emerald-300 md:order-2',
+              height: 'md:min-h-[310px] md:py-10',
               title: 'text-emerald-900 font-bold', lead: 'text-emerald-900 font-semibold',
               leadText: '不掌握，不前进。',
               desc: '学完一个知识点、确认真正掌握，才解锁下一个。把"似懂非懂"挡在门外，不让基础漏洞一路累积。',
@@ -83,32 +87,37 @@ export default function HomePage() {
             },
             {
               icon: '📖', name: '背单词课程', tag: '', when: '日常积累',
-              shell: 'bg-amber-50 border-amber-200', title: 'text-amber-800 font-semibold', lead: 'font-medium',
+              shell: 'bg-amber-50 border-amber-200 md:order-1',
+              height: 'md:min-h-[250px]',
+              title: 'text-amber-800 font-semibold', lead: 'font-medium',
               leadText: '先过词汇关。',
               desc: '用英文授课的学科，专业词汇才是真正的门槛。把每一课的词汇练到能听、能写、能用。',
             },
             {
               icon: '📝', name: '模拟考课程', tag: '', when: '考前冲刺',
-              shell: 'bg-violet-50 border-violet-200', title: 'text-violet-800 font-semibold', lead: 'font-medium',
+              shell: 'bg-violet-50 border-violet-200 md:order-3',
+              height: 'md:min-h-[250px]',
+              title: 'text-violet-800 font-semibold', lead: 'font-medium',
               leadText: '用整套题检验自己。',
               desc: '平时刷题测不出真实水平。限时做完整套题，交卷后每道错题都能定位回它属于哪一课。',
             },
           ].map(m => (
-            // Same box for all three; the gate course is emphasised with weight,
-            // a badge and a lift on hover instead of taking more space.
             <div key={m.name}
-              className={`rounded-2xl border p-6 transition-all duration-200 ${m.shell} ${
-                m.feature ? 'shadow-sm hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}>
+              className={`rounded-2xl border p-6 transition-all duration-200 flex flex-col ${m.shell} ${m.height} ${
+                m.feature ? 'shadow-md hover:shadow-xl hover:-translate-y-1' : 'hover:shadow-md'}`}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-3xl">{m.icon}</span>
+                <span className={m.feature ? 'text-4xl' : 'text-3xl'}>{m.icon}</span>
                 {m.tag && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-medium">核心</span>
                 )}
               </div>
               <div className={`text-lg ${m.title}`}>{m.name}</div>
               <div className="text-xs text-muted-foreground mb-3">{m.when}</div>
-              <p className={`text-sm mb-1.5 ${m.lead}`}>{m.leadText}</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">{m.desc}</p>
+              {/* sits at the bottom so the three cards read as one podium row */}
+              <div className="mt-auto">
+                <p className={`text-sm mb-1.5 ${m.lead}`}>{m.leadText}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{m.desc}</p>
+              </div>
             </div>
           ))}
         </div>
