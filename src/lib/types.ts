@@ -799,6 +799,9 @@ export interface MockReviewQuestion {
   selectedOptionId: string | null
   correctOptionId: string | null
   isCorrect: boolean
+  // True when this question was already answered correctly in an earlier sitting,
+  // so this retest did not ask it again.
+  notInThisSession: boolean
   // The student marked this one during the exam ("not sure, come back to it").
   flagged: boolean
   // Across every attempt at this paper: which attempt first got it right, how
@@ -808,10 +811,26 @@ export interface MockReviewQuestion {
   firstCorrectAttempt: number | null
 }
 
+export interface MockReviewAttempt {
+  n: number
+  sessionId: string
+  mode: 'full' | 'retry'
+  // that sitting
+  correctInAttempt: number
+  totalInAttempt: number
+  ownPercentage: number
+  // running mastery across this and every earlier attempt
+  cumulativeCorrect: number
+  cumulativePercentage: number
+  submittedAt: string | null
+  submitReason: MockSubmitReason | null
+}
+
 export interface MockReview {
   sessionId: string
   paperId: string
   paperTitle: string
+  /** Cumulative: how much of the whole paper has been answered correctly by now. */
   score: {
     total: number
     correct: number
@@ -819,6 +838,9 @@ export interface MockReview {
     unanswered: number
     percentage: number
   }
+  /** Every sitting, oldest first — the score box lists these. */
+  attempts: MockReviewAttempt[]
+  sessionMode: 'full' | 'retry'
   durationSeconds: number
   usedSeconds: number
   submittedAt: string | null

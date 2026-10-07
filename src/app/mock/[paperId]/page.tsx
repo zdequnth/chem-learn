@@ -292,17 +292,49 @@ function MockExamContent() {
             <ArrowLeft className="w-4 h-4" /> 返回模拟考列表
           </Link>
 
-          <div className="bg-card border rounded-2xl p-6 mb-6 text-center">
-            <div className="text-sm text-muted-foreground mb-1">{review.paperTitle}</div>
-            <div className={`text-5xl font-bold ${theme.text}`}>{review.score.percentage}%</div>
-            <div className="text-sm text-muted-foreground mt-2">
-              答对 {review.score.correct} / {review.score.total} 题
-              {review.score.unanswered > 0 && ` · 未作答 ${review.score.unanswered} 题`}
-              {review.submitReason === 'timeout' && ' · 倒计时结束自动交卷'}
+          <div className="bg-card border rounded-2xl p-6 mb-6">
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-1">{review.paperTitle}</div>
+              {/* Cumulative mastery — how much of the whole paper is now correct. */}
+              <div className={`text-5xl font-bold ${theme.text}`}>{review.score.percentage}%</div>
+              <div className="text-sm text-muted-foreground mt-2">
+                全卷 {review.score.total} 题，已答对 {review.score.correct} 题
+                {review.score.unanswered > 0 && ` · 还没答对 ${review.score.unanswered} 题`}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                本次用时 {fmt(review.usedSeconds)} / {fmt(review.durationSeconds)}
+                {review.submitReason === 'timeout' && ' · 倒计时结束自动交卷'}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              用时 {fmt(review.usedSeconds)} / {fmt(review.durationSeconds)}
-            </div>
+
+            {/* 历次成绩：每次的对/总，以及到目前为止全卷累计答对了多少 */}
+            {review.attempts.length > 0 && (
+              <div className="mt-5 pt-4 border-t">
+                <div className="text-xs text-muted-foreground mb-2">历次成绩</div>
+                <div className="space-y-1">
+                  {review.attempts.map(a => (
+                    <div key={a.sessionId}
+                      className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1 ${a.sessionId === review.sessionId ? 'bg-violet-50' : ''}`}>
+                      <span className="w-14 shrink-0 text-muted-foreground">
+                        第 {a.n} 次{a.mode === 'retry' ? '（重测）' : ''}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground">
+                        {a.correctInAttempt}/{a.totalInAttempt}
+                      </span>
+                      <span className="ml-auto tabular-nums font-medium">
+                        {a.cumulativeCorrect}/{review.score.total}
+                        <span className={a.cumulativePercentage >= 60 ? ' text-emerald-700' : ' text-rose-600'}>
+                          {' '}{a.cumulativePercentage}%
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  百分比是**全卷累计**：一道题只要答对过一次就算对（比如第 2 次是 70 题里答对 3 道，但加上第 1 次已对的 5 道，累计是 8/75）。
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Filter the review down to what needs attention — with a few retests
@@ -310,7 +342,7 @@ function MockExamContent() {
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
             {([
               ['all', '全部', review.questions.length],
-              ['thisWrong', '本次做错', review.questions.filter(q => !q.isCorrect).length],
+              ['thisWrong', '本次做错', review.questions.filter(q => !q.isCorrect && !q.notInThisSession).length],
               ['everWrong', '错过', review.questions.filter(q => (q.wrongTimes ?? 0) > 0).length],
               ['repeatWrong', '反复错', review.questions.filter(q => (q.wrongTimes ?? 0) >= 2).length],
               ['never', '至今没答对', review.questions.filter(q => q.firstCorrectAttempt == null).length],
@@ -325,7 +357,7 @@ function MockExamContent() {
 
           <div className="space-y-3">
             {review.questions.filter(q => {
-              if (reviewFilter === 'thisWrong') return !q.isCorrect
+              if (reviewFilter === 'thisWrong') return !q.isCorrect && !q.notInThisSession
               if (reviewFilter === 'everWrong') return (q.wrongTimes ?? 0) > 0
               if (reviewFilter === 'repeatWrong') return (q.wrongTimes ?? 0) >= 2
               if (reviewFilter === 'never') return q.firstCorrectAttempt == null
@@ -341,6 +373,11 @@ function MockExamContent() {
                     </span>
                   )}
                   {/* Across all attempts, not just this one. */}
+                  {q.notInThisSession && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                      本次未考（之前已答对）
+                    </span>
+                  )}
                   {q.firstCorrectAttempt == null ? (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
                       至今没答对（错 {q.wrongTimes} 次）

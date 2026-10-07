@@ -192,42 +192,6 @@ export async function neverCorrectQuestions(studentId: string, paperId: string):
   return all.filter((q) => !everCorrect.has(q))
 }
 
-/**
- * Per question: which attempt first got it right, how many times it was asked and
- * how many times it was missed. Drives the "第一次答对 / 第二次才答对 / 反复错" labels
- * and the review filters.
- */
-export async function attemptHistory(studentId: string, paperId: string) {
-  const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
-    query: `?student_id=eq.${studentId}&paper_id=eq.${paperId}&status=eq.submitted&order=submitted_at&select=id`,
-  })
-  const sids = ((sessions || []) as any[]).map((s) => s.id)
-
-  const bySession = new Map<string, Map<string, boolean>>()
-  for (let i = 0; i < sids.length; i += 100) {
-    const chunk = sids.slice(i, i + 100)
-    const { data } = await supabaseAdmin('mock_test_answers', {
-      query: `?session_id=in.(${chunk.join(',')})&select=session_id,question_id,is_correct`,
-    })
-    for (const a of (data || []) as any[]) {
-      if (!bySession.has(a.session_id)) bySession.set(a.session_id, new Map())
-      bySession.get(a.session_id)!.set(a.question_id, !!a.is_correct)
-    }
-  }
-
-  const hist = new Map<string, { asked: number; wrong: number; firstCorrectAttempt: number | null }>()
-  for (const [i, sid] of sids.entries()) {
-    for (const [qid, ok] of bySession.get(sid) || []) {
-      const cur = hist.get(qid) || { asked: 0, wrong: 0, firstCorrectAttempt: null }
-      cur.asked++
-      if (!ok) cur.wrong++
-      else if (cur.firstCorrectAttempt === null) cur.firstCorrectAttempt = i + 1
-      hist.set(qid, cur)
-    }
-  }
-  return hist
-}
-
 export function isPastDeadline(session: SessionRow, graceSeconds = GRACE_SECONDS): boolean {
   return Date.now() > new Date(session.expires_at).getTime() + graceSeconds * 1000
 }
@@ -331,6 +295,77 @@ export async function finaliseSession(session: SessionRow, reason: 'manual' | 't
  * The review payload. Correct answers and explanations appear HERE only — while
  * a session is in_progress nothing that reveals an answer is ever sent.
  */
+/**
+ * A student's whole history on one paper: every attempt in order (with a running
+ * "how many of the paper's questions have I now got right at least once"), and
+ * per question when it was first answered correctly.
+ *
+ * The running figure is the one that gets reported everywhere. A retest only
+ * contains the questions that are still wrong, so a per-sitting score would go
+ * DOWN when the remaining hard ones are retested — whereas mastery only ever
+ * goes up, which is what "how much of this paper do I know" should mean.
+ */
+export async function studentPaperHistory(studentId: string, paperId: string) {
+  const { data: pq } = await supabaseAdmin('mock_paper_questions', {
+    query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id`,
+  })
+  const paperQids = ((pq || []) as any[]).map((r) => r.question_id)
+
+  const { data: sessRows } = await supabaseAdmin('mock_test_sessions', {
+    query: `?student_id=eq.${studentId}&paper_id=eq.${paperId}&status=eq.submitted&order=submitted_at&select=id,mode,submitted_at,submit_reason,total_questions,total_correct`,
+  })
+  const sessions = (sessRows || []) as any[]
+
+  const answersBySession = new Map<string, any[]>()
+  for (let i = 0; i < sessions.length; i += 100) {
+    const chunk = sessions.slice(i, i + 100).map((s) => s.id)
+    const { data } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=in.(${chunk.join(',')})&order=sort_order&select=session_id,question_id,selected_option_id,is_correct,flagged`,
+    })
+    for (const a of (data || []) as any[]) {
+      if (!answersBySession.has(a.session_id)) answersBySession.set(a.session_id, [])
+      answersBySession.get(a.session_id)!.push(a)
+    }
+  }
+
+  const everCorrect = new Set<string>()
+  const everAnswered = new Set<string>()
+  const hist = new Map<string, { asked: number; wrong: number; firstCorrectAttempt: number | null; lastSelection: string | null; flagged: boolean }>()
+
+  const attempts = sessions.map((s, i) => {
+    const ans = answersBySession.get(s.id) || []
+    let correctHere = 0
+    for (const a of ans) {
+      if (a.selected_option_id) everAnswered.add(a.question_id)
+      const h = hist.get(a.question_id) || { asked: 0, wrong: 0, firstCorrectAttempt: null as number | null, lastSelection: null as string | null, flagged: false }
+      h.asked++
+      if (a.selected_option_id) h.lastSelection = a.selected_option_id
+      if (a.flagged) h.flagged = true
+      if (a.is_correct) { correctHere++; if (h.firstCorrectAttempt === null) h.firstCorrectAttempt = i + 1 }
+      else h.wrong++
+      hist.set(a.question_id, h)
+      if (a.is_correct) everCorrect.add(a.question_id)
+    }
+    const total = paperQids.length || 1
+    return {
+      n: i + 1,
+      sessionId: s.id,
+      mode: s.mode || 'full',
+      // what happened in this sitting
+      correctInAttempt: correctHere,
+      totalInAttempt: ans.length,
+      ownPercentage: ans.length ? Math.round((correctHere / ans.length) * 10000) / 100 : 0,
+      // the running figure that is reported everywhere
+      cumulativeCorrect: everCorrect.size,
+      cumulativePercentage: Math.round((everCorrect.size / total) * 10000) / 100,
+      submittedAt: s.submitted_at,
+      submitReason: s.submit_reason,
+    }
+  })
+
+  return { paperQids, attempts, hist, answersBySession, paperTotal: paperQids.length, everCorrect, everAnswered }
+}
+
 export async function buildReview(session: SessionRow) {
   const { data: paperRows } = await supabaseAdmin('mock_papers', {
     query: `?id=eq.${session.paper_id}&select=id,title,mock_course_id`,
@@ -344,11 +379,16 @@ export async function buildReview(session: SessionRow) {
     : null
   const refByLesson = new Map((outline?.lessons || []).map((l) => [l.lessonId, l]))
 
-  const { data: answers } = await supabaseAdmin('mock_test_answers', {
-    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,is_correct,flagged`,
+  const { paperQids, attempts, hist } = await studentPaperHistory(session.student_id, session.paper_id)
+  const thisSession = attempts.find((a) => a.sessionId === session.id)
+  const here = new Map<string, any>()
+  // The answer rows of THIS session only — used to show what was picked now.
+  const { data: thisAnswers } = await supabaseAdmin('mock_test_answers', {
+    query: `?session_id=eq.${session.id}&select=question_id,selected_option_id,is_correct,flagged`,
   })
-  const rows = (answers || []) as any[]
-  const qIds = rows.map((r) => r.question_id)
+  for (const a of (thisAnswers || []) as any[]) here.set(a.question_id, a)
+
+  const qIds = paperQids.length ? paperQids : [...here.keys()]
   const { data: qs } = qIds.length
     ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,image_url,lesson_id` })
     : { data: [] as any[] }
@@ -359,21 +399,18 @@ export async function buildReview(session: SessionRow) {
     : { data: [] as any[] }
   const qById = new Map((qs || []).map((q: any) => [q.id, q]))
 
-  // How this student has done on each question across ALL their attempts at this
-  // paper — so the review can say "第二次才答对" or "反复错" rather than only
-  // reporting this one sitting.
-  const hist = await attemptHistory(session.student_id, session.paper_id)
-
-  let unanswered = 0
-  const questions = rows.map((r) => {
-    const q: any = qById.get(r.question_id)
+  // EVERY question of the paper, in paper order — a retest covers only the ones
+  // still wrong, and showing just those made a 75-question paper look like a
+  // 70-question one.
+  const questions = qIds.map((qid, i) => {
+    const q: any = qById.get(qid)
     const ref = q ? refByLesson.get(q.lesson_id) : undefined
-    const options = ((opts || []) as any[]).filter((o) => o.question_id === r.question_id)
-    if (!r.selected_option_id) unanswered++
-    const h = hist.get(r.question_id) || { asked: 1, wrong: r.is_correct ? 0 : 1, firstCorrectAttempt: r.is_correct ? 1 : null }
+    const options = ((opts || []) as any[]).filter((o) => o.question_id === qid)
+    const mine = here.get(qid)
+    const h = hist.get(qid)
     return {
-      questionId: r.question_id,
-      sortOrder: r.sort_order,
+      questionId: qid,
+      sortOrder: i,
       stem: q?.stem ?? '',
       imageUrl: q?.image_url ?? null,
       explanation: stripAnswerPrefix(q?.explanation ?? ''),
@@ -383,27 +420,34 @@ export async function buildReview(session: SessionRow) {
       lessonTitle: ref?.lessonTitle ?? null,
       lessonRef: ref?.ref ?? null,
       options: options.map((o) => ({ id: o.id, content: o.content })),
-      selectedOptionId: r.selected_option_id,
+      // this sitting's answer, else what they last picked for it
+      selectedOptionId: mine ? mine.selected_option_id : (h?.lastSelection ?? null),
       correctOptionId: options.find((o) => o.is_correct)?.id ?? null,
-      isCorrect: !!r.is_correct,
-      flagged: !!r.flagged,
-      askedTimes: h.asked,
-      wrongTimes: h.wrong,
-      firstCorrectAttempt: h.firstCorrectAttempt,
+      isCorrect: !!h?.firstCorrectAttempt,
+      notInThisSession: !mine,
+      flagged: !!(mine?.flagged || h?.flagged),
+      askedTimes: h?.asked ?? 0,
+      wrongTimes: h?.wrong ?? 0,
+      firstCorrectAttempt: h?.firstCorrectAttempt ?? null,
     }
   })
+
+  const neverAnswered = questions.filter((q) => q.firstCorrectAttempt == null).length
 
   return {
     sessionId: session.id,
     paperId: session.paper_id,
     paperTitle: paper?.title ?? '',
+    // Cumulative mastery, not this sitting's score.
     score: {
-      total: session.total_questions,
-      correct: session.total_correct,
-      wrong: session.total_wrong,
-      unanswered,
-      percentage: Number(session.score_percentage ?? 0),
+      total: paperQids.length,
+      correct: thisSession?.cumulativeCorrect ?? 0,
+      wrong: paperQids.length - (thisSession?.cumulativeCorrect ?? 0),
+      unanswered: neverAnswered,
+      percentage: thisSession?.cumulativePercentage ?? 0,
     },
+    attempts,
+    sessionMode: session.mode || 'full',
     durationSeconds: session.duration_seconds,
     usedSeconds: Math.max(0, Math.round((new Date(session.submitted_at || new Date()).getTime() - new Date(session.started_at).getTime()) / 1000)),
     submittedAt: session.submitted_at,

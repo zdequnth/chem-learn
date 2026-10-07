@@ -713,10 +713,10 @@ function MockAdminContent() {
                                     <span key={a.sessionId} className="flex items-center gap-1">
                                       {i > 0 && <span className="text-gray-300">→</span>}
                                       <button onClick={() => openDetail(a.sessionId)}
-                                        title={`第 ${a.n} 次${a.mode === 'retry' ? '（错题重测）' : ''} · ${a.correct}/${a.total}${a.submitReason === 'timeout' ? ' · 超时交卷' : ''}`}
+                                        title={`第 ${a.n} 次${a.mode === 'retry' ? '（错题重测）' : ''}：本场 ${a.correctInAttempt}/${a.totalInAttempt}，全卷累计 ${a.cumulativeCorrect}/${r.paperTotal}${a.submitReason === 'timeout' ? ' · 超时交卷' : ''}`}
                                         className={`px-1.5 py-0.5 rounded tabular-nums hover:bg-accent transition-colors ${
-                                          a.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                        <span className="text-[10px] text-muted-foreground">{a.mode === 'retry' ? '测' : a.n}</span> {a.percentage}%
+                                          a.cumulativePercentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                        <span className="text-[10px] text-muted-foreground">{a.mode === 'retry' ? '测' : a.n}</span> {a.cumulativePercentage}%
                                       </button>
                                     </span>
                                   ))}
@@ -878,10 +878,20 @@ function MockAdminContent() {
             ) : (
               <div className="p-5 space-y-3">
                 <div className="text-xs text-muted-foreground">
-                  答对 {detail.review.score.correct}/{detail.review.score.total}
-                  {detail.review.score.unanswered > 0 && ` · 未作答 ${detail.review.score.unanswered}`}
+                  全卷 {detail.review.score.total} 题，累计答对 {detail.review.score.correct} 题
+                  {detail.review.score.unanswered > 0 && ` · 还没答对 ${detail.review.score.unanswered} 题`}
                   {detail.review.submitReason === 'timeout' && ' · 超时自动交卷'}
                 </div>
+                {detail.review.attempts?.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>历次：</span>
+                    {detail.review.attempts.map((a: any) => (
+                      <span key={a.sessionId} className={a.sessionId === detail.review.sessionId ? 'font-medium text-violet-700' : ''}>
+                        第{a.n}次 {a.correctInAttempt}/{a.totalInAttempt} → 累计 {a.cumulativeCorrect}/{detail.review.score.total}（{a.cumulativePercentage}%）
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {detail.review.questions.map((q: any, i: number) => (
                   <div key={q.questionId} className="border rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">

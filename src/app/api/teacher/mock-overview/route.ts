@@ -33,6 +33,38 @@ export async function GET(request: Request) {
   })
   const subs = (sessions || []) as any[]
 
+  // How many questions each paper has, so the mastery figure below is "share of
+  // the whole paper", matching what the student and the per-paper page show.
+  const { data: paperQs } = await supabaseAdmin('mock_paper_questions', {
+    query: `?paper_id=in.(${paperRows.map((p) => p.id).join(',')})&select=paper_id,question_id`,
+  })
+  const qidsByPaper = new Map<string, string[]>()
+  for (const r of (paperQs || []) as any[]) {
+    if (!qidsByPaper.has(r.paper_id)) qidsByPaper.set(r.paper_id, [])
+    qidsByPaper.get(r.paper_id)!.push(r.question_id)
+  }
+
+  // Which of a paper's questions each student has EVER answered correctly — the
+  // same running-mastery figure the student and the per-paper page report.
+  const studentOfSession = new Map(subs.map((s: any) => [s.id, s.student_id]))
+  const studentOfPaper = new Map(subs.map((s: any) => [s.id, s.paper_id]))
+  const correctPairs = new Map<string, Set<string>>()   // `${studentId}|${paperId}` → question ids
+  const subIds = subs.map((s: any) => s.id)
+  for (let i = 0; i < subIds.length; i += 100) {
+    const chunk = subIds.slice(i, i + 100)
+    const { data } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=in.(${chunk.join(',')})&is_correct=eq.true&select=session_id,question_id`,
+    })
+    for (const a of (data || []) as any[]) {
+      const sid = studentOfSession.get(a.session_id)
+      const pid = studentOfPaper.get(a.session_id)
+      if (!sid || !pid) continue
+      const key = `${sid}|${pid}`
+      if (!correctPairs.has(key)) correctPairs.set(key, new Set())
+      correctPairs.get(key)!.add(a.question_id)
+    }
+  }
+
   const studentIds = [...new Set(subs.map((s) => s.student_id))]
   const { data: profiles } = studentIds.length
     ? await supabaseAdmin('profiles', { query: `?id=in.(${studentIds.join(',')})&select=id,display_name` })
@@ -45,15 +77,19 @@ export async function GET(request: Request) {
 
   // student → paper → best score. A student may sit a paper more than once; the
   // best attempt is the one that represents their ability.
-  // The sessionId rides along so a teacher can click a score and see that
-  // student's answers on that paper.
+  // One cell per student × paper: the share of the WHOLE paper that student has
+  // answered correctly by now. The sessionId of their latest sitting rides along
+  // so clicking a cell opens that attempt's answers.
   const cell = new Map<string, Map<string, { sessionId: string; percentage: number; correct: number; total: number; submittedAt: string | null }>>()
   for (const s of visible) {
     const row = cell.get(s.student_id) || new Map()
     const prev = row.get(s.paper_id)
-    const pct = Number(s.score_percentage ?? 0)
-    if (!prev || pct > prev.percentage) {
-      row.set(s.paper_id, { sessionId: s.id, percentage: pct, correct: s.total_correct, total: s.total_questions, submittedAt: s.submitted_at })
+    const paperTotal = qidsByPaper.get(s.paper_id)?.length || 0
+    const correct = correctPairs.get(`${s.student_id}|${s.paper_id}`)?.size ?? 0
+    const pct = paperTotal ? Math.round((correct / paperTotal) * 10000) / 100 : 0
+    // keep the newest sitting (a retest supersedes the first attempt)
+    if (!prev || new Date(s.submitted_at || 0).getTime() >= new Date(prev.submittedAt || 0).getTime()) {
+      row.set(s.paper_id, { sessionId: s.id, percentage: pct, correct, total: paperTotal, submittedAt: s.submitted_at })
     }
     cell.set(s.student_id, row)
   }

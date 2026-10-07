@@ -75,9 +75,30 @@ export async function GET(request: Request) {
     : { data: [] as any[] }
   const qById = new Map((qs || []).map((q: any) => [q.id, q]))
 
+  // Per question, counted PER STUDENT, not per sitting: a question is "known" once
+  // a student has answered it correctly, however many goes it took. Counting each
+  // sitting separately would make a question look harder the more it is retested.
+  const studentsAsked = new Map<string, Set<string>>()
+  const studentsCorrect = new Map<string, Set<string>>()
+  const sessionStudent = new Map(subs.map((s: any) => [s.id, s.student_id]))
+  for (const a of answers) {
+    const sid = sessionStudent.get(a.session_id)
+    if (!sid) continue
+    if (a.selected_option_id) {
+      if (!studentsAsked.has(a.question_id)) studentsAsked.set(a.question_id, new Set())
+      studentsAsked.get(a.question_id)!.add(sid)
+    }
+    if (a.is_correct) {
+      if (!studentsCorrect.has(a.question_id)) studentsCorrect.set(a.question_id, new Set())
+      studentsCorrect.get(a.question_id)!.add(sid)
+    }
+  }
+
   const questions = [...byQuestion.entries()].map(([questionId, st]) => {
     const q: any = qById.get(questionId)
     const ref = q ? refByLesson.get(q.lesson_id) : undefined
+    const asked = studentsAsked.get(questionId)?.size ?? 0
+    const correct = studentsCorrect.get(questionId)?.size ?? 0
     return {
       questionId,
       sortOrder: st.sortOrder,
@@ -85,10 +106,9 @@ export async function GET(request: Request) {
       chapterTitle: ref?.chapterTitle ?? null,
       lessonRef: ref?.ref ?? null,
       lessonTitle: ref?.lessonTitle ?? null,
-      asked: st.asked,
-      answered: st.answered,
-      correct: st.correct,
-      rate: st.asked > 0 ? Math.round((st.correct / st.asked) * 100) : 0,
+      asked,
+      correct,
+      rate: asked > 0 ? Math.round((correct / asked) * 100) : 0,
     }
   }).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
 
@@ -115,23 +135,39 @@ export async function GET(request: Request) {
     attemptsByStudent.get(s.student_id)!.push(s)
   }
 
+  const paperTotal = paperQs.length || 1
   const rows = [...attemptsByStudent.entries()].map(([studentId, sessions]) => {
     const ordered = [...sessions].sort((a, b) =>
       new Date(a.submitted_at || a.started_at).getTime() - new Date(b.submitted_at || b.started_at).getTime())
-    const attempts = ordered.map((s: any, i: number) => ({
-      n: i + 1,
-      sessionId: s.id,
-      mode: s.mode || 'full',
-      total: s.total_questions,
-      correct: s.total_correct,
-      wrong: s.total_wrong,
-      percentage: Number(s.score_percentage ?? 0),
-      usedSeconds: s.submitted_at && s.started_at
-        ? Math.round((new Date(s.submitted_at).getTime() - new Date(s.started_at).getTime()) / 1000)
-        : null,
-      submittedAt: s.submitted_at,
-      submitReason: s.submit_reason,
-    }))
+
+    // Same running-mastery figure the student sees: how many of the paper's
+    // questions have been answered correctly by the end of each sitting.
+    const correctSoFar = new Set<string>()
+    const answersBySessionId = new Map<string, any[]>()
+    for (const a of answers) {
+      if (!answersBySessionId.has(a.session_id)) answersBySessionId.set(a.session_id, [])
+      answersBySessionId.get(a.session_id)!.push(a)
+    }
+    const attempts = ordered.map((s: any, i: number) => {
+      const ans = answersBySessionId.get(s.id) || []
+      let correctHere = 0
+      for (const a of ans) if (a.is_correct) { correctHere++; correctSoFar.add(a.question_id) }
+      const cumulative = paperQs.filter((q: string) => correctSoFar.has(q)).length
+      return {
+        n: i + 1,
+        sessionId: s.id,
+        mode: s.mode || 'full',
+        correctInAttempt: correctHere,
+        totalInAttempt: ans.length,
+        cumulativeCorrect: cumulative,
+        cumulativePercentage: Math.round((cumulative / paperTotal) * 10000) / 100,
+        usedSeconds: s.submitted_at && s.started_at
+          ? Math.round((new Date(s.submitted_at).getTime() - new Date(s.started_at).getTime()) / 1000)
+          : null,
+        submittedAt: s.submitted_at,
+        submitReason: s.submit_reason,
+      }
+    })
     const latest = attempts[attempts.length - 1]
     const neverCorrect = paperQs.filter((q: string) => !everCorrectByStudent.get(studentId)?.has(q)).length
     return {
@@ -140,7 +176,9 @@ export async function GET(request: Request) {
       attempts,
       attemptCount: attempts.length,
       latestSessionId: latest?.sessionId ?? null,
-      latestPercentage: latest?.percentage ?? null,
+      // Reported as mastery: the share of the whole paper this student now has right.
+      latestPercentage: latest?.cumulativePercentage ?? null,
+      paperTotal,
       neverCorrect,
     }
   }).sort((a, b) => (b.latestPercentage ?? -1) - (a.latestPercentage ?? -1))
