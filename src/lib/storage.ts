@@ -18,11 +18,21 @@ function randomName(ext: string) {
   return `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`
 }
 
-/** Store bytes and return a URL on our own domain. */
+/**
+ * Store bytes and return a URL on our own domain. Anything over the limit is
+ * shrunk to fit rather than rejected: neither the teacher pasting a screenshot
+ * nor a PDF parser's full-resolution crop can do anything about the size, and a
+ * slightly smaller diagram beats a missing one.
+ */
 export async function uploadImageBuffer(buf: Buffer, contentType: string): Promise<{ url?: string; error?: string }> {
+  if (!IMAGE_EXT[contentType]) return { error: '只支持 PNG / JPG / WebP / GIF 图片' }
+  if (buf.length > MAX_IMAGE_BYTES) {
+    const shrunk = await shrinkImage(buf, contentType)
+    if (!shrunk) return { error: `图片需小于 1MB，当前 ${Math.round(buf.length / 1024)}KB，自动压缩也压不下来` }
+    buf = shrunk.buf
+    contentType = shrunk.contentType
+  }
   const ext = IMAGE_EXT[contentType]
-  if (!ext) return { error: '只支持 PNG / JPG / WebP / GIF 图片' }
-  if (buf.length > MAX_IMAGE_BYTES) return { error: `图片需小于 1MB，当前 ${Math.round(buf.length / 1024)}KB` }
 
   const name = randomName(ext)
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${name}`, {
@@ -38,24 +48,13 @@ export async function uploadImageBuffer(buf: Buffer, contentType: string): Promi
  * Copy a remote image (e.g. the CDN link a PDF parser handed back) into our own
  * storage. Without this the image would render for the teacher but break for
  * students, who cannot reach third-party hosts from this network.
- *
- * PDF parsers hand back full-resolution crops, so scans routinely exceed
- * MAX_IMAGE_BYTES. Shrink to fit rather than reject — a slightly smaller diagram
- * is far better than a missing one.
  */
 export async function importRemoteImage(url: string): Promise<{ url?: string; error?: string }> {
   try {
     const res = await fetch(url)
     if (!res.ok) return { error: `取图失败 HTTP ${res.status}` }
-    let type: string = (res.headers.get('content-type') || '').split(';')[0].trim()
-    let buf: Buffer = Buffer.from(await res.arrayBuffer())
-    if (buf.length > MAX_IMAGE_BYTES) {
-      const shrunk = await shrinkImage(buf, type)
-      if (!shrunk) return { error: `图片需小于 1MB，当前 ${Math.round(buf.length / 1024)}KB，自动压缩也压不下来` }
-      buf = shrunk.buf
-      type = shrunk.contentType
-    }
-    return await uploadImageBuffer(buf, type)
+    const type = (res.headers.get('content-type') || '').split(';')[0].trim()
+    return await uploadImageBuffer(Buffer.from(await res.arrayBuffer()), type)
   } catch (e: any) {
     return { error: '取图出错：' + (e?.message || e) }
   }

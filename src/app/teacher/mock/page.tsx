@@ -501,24 +501,22 @@ function MockAdminContent() {
                     <ol className="list-decimal list-inside space-y-0.5">
                       {lang === 'zh' ? (
                         <>
-                          <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，用邮箱或微信登录（免费）</li>
-                          <li>把试卷 PDF 上传上去，等它解析完成（一般几分钟）</li>
-                          <li>解析完成后，下载 <b>Markdown</b> 格式的结果</li>
-                          <li>用记事本打开下载的 .md 文件，全选复制，粘贴到下面的框里</li>
+                          <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，登录（免费）</li>
+                          <li>上传试卷 PDF，等它解析完</li>
+                          <li>在 MinerU 页面里直接全选复制，粘贴到下面的框里（不用下载文件）</li>
                         </>
                       ) : (
                         <>
                           <li>Open <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a> and sign in (free)</li>
-                          <li>Upload the paper PDF and wait for it to finish parsing</li>
-                          <li>Download the result as <b>Markdown</b></li>
-                          <li>Open the .md in a text editor, copy everything, paste it below</li>
+                          <li>Upload the paper PDF and wait for it to finish</li>
+                          <li>Select all and copy right on the MinerU page, then paste it below (no download needed)</li>
                         </>
                       )}
                     </ol>
                     <p className="mt-1.5 text-blue-800/80">
                       {lang === 'zh'
-                        ? '表格、公式、化学式、图片它都会一并转出来，扫描版和手写也认。但复杂版面偶尔会错位，尤其是选项里的图可能对不到正确的题目上 —— 发现对错位的，直接在对应那道题上截图粘贴一张即可。'
-                        : 'Tables, formulas, chemical equations and images all come through, including scanned and handwritten papers. Complex layouts can still misalign though — especially images inside options — so screenshot and paste a replacement onto any question that lands wrong.'}
+                        ? '表格、公式、图片都会一起转出来，扫描版和手写也能认；复杂版面偶尔会错位（尤其选项里的图）。粘贴后要逐题核实。'
+                        : 'Tables, formulas and images all come through, including scanned and handwritten papers; complex layouts can misalign (especially images in options). Check every question after pasting.'}
                     </p>
                   </div>
 
