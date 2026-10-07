@@ -135,8 +135,8 @@ export default function TeacherCoursesPage() {
 
         {/* Create dialog */}
         {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowCreate(false)}>
-            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
               <h2 className="text-lg font-semibold mb-4">{t('newCourse', lang)}</h2>
               <div className="space-y-3">
                 <div>

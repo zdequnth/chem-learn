@@ -537,8 +537,11 @@ function VocabAdminContent() {
 
       {/* full-screen image, so a teacher can check a diagram properly */}
       {zoom && (
-        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3"
-          onClick={() => setZoom(null)}>
+        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3">
+          <button onClick={() => setZoom(null)} title="关闭"
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
           <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg bg-white object-contain" />
         </div>
       )}

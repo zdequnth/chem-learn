@@ -795,8 +795,8 @@ export default function CourseDetailPage() {
 
       {/* Import Chapter Modal */}
       {showImportChapter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowImportChapter(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入章节</h3>
             <div className="space-y-3">
               <select value={importCourseId} onChange={e => loadImportChapters(e.target.value)}
@@ -825,8 +825,8 @@ export default function CourseDetailPage() {
 
       {/* Import Lesson Modal */}
       {showImportLesson && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowImportLesson(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入课时</h3>
             <div className="space-y-3">
               <select value={importLessonCourseId} onChange={e => loadImportLessonChapters(e.target.value)}
@@ -862,8 +862,8 @@ export default function CourseDetailPage() {
 
       {/* Batch Import Modal */}
       {showBatchImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowBatchImport(false)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
             <h3 className="text-lg font-semibold mb-2">批量导入章节和课时</h3>
             <p className="text-sm text-muted-foreground mb-3">按 Markdown 格式粘贴：# 章节名，## 课时名</p>
             <textarea value={batchMd} onChange={e => setBatchMd(e.target.value)}

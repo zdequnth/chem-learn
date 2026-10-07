@@ -578,8 +578,8 @@ function AnalyticsContent() {
 
       {/* Session drill-down modal */}
       {sessionModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print" onClick={() => setSessionModal(null)}>
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print">
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12">
             <div className="flex items-center justify-between px-6 py-3 border-b">
               <h3 className="font-semibold flex items-center gap-2">
                 {sessionModal.studentName} · {sessionModal.lessonTitle}
@@ -620,8 +620,8 @@ function AnalyticsContent() {
 
       {/* Student wrong-book modal */}
       {wrongModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print" onClick={() => setWrongModal(null)}>
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto no-print">
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12">
             <div className="flex items-center justify-between px-6 py-3 border-b">
               <h3 className="font-semibold flex items-center gap-2">
                 {lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}

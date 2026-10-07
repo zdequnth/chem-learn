@@ -626,8 +626,8 @@ function MockAdminContent() {
 
       {/* paper results: who sat it, and which questions the class missed */}
       {resultsFor && (
-        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setResultsFor(null)}>
-          <div className="bg-card rounded-2xl w-full max-w-4xl my-8" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-card rounded-2xl w-full max-w-4xl my-8">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
@@ -764,8 +764,8 @@ function MockAdminContent() {
 
       {/* students × papers: how each student is doing across the whole course */}
       {showOverview && (
-        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setShowOverview(false)}>
-          <div className="bg-card rounded-2xl w-full max-w-5xl my-8" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-card rounded-2xl w-full max-w-5xl my-8">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
@@ -859,8 +859,8 @@ function MockAdminContent() {
 
       {/* one student, one paper: every question with what they chose */}
       {detailFor && (
-        <div className="fixed inset-0 z-[80] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setDetailFor(null)}>
-          <div className="bg-card rounded-2xl w-full max-w-3xl my-8" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+          <div className="bg-card rounded-2xl w-full max-w-3xl my-8">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold">
                 {detail?.studentName || '…'}
@@ -941,7 +941,11 @@ function MockAdminContent() {
       )}
 
       {zoom && (
-        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3" onClick={() => setZoom(null)}>
+        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3">
+          <button onClick={() => setZoom(null)} title="关闭"
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
           <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg bg-white object-contain" />
         </div>
       )}

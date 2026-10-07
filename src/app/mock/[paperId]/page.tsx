@@ -443,9 +443,13 @@ function MockExamContent() {
 
         {/* knowledge point */}
         {kpFor && (
-          <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setKpFor(null)}>
-            <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5" onClick={e => e.stopPropagation()}>
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> 知识点总结</h3>
+          <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+            <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> 知识点总结</h3>
+                <button onClick={() => setKpFor(null)} title="关闭"
+                  className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+              </div>
               {kpText ? <div className="text-sm leading-relaxed"><KatexHtml text={kpText} /></div>
                       : <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> 生成中…</div>}
             </div>
@@ -454,9 +458,13 @@ function MockExamContent() {
 
         {/* similar practice */}
         {(practice || practiceLoading) && (
-          <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => { setPractice(null); setPracticeChoice(null) }}>
-            <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5" onClick={e => e.stopPropagation()}>
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> 同类型题目</h3>
+          <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+            <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> 同类型题目</h3>
+                <button onClick={() => { setPractice(null); setPracticeChoice(null) }} title="关闭"
+                  className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+              </div>
               {practiceLoading || !practice ? (
                 <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> 找题中…</div>
               ) : (

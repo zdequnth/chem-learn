@@ -103,8 +103,8 @@ export default function TeacherClassesPage() {
         </div>
 
         {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowCreate(false)}>
-            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
               <h2 className="text-lg font-semibold mb-4">新建班级</h2>
               <div className="space-y-3">
                 <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="年份+年级+课程+班级，如 2026 G9 化学A-3班"
@@ -186,8 +186,8 @@ export default function TeacherClassesPage() {
       {/* Course bindings: one course per kind. The gate course is locked once set
           (student progress hangs off its lessons); the other two can be swapped. */}
       {bindFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setBindFor(null)}>
-          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
             <h2 className="text-lg font-semibold mb-1">绑定课程</h2>
             <p className="text-sm text-muted-foreground mb-4">{bindFor.name}</p>
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import type { VocabResult, VocabWordWithProgress } from '@/lib/types'
-import { Loader2, ArrowLeft, Volume2, Sparkles } from 'lucide-react'
+import { Loader2, ArrowLeft, Volume2, Sparkles, X } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 type LessonRow = {
@@ -501,8 +501,11 @@ function VocabContent() {
 
         {/* full-screen image, for diagrams with small labels */}
         {zoom && (
-          <div className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-3"
-            onClick={() => setZoom(null)}>
+          <div className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-3">
+            <button onClick={() => setZoom(null)} title="关闭"
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white transition-colors">
+              <X className="w-6 h-6" />
+            </button>
             <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg bg-white object-contain" />
           </div>
         )}

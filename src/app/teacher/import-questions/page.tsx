@@ -357,7 +357,11 @@ function ImportForm() {
       {editIndex !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">编辑第 {editIndex + 1} 题</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">编辑第 {editIndex + 1} 题</h2>
+              <button onClick={() => setEditIndex(null)} title="关闭"
+                className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+            </div>
             <div className="space-y-4">
               <select value={editForm.difficulty} onChange={e => setEditForm({ ...editForm, difficulty: Number(e.target.value) })}
                 className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
