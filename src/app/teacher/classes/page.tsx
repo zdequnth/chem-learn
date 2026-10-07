@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
+import { kindTheme } from '@/lib/course-kind'
 import { Plus, Users, Copy, Loader2, Trash2 } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -132,25 +133,24 @@ export default function TeacherClassesPage() {
           <div className="space-y-4">
             {classes.map(cls => {
               // A class takes the colour of the course it belongs to, so a
-              // vocabulary class never looks like a gate-test one.
+              // vocabulary or mock class never looks like a gate-test one.
               const course = courses.find(c => c.id === cls.course_id)
-              const isVocab = (course as any)?.kind === 'vocab'
+              const theme = kindTheme(course?.kind)
+              const k = course?.kind ?? 'gate'
               return (
                 <Link key={cls.id} href={`/teacher/classes/${cls.id}`}
-                  className={`rounded-xl border p-5 block hover:shadow-md transition-all ${isVocab
-                    ? 'bg-amber-50 border-amber-300 hover:border-amber-400'
-                    : 'bg-card border-gray-200 hover:border-emerald-300'}`}>
+                  className={`rounded-xl border p-5 block hover:shadow-md transition-all ${
+                    k === 'gate' ? 'bg-card border-gray-200 hover:border-emerald-300' : theme.banner}`}>
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-lg flex items-center gap-2">
-                        {isVocab && <span>📖</span>}
+                        {k !== 'gate' && <span>{theme.emoji}</span>}
                         {cls.name}
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isVocab
-                          ? 'bg-amber-200 text-amber-900' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {isVocab ? '背单词' : '过关'}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${theme.pill}`}>
+                          {theme.label.replace('课程', '')}
                         </span>
                         {course && (
-                          <span className={`text-xs font-normal ${isVocab ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                          <span className={`text-xs font-normal ${k !== 'gate' ? theme.text : 'text-muted-foreground'}`}>
                             {course.name}
                           </span>
                         )}

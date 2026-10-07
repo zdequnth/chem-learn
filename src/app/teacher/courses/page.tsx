@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
-import type { Course } from '@/lib/types'
-import { Plus, Edit3, Loader2, ArrowLeft } from 'lucide-react'
+import type { Course, CourseKind } from '@/lib/types'
+import { COURSE_KINDS } from '@/lib/types'
+import { KIND_THEME, kindTheme } from '@/lib/course-kind'
+import { Plus, Edit3, Loader2, ArrowLeft, FileText } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 export default function TeacherCoursesPage() {
@@ -19,7 +21,10 @@ export default function TeacherCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [newCourse, setNewCourse] = useState({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate' })
+  const [newCourse, setNewCourse] = useState({
+    name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry',
+    kind: 'gate' as CourseKind, mock_source_course_id: '',
+  })
 
   useEffect(() => {
     if (!authLoading && (!user || (profile && profile.role !== 'teacher' && profile.role !== 'admin'))) {
@@ -49,6 +54,10 @@ export default function TeacherCoursesPage() {
 
   const handleCreate = async () => {
     if (!newCourse.name.trim()) return
+    if (newCourse.kind === 'mock' && !newCourse.mock_source_course_id) {
+      alert('模拟考课程必须选择绑定的通关课程')
+      return
+    }
     try {
       const res = await fetch('/api/courses', {
         method: 'POST',
@@ -57,9 +66,10 @@ export default function TeacherCoursesPage() {
           name: newCourse.name.trim(),
           description: newCourse.description.trim(),
           grade_level: newCourse.grade_level.trim(),
-          icon: newCourse.icon || '🧪',
+          icon: newCourse.icon || KIND_THEME[newCourse.kind].emoji,
           subject: newCourse.subject,
           kind: newCourse.kind,
+          mock_source_course_id: newCourse.kind === 'mock' ? newCourse.mock_source_course_id : null,
           sort_order: courses.length,
         }),
       })
@@ -68,12 +78,27 @@ export default function TeacherCoursesPage() {
         alert('创建失败: ' + json.error)
       } else {
         setShowCreate(false)
-        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate' })
+        setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate', mock_source_course_id: '' })
         fetchCourses()
       }
     } catch (e: any) {
       alert('创建出错: ' + (e?.message || '未知错误'))
     }
+  }
+
+  // Only gate courses can be the source of a mock course's papers.
+  const gateCourses = courses.filter(c => (c.kind ?? 'gate') === 'gate')
+
+  const handleDelete = async (id: string) => {
+    const course = courses.find(c => c.id === id)
+    const extra = course?.kind === 'mock'
+      ? '\n\n注意：这门课绑定的通关课程不会被删除。'
+      : course?.kind === 'gate'
+        ? '\n\n⚠️ 若有模拟考课程绑定到这门课，那些模拟考的题目会一起消失、试卷变空。'
+        : ''
+    if (!confirm(`确定要删除这门课程吗？所有章节、课时和题目将被永久删除。${extra}`)) return
+    await fetch(`/api/courses?id=${id}`, { method: 'DELETE' })
+    fetchCourses()
   }
 
   const handleTogglePublish = async (course: Course) => {
@@ -85,14 +110,8 @@ export default function TeacherCoursesPage() {
     fetchCourses()
   }
 
-  // A course's kind is fixed when it is created — the two kinds behave so
+  // A course's kind is fixed when it is created — the kinds behave so
   // differently that switching after the fact only causes confusion.
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除这门课程吗？所有章节、课时和题目将被永久删除。')) return
-    await fetch(`/api/courses?id=${id}`, { method: 'DELETE' })
-    fetchCourses()
-  }
 
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
@@ -124,22 +143,34 @@ export default function TeacherCoursesPage() {
                   <div className="text-xs text-muted-foreground mb-1.5">
                     {lang === 'zh' ? '课程类型（创建后不可更改）' : 'Course type (fixed after creation)'}
                   </div>
-                  <div className="flex gap-2">
-                    {([['gate', '📚 过关课程'], ['vocab', '📖 背单词课程']] as const).map(([k, label]) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {COURSE_KINDS.map(k => (
                       <button key={k} type="button" onClick={() => setNewCourse({ ...newCourse, kind: k })}
-                        className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                          newCourse.kind === k
-                            ? (k === 'vocab' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-emerald-500 border-emerald-500 text-white')
-                            : 'hover:bg-accent'}`}>
-                        {label}
+                        className={`py-2.5 rounded-lg border text-xs font-medium transition-colors ${
+                          newCourse.kind === k ? KIND_THEME[k].solid : 'hover:bg-accent'}`}>
+                        {KIND_THEME[k].emoji} {KIND_THEME[k].label}
                       </button>
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    {newCourse.kind === 'vocab'
-                      ? (lang === 'zh' ? '学生点进这门课会直接进入背单词，不显示关卡测试。' : 'Students go straight to the word list; no gate tests.')
-                      : (lang === 'zh' ? '正常的章节 → 课时 → 关卡测试。' : 'Normal chapters → lessons → gate tests.')}
+                    {lang === 'zh' ? KIND_THEME[newCourse.kind].blurb : KIND_THEME[newCourse.kind].label}
+                    {newCourse.kind === 'mock' && lang === 'zh' && '（题目来自绑定的通关课程，交卷后才看分数）'}
                   </p>
+                  {newCourse.kind === 'mock' && (
+                    <div className="mt-2">
+                      <select value={newCourse.mock_source_course_id}
+                        onChange={e => setNewCourse({ ...newCourse, mock_source_course_id: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-violet-500 text-sm">
+                        <option value="">{lang === 'zh' ? '选择绑定的通关课程…' : 'Bind a gate course…'}</option>
+                        {gateCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {gateCourses.length === 0
+                          ? (lang === 'zh' ? '你还没有过关课程，先建一门再来绑定。' : 'You have no gate course yet.')
+                          : (lang === 'zh' ? '试卷里每道题都会对应到这门课的某个章节和课时。' : 'Each paper question maps to a chapter/lesson of this course.')}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <select value={newCourse.subject} onChange={e => setNewCourse({ ...newCourse, subject: e.target.value })}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
@@ -170,19 +201,19 @@ export default function TeacherCoursesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {courses.map(course => (
+            {courses.map(course => {
+              const theme = kindTheme(course.kind)
+              return (
               <div key={course.id} className="bg-card rounded-xl border p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${(course as any).kind === 'vocab' ? 'bg-gradient-to-br from-amber-100 to-amber-200' : 'bg-gradient-to-br from-emerald-100 to-emerald-200'}`}>
-                    {(course as any).kind === 'vocab' ? '📖' : (course.icon || '🧪')}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${theme.iconTile}`}>
+                    {course.kind && course.kind !== 'gate' ? theme.emoji : (course.icon || '🧪')}
                   </div>
                   <div>
-                    <h3 className="font-semibold">{(course as any).kind === 'vocab' ? `📖 ${course.name}` : course.name}</h3>
+                    <h3 className="font-semibold">{(course.kind ?? 'gate') !== 'gate' ? `${theme.emoji} ${course.name}` : course.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       {course.grade_level && <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
-                      {(course as any).kind === 'vocab'
-                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">背单词课程</span>
-                        : <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">过关课程</span>}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${theme.pill}`}>{theme.label}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${course.is_published ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                         {course.is_published ? '已发布' : '未发布'}
                       </span>
@@ -194,17 +225,23 @@ export default function TeacherCoursesPage() {
                     className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${course.is_published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                     {course.is_published ? '取消发布' : '发布'}
                   </button>
-                  {/* A vocabulary course needs both: the chapter/lesson editor
-                      and its word bank. */}
-                  {(course as any).kind === 'vocab' && (
+                  {/* Each kind needs both its own content editor and the main
+                      editor (so collaborators and, for vocab, the chapter list
+                      stay reachable). */}
+                  {course.kind === 'vocab' && (
                     <Link href={`/teacher/vocab?course=${course.id}`}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                      className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
                       📖 词库
                     </Link>
                   )}
+                  {course.kind === 'mock' && (
+                    <Link href={`/teacher/mock?course=${course.id}`}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
+                      <FileText className="w-3 h-3" /> 试卷
+                    </Link>
+                  )}
                   <Link href={`/teacher/courses/${course.id}`}
-                    className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${(course as any).kind === 'vocab'
-                      ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                    className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
                     <Edit3 className="w-3 h-3" /> 编辑
                   </Link>
                   <button onClick={() => handleDelete(course.id)}
@@ -213,7 +250,8 @@ export default function TeacherCoursesPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>

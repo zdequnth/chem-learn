@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { COURSE_KINDS, type CourseKind } from '@/lib/types'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -10,17 +11,43 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
+    // The kind is decided once, here, and cannot be changed later.
+    const kind: CourseKind = COURSE_KINDS.includes(body?.kind) ? body.kind : 'gate'
+
+    // A mock course must name the gate course its papers are built from, and
+    // that course has to be one this teacher can actually see.
+    let sourceCourseId: string | null = null
+    if (kind === 'mock') {
+      sourceCourseId = typeof body?.mock_source_course_id === 'string' ? body.mock_source_course_id : null
+      if (!sourceCourseId) return NextResponse.json({ error: '模拟考课程必须选择绑定的通关课程' }, { status: 400 })
+
+      const { data: src } = await supabaseAdmin('courses', {
+        query: `?id=eq.${sourceCourseId}&select=id,kind,owner_id`,
+      })
+      const source = src?.[0]
+      if (!source) return NextResponse.json({ error: '绑定的课程不存在' }, { status: 400 })
+      if (source.kind !== 'gate') return NextResponse.json({ error: '只能绑定过关课程' }, { status: 400 })
+      if (source.owner_id !== user.id) {
+        const { data: cc } = await supabaseAdmin('course_collaborators', {
+          query: `?course_id=eq.${sourceCourseId}&teacher_id=eq.${user.id}&select=id`,
+        })
+        if (!(cc || []).length) return NextResponse.json({ error: '无权绑定这门课程' }, { status: 403 })
+      }
+    }
+
     const { data, error } = await supabaseAdmin('courses', {
       method: 'POST',
       body: {
         name: body.name,
         description: body.description || null,
         grade_level: body.grade_level || null,
-        icon: body.icon || '🧪',
+        icon: body.icon || (kind === 'mock' ? '📝' : kind === 'vocab' ? '📖' : '🧪'),
         owner_id: user.id,
         is_published: false,
-        // The kind is decided once, here, and cannot be changed later.
-        kind: body.kind === 'vocab' ? 'vocab' : 'gate',
+        kind,
+        // Only sent for a mock course — the column comes from migration 016, and
+        // gate/vocab creation must keep working even if it has not been applied.
+        ...(kind === 'mock' ? { mock_source_course_id: sourceCourseId } : {}),
         sort_order: body.sort_order || 0,
       },
       query: '?select=*',

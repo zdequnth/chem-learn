@@ -41,9 +41,10 @@ export default function CoursePage() {
       const json = await res.json()
       if (!json.course) { setLoading(false); return }
 
-      // A vocabulary course has no gate-test ladder — send students straight to
-      // the word list rather than showing them locked lessons.
+      // Vocabulary and mock courses have no gate-test ladder — send students
+      // to the content they actually use rather than showing locked lessons.
       if (json.course.kind === 'vocab') { router.replace(`/vocab?course=${courseId}`); return }
+      if (json.course.kind === 'mock') { router.replace(`/mock?course=${courseId}`); return }
 
       setCourse(json.course as Course)
 

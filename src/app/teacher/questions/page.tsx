@@ -109,8 +109,10 @@ function QuestionsContent() {
   const fetchCourses = async () => {
     const res = await fetch('/api/courses')
     const json = await res.json()
-    // Vocabulary courses have no question bank — keep them out of this page.
-    const clist = ((json.courses || []) as Course[]).filter(c => (c as any).kind !== 'vocab')
+    // Only gate courses have their own question bank here. Vocabulary courses
+    // have none, and a mock course's questions hang off its bound gate course's
+    // lessons — they are edited on the mock papers page instead.
+    const clist = ((json.courses || []) as Course[]).filter(c => (c.kind ?? 'gate') === 'gate')
     setCourses(clist)
     // Preload all chapters and lessons for all courses
     const allCh: Chapter[] = []

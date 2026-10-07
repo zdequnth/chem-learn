@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
+import { kindTheme } from '@/lib/course-kind'
 import { Loader2 } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -190,6 +191,7 @@ export default function DashboardPage() {
                     // colour/badge/destination, never by size. Rows: 1) class +
                     // course + status, 2) bar, 3) note / action.
                     const isVocab = c.courseKind === 'vocab'
+                    const isMock = c.courseKind === 'mock'
                     const v = vocabByCourse[c.course_id] || { wordCount: 0, studied: 0, mastered: 0, due: 0 }
                     const pct = isVocab
                       ? (v.wordCount > 0 ? Math.round((v.studied / v.wordCount) * 100) : 0)
@@ -198,6 +200,10 @@ export default function DashboardPage() {
                       ? { box: 'bg-amber-50 border-amber-300', text: 'text-amber-800', track: 'bg-amber-200',
                           bar: 'bg-amber-500', link: 'text-amber-700', badge: 'bg-amber-200 text-amber-900',
                           btn: 'bg-amber-500 hover:bg-amber-600' }
+                      : isMock
+                      ? { box: 'bg-violet-50 border-violet-300', text: 'text-violet-800', track: 'bg-violet-200',
+                          bar: 'bg-violet-500', link: 'text-violet-700', badge: 'bg-violet-200 text-violet-900',
+                          btn: 'bg-violet-500 hover:bg-violet-600' }
                       : { box: 'bg-blue-50 border-blue-200', text: 'text-blue-700', track: 'bg-blue-200',
                           bar: 'bg-blue-500', link: 'text-emerald-600', badge: '',
                           btn: 'bg-blue-500 hover:bg-blue-600' }
@@ -207,15 +213,17 @@ export default function DashboardPage() {
                         {/* 1 — class + course + headline number */}
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className={`text-sm font-medium truncate shrink-0 ${t.text}`}>
-                            {isVocab ? '📖' : '📚'} {c.name}
+                            {isVocab ? '📖' : isMock ? '📝' : '📚'} {c.name}
                           </span>
-                          {isVocab && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${t.badge}`}>背单词</span>
+                          {(isVocab || isMock) && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${t.badge}`}>
+                              {isVocab ? '背单词' : '模拟考'}
+                            </span>
                           )}
                           {c.courseName && (
                             <>
                               <span className={`text-xs shrink-0 opacity-40 ${t.text}`}>·</span>
-                              <Link href={isVocab ? `/vocab?course=${c.course_id}` : `/courses/${c.course_id}`}
+                              <Link href={isVocab ? `/vocab?course=${c.course_id}` : isMock ? `/mock?course=${c.course_id}` : `/courses/${c.course_id}`}
                                 className={`text-xs hover:underline truncate ${t.link}`}>
                                 {c.courseName}
                               </Link>
@@ -245,6 +253,12 @@ export default function DashboardPage() {
                             <Link href={`/vocab?course=${c.course_id}`}
                               className={`ml-auto shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-medium text-white transition-colors ${t.btn}`}>
                               去背单词 →
+                            </Link>
+                          )}
+                          {isMock && (
+                            <Link href={`/mock?course=${c.course_id}`}
+                              className={`ml-auto shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-medium text-white transition-colors ${t.btn}`}>
+                              去模拟考 →
                             </Link>
                           )}
                         </div>
@@ -378,30 +392,35 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-semibold mb-3">课程速览 · 按课程查看</h3>
                 <div className="space-y-2">
                   {[...courses].map((course: any) => {
-                    const isVocab = course.kind === 'vocab'
+                    const theme = kindTheme(course.kind)
+                    const k = course.kind ?? 'gate'
                     return (
                       <div key={course.id}
-                        className={`rounded-xl border p-4 flex items-center justify-between ${isVocab ? 'bg-amber-50 border-amber-300' : 'bg-card border-gray-200'}`}>
+                        className={`rounded-xl border p-4 flex items-center justify-between ${k !== 'gate' ? `${theme.banner} border` : 'bg-card border-gray-200'}`}>
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="text-xl">{isVocab ? '📖' : (course.icon || '🧪')}</span>
+                          <span className="text-xl">{k !== 'gate' ? theme.emoji : (course.icon || '🧪')}</span>
                           <div className="min-w-0">
                             <div className="font-medium truncate flex items-center gap-2">
                               {course.name}
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${isVocab
-                                ? 'bg-amber-200 text-amber-900' : 'bg-emerald-50 text-emerald-700'}`}>
-                                {isVocab ? '背单词' : '过关'}
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${theme.pill}`}>
+                                {theme.label.replace('课程', '')}
                               </span>
                             </div>
-                            <div className={`text-xs ${isVocab ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                            <div className={`text-xs ${k !== 'gate' ? theme.text : 'text-muted-foreground'}`}>
                               {course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? '已发布' : '未发布'}
                             </div>
                           </div>
                         </div>
-                        {/* a vocab course has no quiz analytics — its entry is the word bank */}
-                        {isVocab ? (
+                        {/* Each kind's entry point: word bank, papers, or analytics. */}
+                        {k === 'vocab' ? (
                           <Link href={`/teacher/vocab?course=${course.id}`}
-                            className="shrink-0 px-3 py-1.5 text-xs bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors">
+                            className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium text-white transition-colors ${theme.solid}`}>
                             词库与掌握情况 →
+                          </Link>
+                        ) : k === 'mock' ? (
+                          <Link href={`/teacher/mock?course=${course.id}`}
+                            className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium text-white transition-colors ${theme.solid}`}>
+                            试卷与成绩 →
                           </Link>
                         ) : (
                           <Link href={`/teacher/analytics?scope=course&courseId=${course.id}`}

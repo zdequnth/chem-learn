@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar'
 import CourseCollaborators from '@/components/CourseCollaborators'
 import { KatexHtml, getPdfUrl } from '@/components/KatexSpan'
 import type { Course, Chapter, Lesson } from '@/lib/types'
+import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Plus, ChevronDown, ChevronRight, Edit3, Trash2, Loader2, ArrowUp, ArrowDown, Image, Save, X } from 'lucide-react'
 
 interface ChapterWithLessons extends Chapter {
@@ -568,6 +569,23 @@ export default function CourseDetailPage() {
                 </Link>
               </div>
             )}
+            {/* A mock course has no chapter/lesson ladder of its own: its
+                questions live on the bound gate course's lessons. */}
+            {(course as any).kind === 'mock' && (
+              <div className="bg-violet-50 border border-violet-300 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+                <span className="text-3xl">📝</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-violet-900">模拟考课程</div>
+                  <div className="text-sm text-violet-800">
+                    这里只维护基本信息；题目和试卷在「试卷管理」里，每道题对应绑定通关课程的一个章节课时。
+                  </div>
+                </div>
+                <Link href={`/teacher/mock?course=${courseId}`}
+                  className="ml-auto shrink-0 px-3 py-2 bg-violet-500 text-white rounded-lg text-sm font-medium hover:bg-violet-600 transition-colors">
+                  去试卷管理 →
+                </Link>
+              </div>
+            )}
             {/* Course Header */}
             <div className="bg-card rounded-2xl border p-6 mb-6">
               {editCourse ? (
@@ -591,12 +609,16 @@ export default function CourseDetailPage() {
               ) : (
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl ${(course as any).kind === 'vocab' ? 'bg-gradient-to-br from-amber-100 to-amber-200' : 'bg-gradient-to-br from-emerald-100 to-emerald-200'}`}>{(course as any).kind === 'vocab' ? '📖' : course.icon}</div>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl ${kindTheme((course as any).kind).iconTile}`}>
+                      {(course as any).kind && (course as any).kind !== 'gate' ? kindTheme((course as any).kind).emoji : course.icon}
+                    </div>
                     <div>
                       <h1 className="text-2xl font-bold flex items-center gap-2">
                         {course.name}
-                        {(course as any).kind === 'vocab' && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium align-middle">背单词课程</span>
+                        {(course as any).kind && (course as any).kind !== 'gate' && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium align-middle ${kindTheme((course as any).kind).pill}`}>
+                            {kindTheme((course as any).kind).label}
+                          </span>
                         )}
                       </h1>
                       {course.grade_level && <span className="text-sm px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}

@@ -69,7 +69,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ cour
   const body = await request.json()
   // `kind` is fixed at creation — a vocabulary course and a gate-test course
   // behave so differently that converting one into the other makes no sense.
+  // The bound source course is equally structural, so it is creation-only too.
   delete body.kind
+  delete body.mock_source_course_id
 
   const { data, error } = await supabaseAdmin('courses', {
     method: 'PATCH',

@@ -26,6 +26,10 @@ export interface Database {
       daily_activity: { Row: DailyActivity; Insert: DailyActivityInsert; Update: DailyActivityUpdate }
       vocab_words: { Row: VocabWord; Insert: VocabWordInsert; Update: VocabWordUpdate }
       vocab_progress: { Row: VocabProgress; Insert: VocabProgressInsert; Update: VocabProgressUpdate }
+      mock_papers: { Row: MockPaper; Insert: MockPaperInsert; Update: MockPaperUpdate }
+      mock_paper_questions: { Row: MockPaperQuestion; Insert: Omit<MockPaperQuestion, 'id' | 'created_at'>; Update: Partial<MockPaperQuestion> }
+      mock_test_sessions: { Row: MockTestSession; Insert: Omit<MockTestSession, 'id'>; Update: Partial<MockTestSession> }
+      mock_test_answers: { Row: MockTestAnswer; Insert: Omit<MockTestAnswer, 'id'>; Update: Partial<MockTestAnswer> }
     }
   }
 }
@@ -59,6 +63,10 @@ export interface ProfileUpdate {
 // ============================================================
 // Course
 // ============================================================
+// gate = 过关课程（上新课时用）；vocab = 背单词课程；mock = 模拟考课程（限时套题）
+export const COURSE_KINDS = ['gate', 'vocab', 'mock'] as const
+export type CourseKind = typeof COURSE_KINDS[number]
+
 export interface Course {
   id: string
   name: string
@@ -69,6 +77,9 @@ export interface Course {
   sort_order: number
   is_published: boolean
   subject?: string
+  kind?: CourseKind
+  // Only set on a mock course: the gate course its papers are built from.
+  mock_source_course_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -81,6 +92,8 @@ export interface CourseInsert {
   owner_id: string
   sort_order?: number
   is_published?: boolean
+  kind?: CourseKind
+  mock_source_course_id?: string | null
 }
 
 export interface CourseUpdate {
@@ -204,7 +217,10 @@ export interface VideoLinkUpdate {
 // ============================================================
 // Question
 // ============================================================
-export type QuestionType = 'gate_test' | 'boss_test'
+// 'mock' questions belong to a mock exam paper; their lesson_id points at a
+// lesson of the paper's bound gate course, which is what gives the
+// "this question is from Ch.2 2.1" mapping.
+export type QuestionType = 'gate_test' | 'boss_test' | 'mock'
 
 export interface Question {
   id: string
@@ -700,4 +716,105 @@ export interface GateTestState {
   }
   lockedUntil: string | null
   result: { passed: boolean; stars: number } | null
+}
+
+// ============================================================
+// Mock exam (模拟考) — a paper of full-suite questions taken under a timer
+// ============================================================
+export interface MockPaper {
+  id: string
+  mock_course_id: string
+  title: string
+  duration_minutes: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MockPaperInsert {
+  mock_course_id: string
+  title: string
+  duration_minutes?: number
+  sort_order?: number
+}
+
+export type MockPaperUpdate = Partial<Omit<MockPaperInsert, 'mock_course_id'>>
+
+// Ordered membership of a question in a paper. The question itself lives in
+// `questions` with question_type='mock'.
+export interface MockPaperQuestion {
+  id: string
+  paper_id: string
+  question_id: string
+  sort_order: number
+  created_at: string
+}
+
+export type MockSessionStatus = 'in_progress' | 'submitted'
+export type MockSubmitReason = 'manual' | 'timeout'
+
+export interface MockTestSession {
+  id: string
+  student_id: string
+  paper_id: string
+  status: MockSessionStatus
+  submit_reason: MockSubmitReason | null
+  duration_seconds: number
+  started_at: string
+  expires_at: string
+  submitted_at: string | null
+  total_questions: number
+  total_correct: number
+  total_wrong: number
+  score_percentage: number | null
+}
+
+// One row per question of the paper, pre-inserted at start — so this table is
+// also the paper snapshot used for resume.
+export interface MockTestAnswer {
+  id: string
+  session_id: string
+  question_id: string
+  sort_order: number
+  selected_option_id: string | null
+  is_correct: boolean
+  answered_at: string | null
+}
+
+// The review payload handed to the student after submitting (and on a
+// post-submit refresh). Correct answers appear here only, never while
+// a session is in_progress.
+export interface MockReviewQuestion {
+  questionId: string
+  sortOrder: number
+  stem: string
+  imageUrl: string | null
+  explanation: string
+  chapterId: string | null
+  chapterTitle: string | null
+  lessonId: string
+  lessonTitle: string | null
+  lessonRef: string | null
+  options: { id: string; content: string }[]
+  selectedOptionId: string | null
+  correctOptionId: string | null
+  isCorrect: boolean
+}
+
+export interface MockReview {
+  sessionId: string
+  paperId: string
+  paperTitle: string
+  score: {
+    total: number
+    correct: number
+    wrong: number
+    unanswered: number
+    percentage: number
+  }
+  durationSeconds: number
+  usedSeconds: number
+  submittedAt: string | null
+  submitReason: MockSubmitReason | null
+  questions: MockReviewQuestion[]
 }
