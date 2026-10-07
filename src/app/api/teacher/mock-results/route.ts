@@ -55,7 +55,7 @@ export async function GET(request: Request) {
   let answers: any[] = []
   for (let i = 0; i < sessionIds.length; i += 100) {
     const { data } = await supabaseAdmin('mock_test_answers', {
-      query: `?session_id=in.(${sessionIds.slice(i, i + 100).join(',')})&select=question_id,sort_order,selected_option_id,is_correct`,
+      query: `?session_id=in.(${sessionIds.slice(i, i + 100).join(',')})&select=session_id,question_id,sort_order,selected_option_id,is_correct`,
     })
     answers = answers.concat(data || [])
   }
@@ -92,25 +92,62 @@ export async function GET(request: Request) {
     }
   }).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
 
-  const rows = subs.map((s: any) => {
-    const used = s.submitted_at && s.started_at
-      ? Math.round((new Date(s.submitted_at).getTime() - new Date(s.started_at).getTime()) / 1000)
-      : null
-    return {
+  // How many questions of the paper each student has never answered correctly —
+  // computed in bulk from the answers already in hand rather than one query per
+  // student.
+  const paperQs = questions.map((q: any) => q.questionId)
+  const sessionOwner = new Map(subs.map((s: any) => [s.id, s.student_id]))
+  const everCorrectByStudent = new Map<string, Set<string>>()
+  for (const a of answers) {
+    if (!a.is_correct) continue
+    const sid = sessionOwner.get(a.session_id)
+    if (!sid) continue
+    if (!everCorrectByStudent.has(sid)) everCorrectByStudent.set(sid, new Set())
+    everCorrectByStudent.get(sid)!.add(a.question_id)
+  }
+
+  // ONE row per student, with their attempts in order. A student who retests
+  // several times would otherwise appear several times and the table would not
+  // show progress at all.
+  const attemptsByStudent = new Map<string, any[]>()
+  for (const s of subs) {
+    if (!attemptsByStudent.has(s.student_id)) attemptsByStudent.set(s.student_id, [])
+    attemptsByStudent.get(s.student_id)!.push(s)
+  }
+
+  const rows = [...attemptsByStudent.entries()].map(([studentId, sessions]) => {
+    const ordered = [...sessions].sort((a, b) =>
+      new Date(a.submitted_at || a.started_at).getTime() - new Date(b.submitted_at || b.started_at).getTime())
+    const attempts = ordered.map((s: any, i: number) => ({
+      n: i + 1,
       sessionId: s.id,
-      studentId: s.student_id,
-      studentName: nameById.get(s.student_id) || '（未知）',
+      mode: s.mode || 'full',
       total: s.total_questions,
       correct: s.total_correct,
       wrong: s.total_wrong,
       percentage: Number(s.score_percentage ?? 0),
-      usedSeconds: used,
+      usedSeconds: s.submitted_at && s.started_at
+        ? Math.round((new Date(s.submitted_at).getTime() - new Date(s.started_at).getTime()) / 1000)
+        : null,
       submittedAt: s.submitted_at,
       submitReason: s.submit_reason,
+    }))
+    const latest = attempts[attempts.length - 1]
+    const neverCorrect = paperQs.filter((q: string) => !everCorrectByStudent.get(studentId)?.has(q)).length
+    return {
+      studentId,
+      studentName: nameById.get(studentId) || '（未知）',
+      attempts,
+      attemptCount: attempts.length,
+      latestSessionId: latest?.sessionId ?? null,
+      latestPercentage: latest?.percentage ?? null,
+      neverCorrect,
     }
-  })
+  }).sort((a, b) => (b.latestPercentage ?? -1) - (a.latestPercentage ?? -1))
 
-  const scored = rows.map((r: any) => r.percentage)
+  // Averages are over students' LATEST attempt, so a class that retested does not
+  // look worse for having had more goes at it.
+  const scored = rows.map((r: any) => r.latestPercentage ?? 0)
   return NextResponse.json({
     paper: {
       id: paperRow?.id,

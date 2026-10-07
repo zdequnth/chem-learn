@@ -646,7 +646,7 @@ function MockAdminContent() {
             ) : (
               <>
                 <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b">
-                  <div><div className="text-xs text-muted-foreground">已交卷</div><div className="text-xl font-semibold">{results.submittedCount}</div></div>
+                  <div><div className="text-xs text-muted-foreground">已考学生</div><div className="text-xl font-semibold">{results.submittedCount}</div></div>
                   <div><div className="text-xs text-muted-foreground">平均分</div><div className="text-xl font-semibold text-violet-700">{results.average ?? '—'}</div></div>
                   <div><div className="text-xs text-muted-foreground">最高 / 最低</div><div className="text-xl font-semibold">{results.highest ?? '—'} / {results.lowest ?? '—'}</div></div>
                   <div><div className="text-xs text-muted-foreground">进行中</div><div className="text-xl font-semibold">{results.inProgressCount}</div></div>
@@ -688,22 +688,47 @@ function MockAdminContent() {
                       <table className="w-full text-sm">
                         <thead className="text-muted-foreground">
                           <tr className="text-left">
-                            <th className="py-2 font-medium">学生</th>
-                            <th className="py-2 font-medium">得分</th>
-                            <th className="py-2 font-medium">对 / 总</th>
-                            <th className="py-2 font-medium">用时</th>
-                            <th className="py-2 font-medium">交卷</th>
+                            <th className="py-2 pr-3 font-medium">学生</th>
+                            {/* One column per attempt, so 第一次 → 第二次 → 重测
+                                reads as progress rather than three separate rows. */}
+                            <th className="py-2 font-medium">各次正确率</th>
+                            <th className="py-2 px-2 font-medium text-center">至今没答对</th>
+                            <th className="py-2 px-2 font-medium text-center">最近用时</th>
                           </tr>
                         </thead>
                         <tbody>
                           {results.rows.map((r: any) => (
-                            <tr key={r.sessionId} className="border-t">
-                              <td className="py-2">{r.studentName}</td>
-                              <td className={`py-2 font-medium ${r.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>{r.percentage}%</td>
-                              <td className="py-2 text-muted-foreground">{r.correct} / {r.total}</td>
-                              <td className="py-2 text-muted-foreground tabular-nums">{r.usedSeconds != null ? fmt(r.usedSeconds) : '—'}</td>
-                              <td className="py-2 text-muted-foreground text-xs">
-                                {r.submitReason === 'timeout' ? '超时自动交卷' : '手动交卷'}
+                            <tr key={r.studentId} className="border-t">
+                              <td className="py-2 pr-3">
+                                <button onClick={() => r.latestSessionId && openDetail(r.latestSessionId)}
+                                  className={`font-medium hover:underline ${r.neverCorrect === 0 ? 'text-emerald-700' : ''}`}
+                                  title="点开看逐题情况">
+                                  {r.studentName} ↗
+                                </button>
+                                {r.neverCorrect === 0 && <span className="ml-1 text-xs text-emerald-600">全对</span>}
+                              </td>
+                              <td className="py-2">
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {r.attempts.map((a: any, i: number) => (
+                                    <span key={a.sessionId} className="flex items-center gap-1">
+                                      {i > 0 && <span className="text-gray-300">→</span>}
+                                      <button onClick={() => openDetail(a.sessionId)}
+                                        title={`第 ${a.n} 次${a.mode === 'retry' ? '（错题重测）' : ''} · ${a.correct}/${a.total}${a.submitReason === 'timeout' ? ' · 超时交卷' : ''}`}
+                                        className={`px-1.5 py-0.5 rounded tabular-nums hover:bg-accent transition-colors ${
+                                          a.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                        <span className="text-[10px] text-muted-foreground">{a.mode === 'retry' ? '测' : a.n}</span> {a.percentage}%
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-center">
+                                {r.neverCorrect > 0
+                                  ? <span className="text-rose-600 tabular-nums">{r.neverCorrect}</span>
+                                  : <span className="text-emerald-600">0</span>}
+                              </td>
+                              <td className="py-2 px-2 text-center text-muted-foreground tabular-nums">
+                                {r.attempts[r.attempts.length - 1]?.usedSeconds != null ? fmt(r.attempts[r.attempts.length - 1].usedSeconds) : '—'}
                               </td>
                             </tr>
                           ))}
@@ -863,6 +888,18 @@ function MockAdminContent() {
                       <span className={`w-6 h-6 rounded-md text-xs font-semibold flex items-center justify-center ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
                       {!q.isCorrect && q.selectedOptionId == null && <span className="text-xs text-gray-500">未作答</span>}
                       {q.flagged && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">考试时标记过</span>}
+                      {/* Which attempt finally got it right — the whole point of
+                          tracking retests. */}
+                      {q.firstCorrectAttempt == null ? (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                          至今没答对（错 {q.wrongTimes} 次）
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          q.firstCorrectAttempt === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                          {q.firstCorrectAttempt === 1 ? '第一次就答对' : `第 ${q.firstCorrectAttempt} 次才答对`}
+                        </span>
+                      )}
                       {q.lessonId && (q.chapterTitle || q.lessonTitle) && (
                         <Link href={`/play/${q.lessonId}`} title="去这一课看知识点"
                           className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-800 underline decoration-dotted underline-offset-2 transition-colors">
