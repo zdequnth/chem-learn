@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
-import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -65,6 +65,10 @@ function MockAdminContent() {
   const [resultsFor, setResultsFor] = useState<string | null>(null)
   const [results, setResults] = useState<any>(null)
   const [resultsTab, setResultsTab] = useState<'students' | 'questions'>('students')
+  const [resultsClass, setResultsClass] = useState('')
+  const [showOverview, setShowOverview] = useState(false)
+  const [overview, setOverview] = useState<any>(null)
+  const [overviewClass, setOverviewClass] = useState('')
   const [zoom, setZoom] = useState<string | null>(null)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -272,13 +276,24 @@ function MockAdminContent() {
 
   const lessonOptions = useMemo(() => outline.flatMap(c => c.lessons.map(l => ({ ...l, chapter: c.title }))), [outline])
 
-  const openResults = async (id: string) => {
+  const openResults = async (id: string, cls = resultsClass) => {
     setResultsFor(id); setResults(null); setResultsTab('students')
     try {
-      const j = await fetch(`/api/teacher/mock-results?paperId=${id}`).then(r => r.json())
+      const j = await fetch(`/api/teacher/mock-results?paperId=${id}&classId=${cls}`).then(r => r.json())
       if (j.error) { alert('读取失败：' + j.error); setResultsFor(null); return }
       setResults(j)
     } catch { setResultsFor(null) }
+  }
+
+  // Students × papers matrix for the whole course — the "how is he doing across
+  // several mock exams" view, which a single paper's results cannot answer.
+  const openOverview = async (cls = overviewClass) => {
+    setShowOverview(true); setOverview(null)
+    try {
+      const j = await fetch(`/api/teacher/mock-overview?courseId=${courseId}&classId=${cls}`).then(r => r.json())
+      if (j.error) { alert('读取失败：' + j.error); setShowOverview(false); return }
+      setOverview(j)
+    } catch { setShowOverview(false) }
   }
   const qWarn = useMemo(() => ({
     lesson: questions.filter(q => !q.lessonId).length,
@@ -326,7 +341,10 @@ function MockAdminContent() {
               <select value={courseId} onChange={e => setCourseId(e.target.value)} className="px-3 py-2 border rounded-lg bg-background text-sm">
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <button onClick={startNewPaper} className={`ml-auto flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
+              <button onClick={() => openOverview('')} className={`ml-auto flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors`}>
+                <BarChart3 className="w-4 h-4" /> {lang === 'zh' ? '总成绩（跨套卷）' : 'Overview'}
+              </button>
+              <button onClick={startNewPaper} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
                 <Plus className="w-4 h-4" /> {lang === 'zh' ? '新建试卷' : 'New paper'}
               </button>
             </div>
@@ -352,6 +370,10 @@ function MockAdminContent() {
                         p.isPublished ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
                       {p.isPublished ? '取消发布' : '发布'}
                     </button>
+                    <Link href={`/teacher/mock/${p.id}/preview`}
+                      className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
+                      <Eye className="w-3 h-3 inline" /> {lang === 'zh' ? '预览' : 'Preview'}
+                    </Link>
                     <button onClick={() => openResults(p.id)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
                       <BarChart3 className="w-3 h-3 inline" /> {lang === 'zh' ? '成绩' : 'Results'}
                     </button>
@@ -580,6 +602,23 @@ function MockAdminContent() {
                   <div><div className="text-xs text-muted-foreground">进行中</div><div className="text-xl font-semibold">{results.inProgressCount}</div></div>
                 </div>
 
+                {/* A published mock course is sat by several classes at once, so
+                    the raw list mixes them — narrow to one class here. */}
+                {results.classes?.length > 0 && (
+                  <div className="flex items-center gap-2 px-5 pt-4">
+                    <span className="text-xs text-muted-foreground">班级</span>
+                    <select value={results.classId || ''}
+                      onChange={e => { setResultsClass(e.target.value); openResults(resultsFor!, e.target.value) }}
+                      className="px-2 py-1.5 border rounded-lg bg-background text-xs">
+                      <option value="">全部班级</option>
+                      {results.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {results.classId === '' && results.classes.length > 1 && (
+                      <span className="text-xs text-amber-700">当前是全部学生的合并成绩，选一个班级可以只看本班</span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-1 px-5 pt-4">
                   <button onClick={() => setResultsTab('students')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${resultsTab === 'students' ? 'bg-violet-500 text-white font-medium' : 'hover:bg-accent'}`}>
@@ -643,6 +682,94 @@ function MockAdminContent() {
                   )}
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* students × papers: how each student is doing across the whole course */}
+      {showOverview && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setShowOverview(false)}>
+          <div className="bg-card rounded-2xl w-full max-w-5xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-violet-500" />
+                总成绩 · 每人在各套卷上的表现
+                {overview?.courseName && <span className="text-xs font-normal text-muted-foreground">{overview.courseName}</span>}
+              </h2>
+              <button onClick={() => setShowOverview(false)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            {!overview ? (
+              <div className="py-16 text-center"><Loader2 className="w-6 h-6 text-violet-500 animate-spin inline" /></div>
+            ) : (
+              <div className="p-5">
+                {overview.classes?.length > 0 && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs text-muted-foreground">班级</span>
+                    <select value={overview.classId || ''}
+                      onChange={e => { setOverviewClass(e.target.value); openOverview(e.target.value) }}
+                      className="px-2 py-1.5 border rounded-lg bg-background text-xs">
+                      <option value="">全部班级</option>
+                      {overview.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <span className="text-xs text-muted-foreground">同一个学生多次考同一套卷，取最好的一次</span>
+                  </div>
+                )}
+
+                {overview.students.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">还没有交卷记录。</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="py-2 pr-3 font-medium sticky left-0 bg-card">学生</th>
+                          {overview.papers.map((p: any) => (
+                            <th key={p.id} className="py-2 px-2 font-medium text-center whitespace-nowrap">
+                              {p.title.replace(/^【.*?】/, '').slice(0, 12)}
+                              {!p.isPublished && <span className="ml-1 text-[10px] text-gray-400">未发布</span>}
+                            </th>
+                          ))}
+                          <th className="py-2 px-2 font-medium text-center">平均</th>
+                          <th className="py-2 px-2 font-medium text-center">趋势</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overview.students.map((s: any) => (
+                          <tr key={s.studentId} className="border-t">
+                            <td className="py-2 pr-3 sticky left-0 bg-card">
+                              <div className="whitespace-nowrap">{s.studentName}</div>
+                              {s.classNames?.length > 0 && <div className="text-[10px] text-muted-foreground">{s.classNames.join('、')}</div>}
+                            </td>
+                            {overview.papers.map((p: any) => {
+                              const v = s.scores[p.id]
+                              return (
+                                <td key={p.id} className="py-2 px-2 text-center tabular-nums">
+                                  {v ? (
+                                    <span className={v.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}>{v.percentage}%</span>
+                                  ) : <span className="text-gray-300">—</span>}
+                                </td>
+                              )
+                            })}
+                            <td className="py-2 px-2 text-center font-medium tabular-nums">{s.average ?? '—'}</td>
+                            <td className="py-2 px-2 text-center tabular-nums">
+                              {s.trend == null ? <span className="text-gray-300">—</span> : (
+                                <span className={s.trend > 0 ? 'text-emerald-600' : s.trend < 0 ? 'text-rose-600' : 'text-muted-foreground'}>
+                                  {s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→'} {Math.abs(s.trend)}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-4">
+                  趋势 = 最近一次成绩 − 第一次成绩（同一套卷取最好一次）。点每套卷旁边的「成绩」可以看那一场的逐题情况。
+                </p>
+              </div>
             )}
           </div>
         </div>

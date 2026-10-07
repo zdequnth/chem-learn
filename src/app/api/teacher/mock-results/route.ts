@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
-import { loadPaperForTeacher, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
+import { classesOfStudents, loadPaperForTeacher, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { NextResponse } from 'next/server'
 
 // Results of one mock paper: who sat it, how they did, and which QUESTIONS the
@@ -12,7 +12,9 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const paperId = new URL(request.url).searchParams.get('paperId')
+  const params = new URL(request.url).searchParams
+  const paperId = params.get('paperId')
+  const classId = params.get('classId') || ''
   if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
 
   const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
@@ -30,8 +32,16 @@ export async function GET(request: Request) {
   const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
     query: `?paper_id=eq.${paperId}&order=submitted_at.desc&select=id,student_id,status,submit_reason,duration_seconds,started_at,submitted_at,total_questions,total_correct,total_wrong,score_percentage`,
   })
-  const subs = (sessions || []).filter((s: any) => s.status === 'submitted')
-  const inProgress = (sessions || []).length - subs.length
+  const allSessions = (sessions || []) as any[]
+
+  // A published mock course is sat by several classes at once, so the raw list
+  // mixes them. Offer the participating classes and let the teacher narrow down.
+  const { classes, byStudent } = await classesOfStudents([...new Set(allSessions.map((s) => s.student_id))])
+  const inClass = (studentId: string) => !classId || (byStudent.get(studentId) || []).includes(classId)
+
+  const scoped = allSessions.filter((s) => inClass(s.student_id))
+  const subs = scoped.filter((s: any) => s.status === 'submitted')
+  const inProgress = scoped.length - subs.length
 
   // student names
   const studentIds = [...new Set(subs.map((s: any) => s.student_id))]
@@ -109,6 +119,8 @@ export async function GET(request: Request) {
       isPublished: !!paperRow?.is_published,
       courseName: course?.name ?? '',
     },
+    classes,
+    classId,
     submittedCount: rows.length,
     inProgressCount: inProgress,
     average: scored.length ? Math.round((scored.reduce((a: number, b: number) => a + b, 0) / scored.length) * 10) / 10 : null,

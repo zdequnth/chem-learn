@@ -116,6 +116,37 @@ export async function isAdminUser(): Promise<boolean> {
 // Exam sessions
 // ============================================================
 
+/**
+ * Which classes are these students in? Used to let a teacher look at one class's
+ * mock results instead of everyone who happened to sit the paper — a mock course
+ * is usually published to several classes, so the raw list mixes them.
+ *
+ * Returns the classes the participants belong to (for the filter dropdown) plus
+ * a student → classIds map.
+ */
+export async function classesOfStudents(studentIds: string[]) {
+  if (studentIds.length === 0) return { classes: [] as { id: string; name: string }[], byStudent: new Map<string, string[]>() }
+
+  const memberships: any[] = []
+  for (let i = 0; i < studentIds.length; i += 100) {
+    const { data } = await supabaseAdmin('class_members', {
+      query: `?student_id=in.(${studentIds.slice(i, i + 100).join(',')})&select=student_id,class_id`,
+    })
+    memberships.push(...(data || []))
+  }
+  const classIds = [...new Set(memberships.map((m: any) => m.class_id).filter(Boolean))]
+  const { data: classes } = classIds.length
+    ? await supabaseAdmin('classes', { query: `?id=in.(${classIds.join(',')})&select=id,name&order=name` })
+    : { data: [] as any[] }
+
+  const byStudent = new Map<string, string[]>()
+  for (const m of memberships) {
+    if (!m.class_id) continue
+    byStudent.set(m.student_id, [...(byStudent.get(m.student_id) || []), m.class_id])
+  }
+  return { classes: (classes || []) as { id: string; name: string }[], byStudent }
+}
+
 export interface SessionRow {
   id: string
   student_id: string
