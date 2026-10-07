@@ -20,28 +20,52 @@ export async function GET(request: Request) {
   if (!q) return NextResponse.json({ error: '题目不存在' }, { status: 404 })
 
   const qtype = q.question_type || 'gate_test'
-  const candidatesFor = async (filter: string) => {
+  // Mock questions point at a lesson of the bound gate course, but there are only
+  // ever a handful of mock questions per lesson — so on their own they rarely
+  // turn up a match. For a mock question we therefore also draw on the gate
+  // questions of the same lesson, which is exactly the drilling material a
+  // student who just missed that topic needs.
+  const types = qtype === 'mock' ? ['mock', 'gate_test'] : [qtype]
+  const candidatesFor = async (filter: string, type: string) => {
     const { data } = await supabaseAdmin('questions', {
-      query: `?${filter}&question_type=eq.${qtype}&is_approved=eq.true&id=neq.${q.id}&select=id,stem,image_url,explanation&limit=100`,
+      query: `?${filter}&question_type=eq.${type}&is_approved=eq.true&id=neq.${q.id}&select=id,stem,image_url,explanation&limit=100`,
     })
     return data || []
   }
+  const gather = async (filter: string) => {
+    for (const t of types) {
+      const found = await candidatesFor(filter, t)
+      if (found.length > 0) return found
+    }
+    return []
+  }
 
-  let candidates = q.knowledge_point_id ? await candidatesFor(`knowledge_point_id=eq.${q.knowledge_point_id}`) : []
+  let candidates = q.knowledge_point_id ? await candidatesFor(`knowledge_point_id=eq.${q.knowledge_point_id}`, qtype) : []
   let scope = 'knowledge_point'
   if (candidates.length === 0) {
-    candidates = await candidatesFor(`lesson_id=eq.${q.lesson_id}`)
+    candidates = await gather(`lesson_id=eq.${q.lesson_id}`)
     scope = 'lesson'
   }
   if (candidates.length === 0) return NextResponse.json({ question: null })
 
-  // Prefer questions the student has not already answered correctly
+  // Prefer questions the student has not already answered correctly — across
+  // both the gate tests and any mock exams they have sat.
+  const answeredCorrect = new Set<string>()
   const { data: sess } = await supabaseAdmin('gate_test_sessions', { query: `?student_id=eq.${user.id}&select=id` })
   const sids = (sess || []).map((s: any) => s.id)
-  const answeredCorrect = new Set<string>()
   for (let i = 0; i < sids.length; i += 150) {
     const { data } = await supabaseAdmin('gate_test_answers', {
       query: `?session_id=in.(${sids.slice(i, i + 150).join(',')})&is_correct=eq.true&select=question_id`,
+    })
+    for (const a of (data || [])) answeredCorrect.add(a.question_id)
+  }
+  const { data: mockSess } = await supabaseAdmin('mock_test_sessions', {
+    query: `?student_id=eq.${user.id}&status=eq.submitted&select=id`,
+  })
+  const msids = (mockSess || []).map((s: any) => s.id)
+  for (let i = 0; i < msids.length; i += 150) {
+    const { data } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=in.(${msids.slice(i, i + 150).join(',')})&is_correct=eq.true&select=question_id`,
     })
     for (const a of (data || [])) answeredCorrect.add(a.question_id)
   }

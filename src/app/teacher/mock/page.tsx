@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
-import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3 } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -29,6 +29,11 @@ interface DraftQuestion {
   aiGenerated: boolean
 }
 interface PaperRow { id: string; title: string; durationMinutes: number; questionCount: number; attemptCount: number; isPublished: boolean }
+
+function fmt(seconds: number) {
+  const s = Math.max(0, Math.floor(seconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 function MockAdminContent() {
   const router = useRouter()
@@ -57,6 +62,9 @@ function MockAdminContent() {
   const [importText, setImportText] = useState('')
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const [resultsFor, setResultsFor] = useState<string | null>(null)
+  const [results, setResults] = useState<any>(null)
+  const [resultsTab, setResultsTab] = useState<'students' | 'questions'>('students')
   const [zoom, setZoom] = useState<string | null>(null)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -120,8 +128,7 @@ function MockAdminContent() {
     setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false); setPublished(false)
   }
 
-  const togglePublish = async (id: string, next: boolean) => {
-    const r = await fetch(`/api/mock/papers/${id}`, {
+  const togglePublish = async (id: string, next: boolean) => {    const r = await fetch(`/api/mock/papers/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isPublished: next }),
     })
@@ -264,6 +271,15 @@ function MockAdminContent() {
   }
 
   const lessonOptions = useMemo(() => outline.flatMap(c => c.lessons.map(l => ({ ...l, chapter: c.title }))), [outline])
+
+  const openResults = async (id: string) => {
+    setResultsFor(id); setResults(null); setResultsTab('students')
+    try {
+      const j = await fetch(`/api/teacher/mock-results?paperId=${id}`).then(r => r.json())
+      if (j.error) { alert('读取失败：' + j.error); setResultsFor(null); return }
+      setResults(j)
+    } catch { setResultsFor(null) }
+  }
   const qWarn = useMemo(() => ({
     lesson: questions.filter(q => !q.lessonId).length,
     options: questions.filter(q => q.options.length < 2).length,
@@ -335,6 +351,9 @@ function MockAdminContent() {
                       className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
                         p.isPublished ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
                       {p.isPublished ? '取消发布' : '发布'}
+                    </button>
+                    <button onClick={() => openResults(p.id)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
+                      <BarChart3 className="w-3 h-3 inline" /> {lang === 'zh' ? '成绩' : 'Results'}
                     </button>
                     <button onClick={() => openPaper(p.id, p.title, p.durationMinutes)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
                       {lang === 'zh' ? '编辑' : 'Edit'}
@@ -532,6 +551,102 @@ function MockAdminContent() {
           </>
         )}
       </main>
+
+      {/* paper results: who sat it, and which questions the class missed */}
+      {resultsFor && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4" onClick={() => setResultsFor(null)}>
+          <div className="bg-card rounded-2xl w-full max-w-4xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-violet-500" />
+                {results?.paper?.title || '成绩'}
+                {results?.paper && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${results.paper.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {results.paper.isPublished ? '已发布' : '未发布'}
+                  </span>
+                )}
+              </h2>
+              <button onClick={() => setResultsFor(null)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            {!results ? (
+              <div className="py-16 text-center"><Loader2 className="w-6 h-6 text-violet-500 animate-spin inline" /></div>
+            ) : (
+              <>
+                <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b">
+                  <div><div className="text-xs text-muted-foreground">已交卷</div><div className="text-xl font-semibold">{results.submittedCount}</div></div>
+                  <div><div className="text-xs text-muted-foreground">平均分</div><div className="text-xl font-semibold text-violet-700">{results.average ?? '—'}</div></div>
+                  <div><div className="text-xs text-muted-foreground">最高 / 最低</div><div className="text-xl font-semibold">{results.highest ?? '—'} / {results.lowest ?? '—'}</div></div>
+                  <div><div className="text-xs text-muted-foreground">进行中</div><div className="text-xl font-semibold">{results.inProgressCount}</div></div>
+                </div>
+
+                <div className="flex gap-1 px-5 pt-4">
+                  <button onClick={() => setResultsTab('students')}
+                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${resultsTab === 'students' ? 'bg-violet-500 text-white font-medium' : 'hover:bg-accent'}`}>
+                    按学生 ({results.rows.length})
+                  </button>
+                  <button onClick={() => setResultsTab('questions')}
+                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${resultsTab === 'questions' ? 'bg-violet-500 text-white font-medium' : 'hover:bg-accent'}`}>
+                    按题目（薄弱优先）
+                  </button>
+                </div>
+
+                <div className="p-5">
+                  {resultsTab === 'students' ? (
+                    results.rows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-6 text-center">还没有人交卷。</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="text-muted-foreground">
+                          <tr className="text-left">
+                            <th className="py-2 font-medium">学生</th>
+                            <th className="py-2 font-medium">得分</th>
+                            <th className="py-2 font-medium">对 / 总</th>
+                            <th className="py-2 font-medium">用时</th>
+                            <th className="py-2 font-medium">交卷</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {results.rows.map((r: any) => (
+                            <tr key={r.sessionId} className="border-t">
+                              <td className="py-2">{r.studentName}</td>
+                              <td className={`py-2 font-medium ${r.percentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>{r.percentage}%</td>
+                              <td className="py-2 text-muted-foreground">{r.correct} / {r.total}</td>
+                              <td className="py-2 text-muted-foreground tabular-nums">{r.usedSeconds != null ? fmt(r.usedSeconds) : '—'}</td>
+                              <td className="py-2 text-muted-foreground text-xs">
+                                {r.submitReason === 'timeout' ? '超时自动交卷' : '手动交卷'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        正确率从低到高排；每题标出它对应的章节课时。全班错得多的题，就是该回去讲的课时。
+                      </p>
+                      {[...results.questions].sort((a: any, b: any) => a.rate - b.rate).map((q: any) => (
+                        <div key={q.questionId} className="flex items-center gap-3 py-1.5 border-b last:border-0">
+                          <span className="w-8 shrink-0 text-xs text-muted-foreground tabular-nums">#{q.sortOrder + 1}</span>
+                          <span className={`w-12 shrink-0 text-sm font-medium tabular-nums ${q.rate >= 60 ? 'text-emerald-700' : q.rate >= 30 ? 'text-amber-600' : 'text-rose-600'}`}>{q.rate}%</span>
+                          <span className="flex-1 min-w-0 text-sm truncate">{String(q.stem).replace(/\s+/g, ' ').slice(0, 80)}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{q.correct}/{q.asked}</span>
+                          {(q.chapterTitle || q.lessonTitle) && (
+                            <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 max-w-[240px] truncate">
+                              {q.lessonRef ? `${q.lessonRef} ` : ''}{q.lessonTitle || q.chapterTitle}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {zoom && (
         <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3" onClick={() => setZoom(null)}>
