@@ -491,6 +491,37 @@ function MockAdminContent() {
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆题' : 'Paste paper text'}</h2>
                   </div>
+
+                  {/* Turning a PDF into pasteable text is the step nobody can guess,
+                      so the instructions live right here. */}
+                  <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                    <div className="font-medium mb-1.5">
+                      {lang === 'zh' ? '📄 手里是 PDF？先用 MinerU 转成文本' : '📄 Have a PDF? Turn it into text with MinerU first'}
+                    </div>
+                    <ol className="list-decimal list-inside space-y-0.5">
+                      {lang === 'zh' ? (
+                        <>
+                          <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，用邮箱或微信登录（免费）</li>
+                          <li>把试卷 PDF 上传上去，等它解析完成（一般几分钟）</li>
+                          <li>解析完成后，下载 <b>Markdown</b> 格式的结果</li>
+                          <li>用记事本打开下载的 .md 文件，全选复制，粘贴到下面的框里</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Open <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a> and sign in (free)</li>
+                          <li>Upload the paper PDF and wait for it to finish parsing</li>
+                          <li>Download the result as <b>Markdown</b></li>
+                          <li>Open the .md in a text editor, copy everything, paste it below</li>
+                        </>
+                      )}
+                    </ol>
+                    <p className="mt-1.5 text-blue-800/80">
+                      {lang === 'zh'
+                        ? '表格、公式、化学式它会自动转好；结构图、装置图这类纯图片题目转不出来 —— AI 拆完题后，你在对应那道题上直接截图粘贴即可。'
+                        : 'Tables, formulas and chemical equations convert automatically; pure image questions (diagrams) do not — screenshot and paste those onto the question after parsing.'}
+                    </p>
+                  </div>
+
                   <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
                     placeholder={lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
