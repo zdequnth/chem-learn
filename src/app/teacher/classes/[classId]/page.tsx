@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import CourseBindings from '@/components/CourseBindings'
 import { ArrowLeft, Loader2, Edit3, Save, X, Users } from 'lucide-react'
 
 interface StudentProgress {
@@ -167,14 +166,6 @@ export default function ClassDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* Course bindings — one course per kind. */}
-            {isOwner && (
-              <div className="bg-card rounded-2xl border p-6 mb-6">
-                <h2 className="text-lg font-semibold mb-4">绑定课程</h2>
-                <CourseBindings classId={classId} />
-              </div>
-            )}
 
             {/* Students Progress */}
             <div className="bg-card rounded-2xl border p-6">

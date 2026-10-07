@@ -72,16 +72,19 @@ export default function CourseBindings({ classId, onChange }: { classId: string;
     <div className="space-y-4">
       {KINDS.map(({ kind, label, noun, hint }) => {
         const bound = bindings.find(b => b.kind === kind)
+        // The gate binding is permanent — freeze the row entirely, no dropdown,
+        // no button, so it cannot be changed by accident.
+        const locked = kind === 'gate' && !!bound
         const options = courses.filter(c => (c.kind ?? 'gate') === kind)
         return (
-          <div key={kind} className="border rounded-xl p-3">
+          <div key={kind} className={`border rounded-xl p-3 ${locked ? 'bg-gray-50' : ''}`}>
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="text-sm font-medium">{label}</span>
               {bound ? (
                 <>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{bound.courseName}</span>
-                  {kind === 'gate'
-                    ? <span className="text-xs text-muted-foreground">已锁定</span>
+                  {locked
+                    ? <span className="text-xs text-muted-foreground inline-flex items-center gap-1">🔒 已锁定</span>
                     : <button onClick={() => unbind(kind, bound.courseName)} disabled={busy === kind}
                         className="text-xs text-red-500 hover:underline disabled:opacity-50">解除</button>}
                 </>
@@ -89,21 +92,27 @@ export default function CourseBindings({ classId, onChange }: { classId: string;
                 <span className="text-xs text-muted-foreground">未绑定</span>
               )}
             </div>
-            <div className="flex gap-2">
-              <select value={pick[kind] || ''} onChange={e => setPick(p => ({ ...p, [kind]: e.target.value }))}
-                className="flex-1 px-3 py-2 border rounded-lg bg-background text-sm">
-                <option value="">{bound ? '换成…' : '选择课程…'}</option>
-                {options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <button onClick={() => bind(kind)} disabled={!pick[kind] || busy === kind}
-                className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40">
-                {busy === kind ? '处理中…' : bound ? '更换' : '绑定'}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              {hint}
-              {options.length === 0 && ` · 你还没有${noun}`}
-            </p>
+            {locked ? (
+              <p className="text-xs text-muted-foreground">{hint}</p>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <select value={pick[kind] || ''} onChange={e => setPick(p => ({ ...p, [kind]: e.target.value }))}
+                    className="flex-1 px-3 py-2 border rounded-lg bg-background text-sm">
+                    <option value="">{bound ? '换成…' : '选择课程…'}</option>
+                    {options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <button onClick={() => bind(kind)} disabled={!pick[kind] || busy === kind}
+                    className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40">
+                    {busy === kind ? '处理中…' : bound ? '更换' : '绑定'}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {hint}
+                  {options.length === 0 && ` · 你还没有${noun}`}
+                </p>
+              </>
+            )}
           </div>
         )
       })}
