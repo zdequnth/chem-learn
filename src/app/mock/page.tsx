@@ -24,36 +24,36 @@ function MockListContent() {
   const { lang } = useLang()
   const theme = kindTheme('mock')
 
-  const [courses, setCourses] = useState<{ id: string; name: string }[]>([])
-  const [courseId, setCourseId] = useState('')
-  const [courseName, setCourseName] = useState('')
-  const [papers, setPapers] = useState<PaperRow[]>([])
+  const [groups, setGroups] = useState<{ id: string; name: string; papers: PaperRow[] }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { if (!authLoading && !user) router.push('/login') }, [user, authLoading, router])
 
-  // Not /api/courses — that lists courses a teacher owns and is empty for a
-  // student. This endpoint applies the same visibility rule as the vocabulary
-  // page (their classes' courses ∪ published courses), restricted to mock
-  // courses that actually have a paper.
+  // Every mock course the student can see, each with its published papers.
+  //
+  // Not /api/courses — that lists courses a teacher OWNS and is empty for a
+  // student. And grouped by course rather than shown as one flat list: with
+  // several mock courses a flat list becomes unreadable.
   useEffect(() => {
     if (!user) return
-    fetch('/api/test/mock/courses').then(r => r.json()).then((j) => {
-      const mock = (j.courses || []) as { id: string; name: string }[]
-      setCourses(mock)
-      const want = sp.get('course')
-      setCourseId(prev => prev || (want && mock.some(c => c.id === want) ? want : mock[0]?.id) || '')
-    }).catch(() => {}).finally(() => setLoading(false))
+    ;(async () => {
+      try {
+        const j = await fetch('/api/test/mock/courses').then(r => r.json())
+        const list = (j.courses || []) as { id: string; name: string }[]
+        const want = sp.get('course')
+        // Keep the requested course first, so a link into one course lands on it.
+        const ordered = want && list.some(c => c.id === want)
+          ? [list.find(c => c.id === want)!, ...list.filter(c => c.id !== want)]
+          : list
+        const withPapers = await Promise.all(ordered.map(async (c) => {
+          const p = await fetch(`/api/test/mock/papers?courseId=${c.id}`).then(r => r.json()).catch(() => ({}))
+          return { ...c, papers: (p.papers || []) as PaperRow[] }
+        }))
+        setGroups(withPapers.filter(g => g.papers.length > 0))
+      } catch { /* nothing to show */ }
+      finally { setLoading(false) }
+    })()
   }, [user])
-
-  useEffect(() => {
-    if (!courseId) return
-    setLoading(true)
-    fetch(`/api/test/mock/papers?courseId=${courseId}`).then(r => r.json()).then((j) => {
-      setPapers(j.papers || [])
-      setCourseName(j.courseName || '')
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [courseId])
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
@@ -73,32 +73,23 @@ function MockListContent() {
           </p>
         </div>
 
-        {courses.length === 0 && !loading ? (
+        {!loading && groups.length === 0 ? (
           <div className="bg-card border rounded-2xl p-10 text-center">
             <div className="text-5xl mb-3">📝</div>
             <p className="text-muted-foreground">{lang === 'zh' ? '还没有可用的模拟考课程。等老师建好并发布后再来。' : 'No mock exam available yet.'}</p>
           </div>
+        ) : loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
         ) : (
-          <>
-            {courses.length > 1 && (
-              <div className="bg-card border rounded-2xl p-4 mb-5 flex items-center gap-3">
-                <span className="text-sm font-medium">{lang === 'zh' ? '课程' : 'Course'}</span>
-                <select value={courseId} onChange={e => setCourseId(e.target.value)}
-                  className="px-3 py-2 border rounded-lg bg-background text-sm">
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
-            ) : papers.length === 0 ? (
-              <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-                {lang === 'zh' ? `「${courseName}」还没有试卷。` : 'No papers yet.'}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {papers.map(p => {
+          <div className="space-y-8">
+            {groups.map(g => (
+              <div key={g.id}>
+                <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                  <span>{theme.emoji}</span> {g.name}
+                  <span className="text-xs font-normal text-muted-foreground">{g.papers.length} 套卷子</span>
+                </h2>
+                <div className="space-y-3">
+                {g.papers.map(p => {
                   const r = p.lastResult
                   const live = r?.status === 'in_progress'
                   const done = r?.status === 'submitted'
@@ -133,9 +124,10 @@ function MockListContent() {
                     </div>
                   )
                 })}
+                </div>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </main>
     </div>

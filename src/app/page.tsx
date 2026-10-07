@@ -98,29 +98,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Subjects Grid */}
-      <section id="subjects" className="py-12 px-4 max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold mb-2">选择学科</h2>
-          <p className="text-muted-foreground">涵盖八大领域，找到你的学习方向</p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {subjects.map(s => (
-            <Link key={s.key} href={`/login?signup=true`}
-              className={`${s.bg} border rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all group`}>
-              <div className="text-4xl mb-3">{s.icon}</div>
-              <h3 className={`font-semibold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.name}</h3>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Philosophy — before the flow, because it is the reason the flow is
-          shaped the way it is. */}
+      {/* Philosophy — the reason the gate courses are shaped the way they are, so
+          it comes before the subject grid and the flow. */}
       <section className="py-20 px-4 bg-gradient-to-r from-emerald-50 via-white to-emerald-50">
         <div className="max-w-3xl mx-auto text-center">
           <div className="text-sm font-medium text-emerald-600 mb-3 tracking-wide uppercase">教学理念</div>
-          <h2 className="text-2xl font-bold mb-6">布鲁姆精熟学习理论</h2>
+          <h2 className="text-2xl font-bold mb-6">通关课程——布鲁姆精熟学习理论</h2>
           <p className="text-lg text-muted-foreground leading-relaxed mb-8">
             必须完全掌握当前知识点、达标通过后，才能解锁下一课时。
             不允许盲目跳进度，杜绝似懂非懂、基础漏洞不断累积。
@@ -142,6 +125,23 @@ export default function HomePage() {
               <p>答错自动记入错题本，针对性复习直到完全掌握</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Subjects Grid */}
+      <section id="subjects" className="py-12 px-4 max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold mb-2">选择学科</h2>
+          <p className="text-muted-foreground">涵盖八大领域，找到你的学习方向</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {subjects.map(s => (
+            <Link key={s.key} href={`/login?signup=true`}
+              className={`${s.bg} border rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all group`}>
+              <div className="text-4xl mb-3">{s.icon}</div>
+              <h3 className={`font-semibold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.name}</h3>
+            </Link>
+          ))}
         </div>
       </section>
 

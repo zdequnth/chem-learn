@@ -269,10 +269,14 @@ function MockExamContent() {
                       <Flag className="w-3 h-3" /> 考试时标记过
                     </span>
                   )}
-                  {(q.chapterTitle || q.lessonTitle) && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                      {q.chapterTitle}{q.lessonRef ? ` › ${q.lessonRef}` : ''} {q.lessonTitle}
-                    </span>
+                  {/* Links to the lesson's page, where its knowledge points and
+                      video links live — the whole point of tagging each question
+                      with the lesson it belongs to. */}
+                  {q.lessonId && (q.chapterTitle || q.lessonTitle) && (
+                    <Link href={`/play/${q.lessonId}`} title="去这一课复习知识点"
+                      className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-800 underline decoration-dotted underline-offset-2 transition-colors">
+                      {q.chapterTitle}{q.lessonRef ? ` › ${q.lessonRef}` : ''} {q.lessonTitle} ↗
+                    </Link>
                   )}
                 </div>
 
@@ -377,7 +381,14 @@ function MockExamContent() {
         <div className="sticky top-16 z-30 bg-card border rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
           <span className="font-semibold truncate">{title}</span>
           <span className="text-xs text-muted-foreground shrink-0">已答 {answeredCount}/{questions.length}</span>
-          <span className={`ml-auto flex items-center gap-1.5 tabular-nums font-semibold shrink-0 ${lowTime ? 'text-rose-600' : theme.text}`}>
+          {/* Submit sits next to the clock: the two things a student looks for
+              when deciding whether to stop. */}
+          <button onClick={() => { const n = Object.keys(answers).length; if (confirm(`还有 ${questions.length - n} 题没作答。确定交卷？`)) doSubmit('manual') }}
+            disabled={busy}
+            className={`ml-auto shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
+            {busy ? '交卷中…' : '交卷'}
+          </button>
+          <span className={`flex items-center gap-1.5 tabular-nums font-semibold shrink-0 ${lowTime ? 'text-rose-600' : theme.text}`}>
             <Clock className="w-4 h-4" /> {fmt(remaining)}
           </span>
         </div>
@@ -388,37 +399,16 @@ function MockExamContent() {
           </div>
         )}
 
-        {/* question number palette. Flagged questions get the amber dot, so the
-            ones the student wanted to come back to are findable at a glance. */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          {questions.map((q, i) => {
-            const done = !!answers[q.questionId]
-            const on = !!flags[q.questionId]
-            if (onlyFlagged && !on) return null
-            return (
-              <button key={q.questionId} onClick={() => setIdx(i)}
-                className={`relative w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
-                  i === idx ? 'ring-2 ring-violet-400 ' : ''
-                }${done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                {i + 1}
-                {on && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />}
-              </button>
-            )
-          })}
-          <button onClick={() => setOnlyFlagged(v => !v)}
-            className={`ml-1 px-2.5 h-9 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
-            {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
-          </button>
-        </div>
-
+        {/* The question comes first — the palette below is for jumping around,
+            not for reading. */}
         {cur && (
-          <div className="bg-card border rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-2">
+          <div className="bg-card border rounded-2xl p-5 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-muted-foreground">第 {idx + 1} 题 / 共 {questions.length} 题</span>
               <button onClick={() => toggleFlag(cur)}
-                className={`ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                className={`ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors ${
                   flags[cur.questionId] ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
-                <Flag className="w-3.5 h-3.5" />
+                <Flag className="w-4 h-4" />
                 {flags[cur.questionId] ? '已标记（回头再看）' : '标记这题'}
               </button>
             </div>
@@ -440,22 +430,39 @@ function MockExamContent() {
               })}
             </div>
 
-            <div className="flex items-center gap-3 mt-5">
+            <div className="flex items-center justify-center gap-3 mt-6">
               <button onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
+                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
               <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
-              <button onClick={() => { const n = Object.keys(answers).length; if (confirm(`还有 ${questions.length - n} 题没作答。确定交卷？`)) doSubmit('manual') }}
-                disabled={busy}
-                className={`ml-auto px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
-                {busy ? '交卷中…' : '交卷'}
-              </button>
+                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              这一场考试的答案随时在保存，中途刷新或换设备都能接着答。交卷后才显示对错。
-            </p>
           </div>
         )}
+
+        {/* question number palette. Flagged questions are filled yellow, so the
+            ones to come back to stand out among the answered (violet) ones. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {questions.map((q, i) => {
+            const done = !!answers[q.questionId]
+            const on = !!flags[q.questionId]
+            if (onlyFlagged && !on) return null
+            return (
+              <button key={q.questionId} onClick={() => setIdx(i)}
+                className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
+                  i === idx ? 'ring-2 ring-violet-400 ' : ''
+                }${on ? 'bg-amber-400 border-amber-400 text-white' : done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                {i + 1}
+              </button>
+            )
+          })}
+          <button onClick={() => setOnlyFlagged(v => !v)}
+            className={`ml-1 px-2.5 h-9 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+            {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          紫色 = 已作答，黄色 = 你标记过的。答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
+        </p>
       </main>
     </div>
   )

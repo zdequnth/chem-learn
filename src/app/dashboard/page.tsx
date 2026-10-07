@@ -25,7 +25,6 @@ export default function DashboardPage() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [myClasses, setMyClasses] = useState<any[]>([])
   const [vocabByCourse, setVocabByCourse] = useState<Record<string, any>>({})
-  const [mockCourses, setMockCourses] = useState<{ id: string; name: string }[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
   const [teacherClasses, setTeacherClasses] = useState<any[]>([])
 
@@ -101,12 +100,6 @@ export default function DashboardPage() {
       const map: Record<string, any> = {}
       for (const c of (json.courses || [])) map[c.id] = c
       setVocabByCourse(map)
-    }).catch(() => {})
-    // Published mock exams. A mock course is usually NOT linked to a class (a
-    // class points at exactly one course), so without this the only way to find
-    // a mock exam would be the navbar link — which students missed.
-    fetch('/api/test/mock/courses').then(r => r.json()).then(json => {
-      setMockCourses(json.courses || [])
     }).catch(() => {})
     fetchFavs()
   }, [user, isTeacher])
@@ -190,35 +183,10 @@ export default function DashboardPage() {
                 {joinMsg && <span className="text-sm">{joinMsg}</span>}
               </div>
 
-              {/* Published mock exams. Sits above the class cards because a mock
-                  course is usually not class-linked, so nothing else surfaces it. */}
-              {mockCourses.length > 0 && (
-                <div className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-lg">📝</span>
-                    <span className="font-semibold text-violet-900">模拟考</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-violet-200 text-violet-900">限时套题</span>
-                    <span className="text-xs text-violet-800">倒计时内自由作答，交卷后才看分数和错题</span>
-                    <Link href={mockCourses.length === 1 ? `/mock?course=${mockCourses[0].id}` : '/mock'}
-                      className="ml-auto shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium text-white bg-violet-500 hover:bg-violet-600 transition-colors">
-                      去模拟考 →
-                    </Link>
-                  </div>
-                  {mockCourses.length > 1 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {mockCourses.map(m => (
-                        <Link key={m.id} href={`/mock?course=${m.id}`}
-                          className="text-xs px-2 py-0.5 rounded-lg bg-white border border-violet-200 text-violet-800 hover:bg-violet-100 transition-colors">
-                          {m.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* My classes with progress */}
               {myClasses.length > 0 && (
+                <>
+                <h3 className="text-sm font-semibold text-muted-foreground mt-4 mb-1">已加入的班级与课程</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {myClasses.map((c: any) => {
                     // One card shape for both kinds — a vocabulary class differs by
@@ -300,6 +268,7 @@ export default function DashboardPage() {
                     )
                   })}
                 </div>
+                </>
               )}
             </div>
           )}
@@ -361,7 +330,10 @@ export default function DashboardPage() {
           {/* Subject grid for students */}
           {!isTeacher && (
             <div>
-              <h3 className="text-lg font-semibold mb-3">选择学科</h3>
+              <h3 className="text-lg font-semibold mb-3">
+                选择学科
+                <span className="ml-2 text-xs font-normal text-muted-foreground">所有已发布的课程，无论是否加入班级，均可在此学习</span>
+              </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   {key:'Chinese',name:'Chinese',icon:'📖',bg:'bg-red-50 border-red-200'},

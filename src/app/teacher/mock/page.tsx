@@ -863,10 +863,11 @@ function MockAdminContent() {
                       <span className={`w-6 h-6 rounded-md text-xs font-semibold flex items-center justify-center ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
                       {!q.isCorrect && q.selectedOptionId == null && <span className="text-xs text-gray-500">未作答</span>}
                       {q.flagged && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">考试时标记过</span>}
-                      {(q.chapterTitle || q.lessonTitle) && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {q.lessonRef ? `${q.lessonRef} ` : ''}{q.lessonTitle || q.chapterTitle}
-                        </span>
+                      {q.lessonId && (q.chapterTitle || q.lessonTitle) && (
+                        <Link href={`/play/${q.lessonId}`} title="去这一课看知识点"
+                          className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-800 underline decoration-dotted underline-offset-2 transition-colors">
+                          {q.lessonRef ? `${q.lessonRef} ` : ''}{q.lessonTitle || q.chapterTitle} ↗
+                        </Link>
                       )}
                     </div>
                     <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
