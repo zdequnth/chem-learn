@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { kindTheme } from '@/lib/course-kind'
-import { ArrowLeft, Loader2, Clock, FileText, Play, RotateCcw, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Loader2, Clock, FileText, Play, RotateCcw, BarChart3, Check } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
 interface PaperRow {
@@ -15,6 +15,8 @@ interface PaperRow {
   durationMinutes: number
   questionCount: number
   lastResult: { status: string; percentage: number | null; submittedAt: string | null; sessionId: string } | null
+  // Questions never answered correctly yet; null before the first attempt.
+  wrongCount: number | null
 }
 
 function MockListContent() {
@@ -106,6 +108,9 @@ function MockListContent() {
                               <BarChart3 className="w-3 h-3" /> 上次 {Number(r!.percentage ?? 0)}%
                             </span>
                           )}
+                          {done && (p.wrongCount ?? 0) > 0 && (
+                            <span className="text-rose-600">还有 {p.wrongCount} 题没答对</span>
+                          )}
                         </div>
                       </div>
                       <div className="ml-auto flex items-center gap-2">
@@ -115,11 +120,21 @@ function MockListContent() {
                             {lang === 'zh' ? '看解析' : 'Review'}
                           </Link>
                         )}
-                        <Link href={`/mock/${p.id}`}
-                          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
-                          {live ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? '继续考试' : 'Resume'}</>
-                                : <><Play className="w-4 h-4" /> {done ? (lang === 'zh' ? '再考一次' : 'Retake') : (lang === 'zh' ? '开始考试' : 'Start')}</>}
-                        </Link>
+                        {/* Once every question has been answered correctly there is
+                            nothing left to retest, so the button reports that rather
+                            than offering an empty round. */}
+                        {done && (p.wrongCount ?? 0) === 0 ? (
+                          <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
+                            <Check className="w-4 h-4" /> 所有题目全部答对，无错题
+                          </span>
+                        ) : (
+                          <Link href={live ? `/mock/${p.id}` : `/mock/${p.id}?mode=retry`}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
+                            {live ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? '继续考试' : 'Resume'}</>
+                                  : done ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? `错题重测 (${p.wrongCount})` : `Retest (${p.wrongCount})`}</>
+                                  : <><Play className="w-4 h-4" /> {lang === 'zh' ? '开始考试' : 'Start'}</>}
+                          </Link>
+                        )}
                       </div>
                     </div>
                   )

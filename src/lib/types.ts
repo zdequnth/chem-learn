@@ -801,6 +801,11 @@ export interface MockReviewQuestion {
   isCorrect: boolean
   // The student marked this one during the exam ("not sure, come back to it").
   flagged: boolean
+  // Across every attempt at this paper: which attempt first got it right, how
+  // many times it was asked, and how many times it was missed.
+  askedTimes: number
+  wrongTimes: number
+  firstCorrectAttempt: number | null
 }
 
 export interface MockReview {

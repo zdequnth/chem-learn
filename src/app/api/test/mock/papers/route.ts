@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
+import { neverCorrectQuestions } from '@/lib/mock-source'
 import { NextResponse } from 'next/server'
 
 // The papers a student can sit, for one mock course.
@@ -46,14 +47,20 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    courseName: course.name,
-    papers: (papers || []).map((p: any) => ({
+  // wrongCount drives the 「错题重测 (N)」 button: how many questions this student
+  // has still never answered correctly. 0 means "all correct — nothing to retest".
+  const withWrong = await Promise.all((papers || []).map(async (p: any) => {
+    const r = mine.get(p.id)
+    const wrongCount = r?.status === 'submitted' ? (await neverCorrectQuestions(user.id, p.id)).length : null
+    return {
       id: p.id,
       title: p.title,
       durationMinutes: p.duration_minutes,
       questionCount: counts.get(p.id) || 0,
-      lastResult: mine.get(p.id) || null,
-    })),
-  })
+      lastResult: r || null,
+      wrongCount,
+    }
+  }))
+
+  return NextResponse.json({ courseName: course.name, papers: withWrong })
 }

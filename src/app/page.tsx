@@ -79,7 +79,7 @@ export default function HomePage() {
             {
               icon: '🧪', name: '通关课程', tag: '核心', when: '上新课',
               shell: 'bg-emerald-50 border-emerald-300 md:order-2',
-              height: 'md:min-h-[310px] md:py-10',
+              height: 'md:min-h-[300px] md:py-10',
               title: 'text-emerald-900 font-bold', lead: 'text-emerald-900 font-semibold',
               leadText: '不掌握，不前进。',
               desc: '学完一个知识点、确认真正掌握，才解锁下一个。把"似懂非懂"挡在门外，不让基础漏洞一路累积。',

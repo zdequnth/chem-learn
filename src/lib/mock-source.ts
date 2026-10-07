@@ -153,6 +153,7 @@ export interface SessionRow {
   paper_id: string
   status: 'in_progress' | 'submitted'
   submit_reason: 'manual' | 'timeout' | null
+  mode: 'full' | 'retry'
   duration_seconds: number
   started_at: string
   expires_at: string
@@ -161,6 +162,70 @@ export interface SessionRow {
   total_correct: number
   total_wrong: number
   score_percentage: number | null
+}
+
+/**
+ * Which questions of a paper has this student NEVER answered correctly, across
+ * every attempt so far? That is the set 错题重测 re-asks — questions they have
+ * already got right are dropped, so repeated retests converge on mastery.
+ */
+export async function neverCorrectQuestions(studentId: string, paperId: string): Promise<string[]> {
+  const { data: paperQs } = await supabaseAdmin('mock_paper_questions', {
+    query: `?paper_id=eq.${paperId}&select=question_id`,
+  })
+  const all = ((paperQs || []) as any[]).map((r) => r.question_id)
+  if (all.length === 0) return []
+
+  const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
+    query: `?student_id=eq.${studentId}&paper_id=eq.${paperId}&status=eq.submitted&select=id`,
+  })
+  const sids = ((sessions || []) as any[]).map((s) => s.id)
+  if (sids.length === 0) return all
+
+  const everCorrect = new Set<string>()
+  for (let i = 0; i < sids.length; i += 100) {
+    const { data } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=in.(${sids.slice(i, i + 100).join(',')})&is_correct=eq.true&select=question_id`,
+    })
+    for (const a of (data || []) as any[]) everCorrect.add(a.question_id)
+  }
+  return all.filter((q) => !everCorrect.has(q))
+}
+
+/**
+ * Per question: which attempt first got it right, how many times it was asked and
+ * how many times it was missed. Drives the "第一次答对 / 第二次才答对 / 反复错" labels
+ * and the review filters.
+ */
+export async function attemptHistory(studentId: string, paperId: string) {
+  const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
+    query: `?student_id=eq.${studentId}&paper_id=eq.${paperId}&status=eq.submitted&order=submitted_at&select=id`,
+  })
+  const sids = ((sessions || []) as any[]).map((s) => s.id)
+
+  const bySession = new Map<string, Map<string, boolean>>()
+  for (let i = 0; i < sids.length; i += 100) {
+    const chunk = sids.slice(i, i + 100)
+    const { data } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=in.(${chunk.join(',')})&select=session_id,question_id,is_correct`,
+    })
+    for (const a of (data || []) as any[]) {
+      if (!bySession.has(a.session_id)) bySession.set(a.session_id, new Map())
+      bySession.get(a.session_id)!.set(a.question_id, !!a.is_correct)
+    }
+  }
+
+  const hist = new Map<string, { asked: number; wrong: number; firstCorrectAttempt: number | null }>()
+  for (const [i, sid] of sids.entries()) {
+    for (const [qid, ok] of bySession.get(sid) || []) {
+      const cur = hist.get(qid) || { asked: 0, wrong: 0, firstCorrectAttempt: null }
+      cur.asked++
+      if (!ok) cur.wrong++
+      else if (cur.firstCorrectAttempt === null) cur.firstCorrectAttempt = i + 1
+      hist.set(qid, cur)
+    }
+  }
+  return hist
 }
 
 export function isPastDeadline(session: SessionRow, graceSeconds = GRACE_SECONDS): boolean {
@@ -294,12 +359,18 @@ export async function buildReview(session: SessionRow) {
     : { data: [] as any[] }
   const qById = new Map((qs || []).map((q: any) => [q.id, q]))
 
+  // How this student has done on each question across ALL their attempts at this
+  // paper — so the review can say "第二次才答对" or "反复错" rather than only
+  // reporting this one sitting.
+  const hist = await attemptHistory(session.student_id, session.paper_id)
+
   let unanswered = 0
   const questions = rows.map((r) => {
     const q: any = qById.get(r.question_id)
     const ref = q ? refByLesson.get(q.lesson_id) : undefined
     const options = ((opts || []) as any[]).filter((o) => o.question_id === r.question_id)
     if (!r.selected_option_id) unanswered++
+    const h = hist.get(r.question_id) || { asked: 1, wrong: r.is_correct ? 0 : 1, firstCorrectAttempt: r.is_correct ? 1 : null }
     return {
       questionId: r.question_id,
       sortOrder: r.sort_order,
@@ -316,6 +387,9 @@ export async function buildReview(session: SessionRow) {
       correctOptionId: options.find((o) => o.is_correct)?.id ?? null,
       isCorrect: !!r.is_correct,
       flagged: !!r.flagged,
+      askedTimes: h.asked,
+      wrongTimes: h.wrong,
+      firstCorrectAttempt: h.firstCorrectAttempt,
     }
   })
 

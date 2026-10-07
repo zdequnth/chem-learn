@@ -1,8 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { GRACE_SECONDS } from '@/lib/mock-exam'
-import { buildExamPaper, buildReview, finaliseSession, isPastDeadline, loadSession, type SessionRow } from '@/lib/mock-source'
+import { buildExamPaper, buildReview, finaliseSession, isPastDeadline, loadSession, neverCorrectQuestions, type SessionRow } from '@/lib/mock-source'
 import { NextResponse } from 'next/server'
+
+// A retry re-asks the questions in a different order — position memory is not
+// knowledge.
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 
 // Start (or resume) a mock exam.
 //   POST { paperId } → { state:'resumed'|'started', sessionId, title, durationSeconds,
@@ -17,8 +28,9 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { paperId } = await request.json()
+  const { paperId, mode: rawMode } = await request.json()
   if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
+  const mode: 'full' | 'retry' = rawMode === 'retry' ? 'retry' : 'full'
 
   const { data: paperRows } = await supabaseAdmin('mock_papers', {
     query: `?id=eq.${paperId}&select=id,title,duration_minutes,mock_course_id,is_published`,
@@ -51,11 +63,23 @@ export async function POST(request: Request) {
   }
 
   if (!session) {
-    const { data: pq } = await supabaseAdmin('mock_paper_questions', {
-      query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id,sort_order`,
-    })
-    const links = (pq || []) as any[]
-    if (links.length === 0) return NextResponse.json({ error: '这套试卷还没有题目' }, { status: 400 })
+    let questionIds: string[]
+
+    if (mode === 'retry') {
+      // Only what they have never got right — including questions they left blank.
+      const remaining = await neverCorrectQuestions(user.id, paperId)
+      if (remaining.length === 0) {
+        return NextResponse.json({ empty: true, error: '这份卷子已经全部答对了，没有错题需要重测' }, { status: 400 })
+      }
+      // Re-ordered, so the sequence is not a memory aid.
+      questionIds = shuffled(remaining)
+    } else {
+      const { data: pq } = await supabaseAdmin('mock_paper_questions', {
+        query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id`,
+      })
+      questionIds = ((pq || []) as any[]).map((r) => r.question_id)
+    }
+    if (questionIds.length === 0) return NextResponse.json({ error: '这套试卷还没有题目' }, { status: 400 })
 
     const durationSeconds = Math.max(1, (paper.duration_minutes || 60) * 60)
     const { data: created, error } = await supabaseAdmin('mock_test_sessions', {
@@ -63,9 +87,13 @@ export async function POST(request: Request) {
       body: {
         student_id: user.id,
         paper_id: paperId,
+        // `mode` arrives with migration 019. Sending it unconditionally would
+        // make EVERY exam fail to start until that migration is run, so a full
+        // attempt just relies on the column's default and only a retry names it.
+        ...(mode === 'retry' ? { mode } : {}),
         duration_seconds: durationSeconds,
         expires_at: new Date(Date.now() + durationSeconds * 1000).toISOString(),
-        total_questions: links.length,
+        total_questions: questionIds.length,
       },
       query: '?select=*',
     })
@@ -77,7 +105,7 @@ export async function POST(request: Request) {
     // paper mid-exam cannot disturb what students already have in front of them.
     await supabaseAdmin('mock_test_answers', {
       method: 'POST',
-      body: links.map((l) => ({ session_id: session!.id, question_id: l.question_id, sort_order: l.sort_order })),
+      body: questionIds.map((qid, i) => ({ session_id: session!.id, question_id: qid, sort_order: i })),
     })
   }
 
@@ -86,6 +114,7 @@ export async function POST(request: Request) {
     state,
     sessionId: session.id,
     title: paper.title,
+    mode: session.mode || 'full',
     durationSeconds: session.duration_seconds,
     startedAt: session.started_at,
     expiresAt: session.expires_at,
@@ -109,21 +138,24 @@ export async function GET(request: Request) {
     query: `?student_id=eq.${user.id}&paper_id=eq.${paperId}&order=started_at.desc&limit=1&select=*`,
   })
   const session = (rows?.[0] as SessionRow) ?? null
-  if (!session) return NextResponse.json({ state: 'none', serverNow: new Date().toISOString() })
+  // How many questions are still unanswered-correctly: what 错题重测 would ask.
+  const wrongCount = (await neverCorrectQuestions(user.id, paperId)).length
+  if (!session) return NextResponse.json({ state: 'none', wrongCount, serverNow: new Date().toISOString() })
 
   if (session.status === 'in_progress') {
     if (isPastDeadline(session)) {
       const done = await finaliseSession(session, 'timeout')
-      return NextResponse.json({ state: 'submitted', review: await buildReview(done), serverNow: new Date().toISOString() })
+      return NextResponse.json({ state: 'submitted', wrongCount: (await neverCorrectQuestions(user.id, paperId)).length, review: await buildReview(done), serverNow: new Date().toISOString() })
     }
     return NextResponse.json({
       state: 'in_progress',
       sessionId: session.id,
+      mode: session.mode || 'full',
       expiresAt: session.expires_at,
       serverNow: new Date().toISOString(),
       graceSeconds: GRACE_SECONDS,
       questions: await buildExamPaper(session),
     })
   }
-  return NextResponse.json({ state: 'submitted', review: await buildReview(session), serverNow: new Date().toISOString() })
+  return NextResponse.json({ state: 'submitted', wrongCount, review: await buildReview(session), serverNow: new Date().toISOString() })
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
@@ -29,14 +29,35 @@ function fmt(seconds: number) {
   return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
+// A retry shows the options in a different order, so a student cannot answer from
+// memory of "it was the third one". Seeded by the session+question so the order
+// stays put across re-renders and a page reload.
+function hashSeed(str: string) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return h >>> 0
+}
+function shuffleSeeded<T>(arr: T[], seed: number): T[] {
+  const a = [...arr]
+  let s = seed || 1
+  const rnd = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000 }
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 function MockExamContent() {
   const { paperId } = useParams<{ paperId: string }>()
   const router = useRouter()
+  const sp = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
   const [phase, setPhase] = useState<'loading' | 'intro' | 'exam' | 'review'>('loading')
   const [title, setTitle] = useState('')
   const [sessionId, setSessionId] = useState('')
+  const [sessionMode, setSessionMode] = useState<'full' | 'retry'>('full')
   const [questions, setQuestions] = useState<ExamQuestion[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [flags, setFlags] = useState<Record<string, boolean>>({})
@@ -47,6 +68,7 @@ function MockExamContent() {
   const [serverOffset, setServerOffset] = useState(0)
   const [remaining, setRemaining] = useState(0)
   const [review, setReview] = useState<MockReview | null>(null)
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'thisWrong' | 'everWrong' | 'repeatWrong' | 'never'>('all')
   const [busy, setBusy] = useState(false)
   const [offline, setOffline] = useState(false)
 
@@ -89,16 +111,23 @@ function MockExamContent() {
     }
   }, [sessionId, gradeAndShow])
 
+  // ?mode=retry means "start a retest of my wrong questions" — it must NOT ask
+  // for the current state, because the latest session is a submitted one and the
+  // page would jump straight to the review instead of starting anything.
+  const wantRetry = sp.get('mode') === 'retry'
+
   // ── load: decide between intro / resume / review
   useEffect(() => {
     if (!user || !paperId) return
-    (async () => {
+    if (wantRetry) { setSessionMode('retry'); setPhase('intro'); return }
+    ;(async () => {
       try {
         const j = await (await fetch(`/api/test/mock/start?paperId=${paperId}`)).json()
         if (j.serverNow) applyServerNow(j.serverNow)
         if (j.state === 'submitted') { setReview(j.review); setPhase('review'); return }
         if (j.state === 'in_progress') {
           setSessionId(j.sessionId); setQuestions(j.questions || [])
+          setSessionMode(j.mode === 'retry' ? 'retry' : 'full')
           setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
           setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
           setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
@@ -114,12 +143,17 @@ function MockExamContent() {
     try {
       const res = await fetch('/api/test/mock/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paperId }),
+        body: JSON.stringify({ paperId, mode: wantRetry ? 'retry' : 'full' }),
       })
       const j = await res.json()
-      if (!res.ok || j.error) { alert('开考失败：' + (j.error || res.status)); return }
+      if (!res.ok || j.error) {
+        alert(j.empty ? '这份卷子已经全部答对了，没有错题需要重测 🎉' : '开考失败：' + (j.error || res.status))
+        if (j.empty) router.replace(`/mock/${paperId}`)
+        return
+      }
       applyServerNow(j.serverNow)
       setSessionId(j.sessionId); setTitle(j.title); setQuestions(j.questions || [])
+      setSessionMode(j.mode === 'retry' ? 'retry' : 'full')
       setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
       setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
       setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
@@ -128,6 +162,18 @@ function MockExamContent() {
       alert('开考出错：' + (e?.message || e))
     } finally { setBusy(false) }
   }
+
+  // In a retest the options are re-ordered per question. Deterministic on
+  // session+question, so the order does not change on re-render or reload.
+  const shownOptions = useMemo(() => {
+    const map = new Map<string, { id: string; content: string }[]>()
+    for (const q of questions) {
+      map.set(q.questionId, sessionMode === 'retry'
+        ? shuffleSeeded(q.options, hashSeed(sessionId + q.questionId))
+        : q.options)
+    }
+    return map
+  }, [questions, sessionMode, sessionId])
 
   // ── countdown, driven by the server's clock rather than the device's
   useEffect(() => {
@@ -221,10 +267,11 @@ function MockExamContent() {
         <Navbar />
         <main className="max-w-2xl mx-auto px-4 pt-28 pb-24 text-center">
           <div className="text-6xl mb-4">{theme.emoji}</div>
-          <h1 className="text-2xl font-bold mb-2">开始模拟考</h1>
+          <h1 className="text-2xl font-bold mb-2">{sessionMode === 'retry' ? '错题重测' : '开始模拟考'}</h1>
           <p className="text-muted-foreground mb-6">
-            倒计时开始后，答题过程中不会显示对错。可以点题号回到任意一题检查或改答案，
-            交卷（或倒计时结束）之后才看得到分数和错题。
+            {sessionMode === 'retry'
+              ? '只考你之前没答对的题（含空着没答的），已经答对的不再出现。题目顺序和选项顺序都重新打乱，别凭印象选。可以反复重测，直到全部答对。'
+              : '倒计时开始后，答题过程中不会显示对错。可以点题号回到任意一题检查或改答案，交卷（或倒计时结束）之后才看得到分数和错题。'}
           </p>
           <button onClick={startExam} disabled={busy}
             className={`px-8 py-3 rounded-xl text-white font-semibold disabled:opacity-50 ${theme.solid}`}>
@@ -258,8 +305,32 @@ function MockExamContent() {
             </div>
           </div>
 
+          {/* Filter the review down to what needs attention — with a few retests
+              behind them, "which ones am I still getting wrong" is the question. */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            {([
+              ['all', '全部', review.questions.length],
+              ['thisWrong', '本次做错', review.questions.filter(q => !q.isCorrect).length],
+              ['everWrong', '错过', review.questions.filter(q => (q.wrongTimes ?? 0) > 0).length],
+              ['repeatWrong', '反复错', review.questions.filter(q => (q.wrongTimes ?? 0) >= 2).length],
+              ['never', '至今没答对', review.questions.filter(q => q.firstCorrectAttempt == null).length],
+            ] as const).map(([k, label, n]) => (
+              <button key={k} onClick={() => setReviewFilter(k)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  reviewFilter === k ? 'bg-violet-500 border-violet-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+                {label} ({n})
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-3">
-            {review.questions.map((q, i) => (
+            {review.questions.filter(q => {
+              if (reviewFilter === 'thisWrong') return !q.isCorrect
+              if (reviewFilter === 'everWrong') return (q.wrongTimes ?? 0) > 0
+              if (reviewFilter === 'repeatWrong') return (q.wrongTimes ?? 0) >= 2
+              if (reviewFilter === 'never') return q.firstCorrectAttempt == null
+              return true
+            }).map((q, i) => (
               <div key={q.questionId} className="bg-card border rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`w-7 h-7 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
@@ -267,6 +338,17 @@ function MockExamContent() {
                   {q.flagged && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
                       <Flag className="w-3 h-3" /> 考试时标记过
+                    </span>
+                  )}
+                  {/* Across all attempts, not just this one. */}
+                  {q.firstCorrectAttempt == null ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                      至今没答对（错 {q.wrongTimes} 次）
+                    </span>
+                  ) : (
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      q.firstCorrectAttempt === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                      {q.firstCorrectAttempt === 1 ? '第一次就答对' : `第 ${q.firstCorrectAttempt} 次才答对`}
                     </span>
                   )}
                   {/* Links to the lesson's page, where its knowledge points and
@@ -379,7 +461,10 @@ function MockExamContent() {
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 pt-24 pb-32">
         <div className="sticky top-16 z-30 bg-card border rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
-          <span className="font-semibold truncate">{title}</span>
+          <span className="font-semibold truncate">
+            {sessionMode === 'retry' && <span className="text-violet-600">错题重测 · </span>}
+            {title}
+          </span>
           <span className="text-xs text-muted-foreground shrink-0">已答 {answeredCount}/{questions.length}</span>
           {/* Submit sits next to the clock: the two things a student looks for
               when deciding whether to stop. */}
@@ -415,7 +500,7 @@ function MockExamContent() {
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
             {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
             <div className="space-y-2">
-              {cur.options.map((o, oi) => {
+              {(shownOptions.get(cur.questionId) || cur.options).map((o, oi) => {
                 const picked = answers[cur.questionId] === o.id
                 return (
                   <button key={o.id} onClick={() => choose(cur, o.id)}
