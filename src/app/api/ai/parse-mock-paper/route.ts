@@ -178,8 +178,13 @@ export async function POST(request: Request) {
         .map((o: any) => ({ content: String(o?.content ?? '').trim(), isCorrect: o?.isCorrect === true }))
         .filter((o: any) => o.content),
     }
-  }).filter((q) => q.stem && q.options.length >= 2)
+  }).filter((q) => q.stem)
 
-  const noAnswer = questions.filter((q) => q.options.filter((o: any) => o.isCorrect).length !== 1).length
-  return NextResponse.json({ questions, failed, unanswered: noAnswer })
+  // Kept rather than dropped, so a question the model mangled can be repaired in
+  // the review UI instead of silently disappearing. Counted here so the page can
+  // warn about exactly how many need a look.
+  const suspect = questions.filter(
+    (q) => q.options.length < 2 || q.options.filter((o: any) => o.isCorrect).length !== 1,
+  ).length
+  return NextResponse.json({ questions, failed, suspect })
 }
