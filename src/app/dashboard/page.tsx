@@ -186,7 +186,7 @@ export default function DashboardPage() {
               {/* My classes with progress */}
               {myClasses.length > 0 && (
                 <>
-                <h3 className="text-sm font-semibold text-muted-foreground mt-4 mb-1">已加入的班级与课程</h3>
+                <h3 className="text-lg font-semibold mb-3">已加入的班级与课程</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {myClasses.map((c: any) => {
                     // One card shape for both kinds — a vocabulary class differs by

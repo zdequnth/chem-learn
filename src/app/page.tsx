@@ -64,35 +64,46 @@ export default function HomePage() {
       </section>
 
       {/* The three course types. Above the subject grid because this is how the
-          platform is organised — the subject is just where you start. */}
+          platform is organised — the subject is just where you start.
+          These state the IDEA behind each mode rather than its mechanics. */}
       <section id="modes" className="py-14 px-4 max-w-5xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-2xl font-bold mb-2">三种课程，对应学习的三个阶段</h2>
-          <p className="text-muted-foreground">上课、积累词汇、考前冲刺，各有各的练法</p>
+          <p className="text-muted-foreground">同一个平台，三套不同的练法</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           {[
             {
-              icon: '🧪', name: '通关课程', when: '上新课时用',
-              shell: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-800',
-              desc: '一个章节、一个课时地过：连续答对 7 题（或 10 题内正确率 ≥90%）才算过关，没过关不能进入下一课时。',
+              icon: '🧪', name: '通关课程', tag: '核心', when: '上新课',
+              shell: 'bg-emerald-50 border-emerald-300 md:col-span-2 shadow-sm',
+              title: 'text-emerald-800', lead: '不掌握，不前进。',
+              desc: '学完一个知识点、确认真正掌握，才解锁下一个。把"似懂非懂"挡在门外，不让基础漏洞一路累积。',
+              feature: true,
             },
             {
-              icon: '📖', name: '背单词课程', when: '日常积累用',
+              icon: '📖', name: '背单词课程', tag: '', when: '日常积累',
               shell: 'bg-amber-50 border-amber-200', title: 'text-amber-800',
-              desc: '按课时背专业词汇。卡片、发音、拼写、选择题四种练法，按间隔重复安排复习。只有客观题答对才提升掌握度，自己点"认识"不算。',
+              lead: '先过词汇关。',
+              desc: '用英文授课的学科，专业词汇才是真正的门槛。把每一课的词汇练到能听、能写、能用。',
             },
             {
-              icon: '📝', name: '模拟考课程', when: '考前冲刺用',
+              icon: '📝', name: '模拟考课程', tag: '', when: '考前冲刺',
               shell: 'bg-violet-50 border-violet-200', title: 'text-violet-800',
-              desc: '绑定一门通关课程，限时做完整套题。倒计时内自由作答、可以回头改答案，交卷后才看分数，并标出每题对应哪一章哪一课时。',
+              lead: '用整套题检验自己。',
+              desc: '平时刷题测不出真实水平。限时做完整套题，交卷后每道错题都能定位回它属于哪一课。',
             },
           ].map(m => (
             <div key={m.name} className={`rounded-2xl border p-6 ${m.shell}`}>
-              <div className="text-3xl mb-3">{m.icon}</div>
-              <div className={`font-semibold text-lg ${m.title}`}>{m.name}</div>
-              <div className="text-xs text-muted-foreground mb-2">{m.when}</div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{m.desc}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={m.feature ? 'text-4xl' : 'text-3xl'}>{m.icon}</span>
+                {m.tag && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-medium">核心</span>
+                )}
+              </div>
+              <div className={`font-semibold ${m.feature ? 'text-xl' : 'text-lg'} ${m.title}`}>{m.name}</div>
+              <div className="text-xs text-muted-foreground mb-3">{m.when}</div>
+              <p className={`font-medium mb-1.5 ${m.feature ? 'text-base text-emerald-900' : 'text-sm'} `}>{m.lead}</p>
+              <p className={`text-muted-foreground leading-relaxed ${m.feature ? 'text-sm' : 'text-sm'}`}>{m.desc}</p>
             </div>
           ))}
         </div>
