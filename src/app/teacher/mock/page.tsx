@@ -344,12 +344,50 @@ function MockAdminContent() {
               <button onClick={() => openOverview('')} className={`ml-auto flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors`}>
                 <BarChart3 className="w-4 h-4" /> {lang === 'zh' ? '总成绩（跨套卷）' : 'Overview'}
               </button>
+
               <button onClick={startNewPaper} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
                 <Plus className="w-4 h-4" /> {lang === 'zh' ? '新建试卷' : 'New paper'}
               </button>
             </div>
 
             {/* paper list */}
+            {/* Two publish switches exist (course and paper) and it is easy to
+                flip only one. Spell out which one actually decides whether
+                students can see anything. */}
+            {(() => {
+              const c = courses.find(x => x.id === courseId)
+              const coursePublished = !!c?.is_published
+              const anyPublished = papers.some(p => p.isPublished)
+              if (coursePublished && (anyPublished || papers.length === 0)) return null
+              return (
+                <div className="mb-5 px-4 py-3 rounded-xl border border-violet-200 bg-violet-50 text-sm text-violet-900 flex flex-wrap items-center gap-2">
+                  <span className="font-medium">发布说明</span>
+                  <span className="text-violet-800">
+                    {anyPublished
+                      ? '已经有卷子发布了，学生看得到、能参加。'
+                      : '还没有卷子发布——学生看不到任何卷子。审核完点卷子上的「发布」即可。'}
+                  </span>
+                  {!coursePublished && (
+                    <>
+                      <span className="text-violet-800">课程本身未发布（这个不影响模拟考）。</span>
+                      <button onClick={async () => {
+                        const r = await fetch(`/api/courses/${courseId}`, {
+                          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ is_published: true }),
+                        })
+                        const j = await r.json().catch(() => ({}))
+                        if (!r.ok || j.error) return alert('发布失败：' + (j.error || r.status))
+                        const res = await fetch('/api/courses').then(x => x.json())
+                        setCourses(((res.courses || []) as Course[]).filter(x => x.kind === 'mock'))
+                      }} className="px-2 py-0.5 rounded-md bg-violet-500 text-white text-xs font-medium hover:bg-violet-600">
+                        顺便发布课程
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+
             <div className="bg-card border rounded-2xl divide-y mb-6">
               {papers.length === 0 && <div className="p-6 text-sm text-muted-foreground">{lang === 'zh' ? '这门课还没有试卷。点「新建试卷」，粘一份试卷文本让 AI 拆题。' : 'No papers yet.'}</div>}
               {papers.map(p => (
