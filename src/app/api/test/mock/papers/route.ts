@@ -49,15 +49,29 @@ export async function GET(request: Request) {
 
   // wrongCount drives the 「错题重测 (N)」 button: how many questions this student
   // has still never answered correctly. 0 means "all correct — nothing to retest".
+  //
+  // The percentage reported here is CUMULATIVE — (paper − stillWrong) / paper —
+  // exactly as in the review and the teacher's tables. Showing the latest
+  // sitting's own score instead made a retest look like a collapse (70 questions
+  // answered, 4% ) when mastery had actually gone up.
   const withWrong = await Promise.all((papers || []).map(async (p: any) => {
     const r = mine.get(p.id)
+    const total = counts.get(p.id) || 0
     const wrongCount = r?.status === 'submitted' ? (await neverCorrectQuestions(user.id, p.id)).length : null
+    const lastResult = r
+      ? {
+          ...r,
+          percentage: (r.status === 'submitted' && total > 0 && wrongCount != null)
+            ? Math.round(((total - wrongCount) / total) * 10000) / 100
+            : null,
+        }
+      : null
     return {
       id: p.id,
       title: p.title,
       durationMinutes: p.duration_minutes,
-      questionCount: counts.get(p.id) || 0,
-      lastResult: r || null,
+      questionCount: total,
+      lastResult,
       wrongCount,
     }
   }))
