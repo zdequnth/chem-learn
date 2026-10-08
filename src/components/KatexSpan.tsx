@@ -87,6 +87,25 @@ function renderLatex(text: string): string {
   }).join('')
 }
 
+/**
+ * MinerU hands back raw HTML: formulas wrapped in <eq>…</eq>, answer keys in
+ * <table><tr><td>. Left alone those tags show up as literal text, so normalise
+ * them into the markup the rest of this component already understands.
+ */
+function normaliseMineruHtml(text: string): string {
+  let out = text.replace(/<eq[^>]*>([\s\S]*?)<\/eq>/gi, (_m, inner) => `$${String(inner).trim()}$`)
+  out = out.replace(/<table[\s\S]*?<\/table>/gi, (block) => {
+    const rows = [...block.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => m[1])
+    const cells = rows.map((r) => [...r.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((c) => c[1].trim()))
+    if (cells.length === 0) return block
+    const body = cells
+      .map((r, ri) => `<tr>${r.map((c) => `<td class="${ri === 0 ? 'bg-gray-100 font-medium ' : ''}px-3 py-1.5 text-xs border align-top">${c}</td>`).join('')}</tr>`)
+      .join('')
+    return `<div class="overflow-x-auto my-2"><table class="w-full border-collapse border rounded-lg">${body}</table></div>`
+  })
+  return out
+}
+
 function basicMarkdown(text: string): string {
   let html = text
   // Markdown tables (wrapped so wide tables can scroll horizontally)
@@ -132,7 +151,9 @@ export function KatexHtml({ text }: { text: string }) {
       pdfUrl = pdfMatch[2] || pdfMatch[1] || ''
       content = content.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '')
     }
-    // 2. Apply basic markdown to clean content
+    // 2. Turn MinerU's raw HTML into markup this component understands, then
+    //    apply basic markdown to clean content
+    content = normaliseMineruHtml(content)
     content = basicMarkdown(content)
 
     // Pre-process markdown images: ![alt](url) → <img>
@@ -183,8 +204,13 @@ export function wrapBareLatex(text: string): string {
   const t = (text || '').trim()
   if (!t) return text
   if (t.includes('$')) return text
+  // Markup in the text means it is not one bare formula — wrapping it would hand
+  // KaTeX a table or a sentence, which it renders as literal tags in italics.
+  if (/[<>]/.test(t)) return text
   if (!/\\[a-zA-Z]+/.test(t)) return text
   if (/[一-鿿]/.test(t)) return text
+  // Prose with a stray backslash (a path, a file name) is not a formula either.
+  if (t.length > 120) return text
   return `$$${t}$$`
 }
 
