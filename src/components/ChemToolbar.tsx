@@ -23,18 +23,18 @@ export default function ChemToolbar({
 }) {
   const btn = 'w-6 h-6 rounded border text-xs hover:bg-accent transition-colors'
 
-  const insert = (s: string) => {
+  // `caretBack` places the caret that many characters from the end of what was
+  // inserted — used by the fraction button to drop it inside the first bracket.
+  const insert = (s: string, caretBack = 0) => {
     const el = textareaRef.current
     if (!el) { onChange(value + s); return }
     const start = el.selectionStart ?? value.length
     const end = el.selectionEnd ?? start
     onChange(value.slice(0, start) + s + value.slice(end))
-    // Put the caret back after the inserted character, or the next click lands
-    // wherever the browser decides.
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(start + s.length, start + s.length)
-    })
+    // Put the caret back where it belongs, or the next click lands wherever the
+    // browser decides.
+    const at = start + s.length - caretBack
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(at, at) })
   }
 
   return (
@@ -50,6 +50,11 @@ export default function ChemToolbar({
       <div className="flex items-center gap-0.5">
         {SYMBOLS.map((c) => <button key={c} type="button" onClick={() => insert(c)} className={btn}>{c}</button>)}
       </div>
+      <button type="button" title="插入一个分式，光标落在分子的括号里"
+        onClick={() => insert('()/()', 4)}
+        className="h-6 px-2 rounded border text-xs hover:bg-accent transition-colors">
+        a/b 分式
+      </button>
     </div>
   )
 }
