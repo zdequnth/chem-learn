@@ -24,7 +24,15 @@ export function parseAnswerKey(text: string): Map<number, string> {
     },
   )
 
-  for (const m of rest.matchAll(/(\d+)\s*[.、)．:：]?\s*([A-Ea-e]{1,8})(?![A-Za-z])/g)) {
+  // An answer item is only accepted when what follows it is the end of the line
+  // or the start of the next item. Without that check, pasting the paper itself
+  // by mistake yields nonsense: "3. A 0.50 mol sample…" would read as 3:A.
+  const nextItem = String.raw`[ \t]*[,，;；、]?[ \t]*(?:$|\d+[ \t]*[.、)．:：]?[ \t]*[A-Ea-e])`
+  const item = new RegExp(
+    String.raw`(\d+)[ \t]*[.、)．:：]?[ \t]*([A-Ea-e]{1,8})(?![A-Za-z])(?=` + nextItem + `)`,
+    'gm',
+  )
+  for (const m of rest.matchAll(item)) {
     const n = Number(m[1])
     if (!out.has(n)) out.set(n, m[2].toUpperCase())
   }
