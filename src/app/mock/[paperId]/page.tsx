@@ -9,6 +9,7 @@ import ChemToolbar from '@/components/ChemToolbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
+import { groupByStem, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff, Flag } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -18,6 +19,7 @@ interface ExamQuestion {
   questionId: string
   sortOrder: number
   stem: string
+  groupStem?: string | null   // shared stem of a multi-part question
   imageUrl: string | null
   answerType?: 'choice' | 'short'
   selectedOptionId: string | null
@@ -361,6 +363,20 @@ function MockExamContent() {
     [questions, answers, drafts],
   )
   const cur = questions[idx]
+  // A multi-part question is a run of consecutive questions sharing a stem —
+  // shown as one row "第 2 题 [2a][2b][2c]" so it is clear which parts belong
+  // together.
+  const groups = useMemo(() => groupByStem(questions), [questions])
+  const groupOf = useMemo(() => groupIndexOf(groups), [groups])
+  const curGroupIdx = cur ? (groupOf.get(cur.questionId) ?? -1) : -1
+  // The review shows the whole paper, so its labels come from the paper's own
+  // grouping — not from the position in the (filtered) list on screen.
+  const reviewGroups = useMemo(() => groupByStem(review?.questions ?? []), [review])
+  const reviewLabel = useMemo(() => {
+    const m = new Map<string, string>()
+    reviewGroups.forEach((g, gi) => g.items.forEach((q, si) => m.set(q.questionId, partLabel(gi, si, g.items.length))))
+    return m
+  }, [reviewGroups])
   const lowTime = remaining <= 300
 
   if (authLoading || phase === 'loading') {
@@ -505,7 +521,9 @@ function MockExamContent() {
             }).map((q, i) => (
               <div key={q.questionId} className="bg-card border rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className={`w-7 h-7 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
+                  <span className={`min-w-7 h-7 px-1 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {reviewLabel.get(q.questionId) ?? i + 1}
+                  </span>
                   {q.isCorrect ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-rose-600" />}
                   {q.flagged && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
@@ -539,6 +557,12 @@ function MockExamContent() {
                   )}
                 </div>
 
+                {q.groupStem && (
+                  <div className="mb-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm">
+                    <div className="text-xs text-muted-foreground mb-1">这道大题共同的题干</div>
+                    <KatexHtml text={q.groupStem} />
+                  </div>
+                )}
                 <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
                 {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />}
 
@@ -704,6 +728,15 @@ function MockExamContent() {
                 {flags[cur.questionId] ? '已标记（回头再看）' : '标记这题'}
               </button>
             </div>
+            {/* A multi-part question's shared material, shown once above its parts */}
+            {cur.groupStem && (
+              <div className="mb-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm">
+                <div className="text-xs text-muted-foreground mb-1.5">
+                  第 {curGroupIdx + 1} 题的共同题干（下面各小问共用）
+                </div>
+                <KatexHtml text={cur.groupStem} />
+              </div>
+            )}
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
             {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
             <div className="space-y-2">
@@ -754,27 +787,38 @@ function MockExamContent() {
 
         {/* question number palette. Flagged questions are filled yellow, so the
             ones to come back to stand out among the answered (violet) ones. */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {questions.map((q, i) => {
-            const done = isDone(q)
-            const on = !!flags[q.questionId]
-            if (onlyFlagged && !on) return null
+        <div className="space-y-1">
+          {groups.map((g, gi) => {
+            const multi = g.items.length > 1
+            const shown = g.items.map((q, si) => ({ q, i: g.start + si })).filter(({ q }) => !onlyFlagged || flags[q.questionId])
+            if (shown.length === 0) return null
             return (
-              <button key={q.questionId} onClick={() => setIdx(i)}
-                className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
-                  i === idx ? 'ring-2 ring-violet-400 ' : ''
-                }${on ? 'bg-amber-400 border-amber-400 text-white' : done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                {i + 1}
-              </button>
+              <div key={gi} className="flex flex-wrap items-center gap-1.5">
+                <span className={`w-14 shrink-0 text-xs ${multi ? 'text-muted-foreground' : ''}`}>
+                  {multi ? `第 ${gi + 1} 题` : ''}
+                </span>
+                {shown.map(({ q, i }) => {
+                  const done = isDone(q)
+                  const on = !!flags[q.questionId]
+                  return (
+                    <button key={q.questionId} onClick={() => setIdx(i)}
+                      className={`h-8 min-w-8 px-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        i === idx ? 'ring-2 ring-violet-400 ' : ''
+                      }${on ? 'bg-amber-400 border-amber-400 text-white' : done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                      {partLabel(gi, i - g.start, g.items.length)}
+                    </button>
+                  )
+                })}
+              </div>
             )
           })}
           <button onClick={() => setOnlyFlagged(v => !v)}
-            className={`ml-1 px-2.5 h-9 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+            className={`px-2.5 h-8 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
             {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          紫色 = 已作答，黄色 = 你标记过的。答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
+          紫色 = 已作答，黄色 = 你标记过的。同一行的小问属于同一道大题。答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
         </p>
       </main>
     </div>

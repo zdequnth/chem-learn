@@ -142,6 +142,9 @@ export async function POST(request: Request) {
         question_type: 'mock',
         answer_type: isShort ? 'short' : 'choice',
         answer_text: isShort ? (normaliseMineruText(q.answerText) || null) : null,
+        // The shared stem of a multi-part question. Consecutive questions with
+        // the same one render as a group (1a, 1b, …).
+        group_stem: String(q.groupStem ?? '').trim() ? normaliseMineruText(q.groupStem) : null,
         difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
         // Stored normalised, so MinerU's <eq>/<table> markup never reaches the
         // database, the grading prompt or the renderer.

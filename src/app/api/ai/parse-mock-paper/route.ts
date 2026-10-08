@@ -63,6 +63,8 @@ function buildPrompt(text: string, courseName: string, lessonList: string, answe
 2. 题型二「普通选择题」：一个题干，后面跟 (A)-(E) 五个选项。选项有时一行写完（如 "(A) x (B) y (C) z"），有时一行一个——两种都要正确拆开。
 3. 独立的公式块（$$...$$）属于紧随其后的那道题，要并进它的 stem，不要丢，也不要单列成一道题。
 4. 题号（"17."、"Questions 9-10" 等）不要写进 stem。
+5. 分组题（"Questions 9-10 refer to the following…"）：把那一段共用材料原样写进
+   每道题的 groupStem。没有共用材料的独立题目，groupStem 填 null。
 
 【逐题判断所属课时】
 下面是这门课（${courseName}）的章节课时清单。为每道题判断它最匹配的课时，返回 lessonRef，格式 "章号.课时号"，例如 "5.1"：
@@ -84,7 +86,7 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
 `}
 【输出字段】每题一个对象：
-{"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null}
+{"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"groupStem":null}
 - stem/options/explanation 保持原语言（英文），不要翻译
 - LaTeX 原样保留（JSON 字符串里的反斜杠写双反斜杠）
 - explanation 以 "Answer: X" 开头
@@ -138,6 +140,9 @@ stem 里只留问题本身，不要保留答案。`
 2. 独立的公式块或表格属于紧随其后的那道题，要并进它的 stem，不要丢，也不要单列成一道题。
 3. 题号（"17."、"Question 3" 等）不要写进 stem。
 4. 要求画图或填表的题：把要求原样写进 stem（图本身老师会另外补）。
+5. 大题分组：若若干小问共用一个题干（一段材料、一段实验描述、一个数据表），
+   把那段共同题干【原样】写进每道题的 groupStem —— 共同题干里的公式和数据也要
+   写进去，因为学生只会在这一处看到它。没有共同题干的独立题目，groupStem 填 null。
 
 【逐题判断所属课时】
 下面是这门课（${courseName}）的章节课时清单。为每道题判断它最匹配的课时，返回 lessonRef，格式 "章号.课时号"，例如 "5.1"：
@@ -147,7 +152,8 @@ lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
 ${answerBlock}
 
 【输出字段】每题一个对象：
-{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"num":null}
+{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"num":null,"groupStem":null}
+- groupStem：这道题所属大题的共同题干；独立题目填 null
 - stem / answerText / explanation 保持原语言（英文），不要翻译
 - answerText 必填：完整的参考答案，含关键计算过程 —— 它就是判分标准
 - explanation 是给老师看的讲解，可以简略；不要以 "Answer:" 开头（那是选择题的格式）
@@ -275,6 +281,7 @@ export async function POST(request: Request) {
     const hit = ref ? outline.byRef.get(ref) : undefined
     const common = {
       stem: String(q.stem ?? '').trim(),
+      groupStem: String(q.groupStem ?? '').trim() || null,
       explanation: String(q.explanation ?? '').trim(),
       difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
       imageUrl: typeof q.imageUrl === 'string' && q.imageUrl.trim() ? q.imageUrl.trim() : null,

@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import ChemToolbar from '@/components/ChemToolbar'
+import { groupByStem, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
@@ -30,6 +31,7 @@ interface DraftQuestion {
   aiGenerated: boolean
   answerType: 'choice' | 'short'   // 'short' = free response, no options
   answerText: string               // reference answer, AI grades against this
+  groupStem: string                // shared stem of a multi-part question ('' = none)
   officialAnswer?: string | null   // from the pasted key, when there is one
   independentAnswer?: string | null
   disputed?: boolean               // AI's own answer differs from the official one
@@ -172,6 +174,7 @@ function MockAdminContent() {
         aiGenerated: true,
         answerType: q.answerType === 'short' ? 'short' : 'choice',
         answerText: q.answerText || '',
+        groupStem: q.groupStem || '',
         // Not a DB column — the parse prompt writes the mismatch into the
         // explanation, so re-reading it is what keeps the flag alive after saving.
         disputed: /官方答案/.test(q.explanation || ''),
@@ -238,6 +241,7 @@ function MockAdminContent() {
         aiGenerated: true,
         answerType: q.answerType === 'short' ? 'short' : 'choice',
         answerText: q.answerText || '',
+        groupStem: q.groupStem || '',
         officialAnswer: q.officialAnswer ?? null,
         independentAnswer: q.independentAnswer ?? null,
         disputed: !!q.disputed,
@@ -296,13 +300,24 @@ function MockAdminContent() {
     setQuestions(prev => [...prev, {
       stem: '', explanation: '', difficulty: 3, imageUrl: '', lessonId: '',
       lessonRef: null, chapterTitle: null, lessonTitle: null, aiGenerated: false,
-      answerType: mode, answerText: '',
+      answerType: mode, answerText: '', groupStem: '',
       options: mode === 'choice'
         ? [{ content: '', isCorrect: true }, { content: '', isCorrect: false }]
         : [],
     }])
     setDirty(true)
     setReviewOnly(false)
+  }
+  // The shared stem is stored on every part, so editing it writes to all of
+  // them — otherwise one edit would silently split the group in two.
+  const patchGroupStem = (i: number, next: string) => {
+    const before = questions[i]?.groupStem ?? ''
+    setQuestions(list => list.map((q, k) => {
+      if (k === i) return { ...q, groupStem: next }
+      if (before && q.groupStem === before) return { ...q, groupStem: next }
+      return q
+    }))
+    setDirty(true)
   }
   // MinerU 有时会把两栏排版的选项读串（A/B/C 属性和题对不上），一键换顺序后手工改
   const shuffleOptions = (i: number) => {
@@ -356,7 +371,7 @@ function MockAdminContent() {
       const payload = questions.map(q => ({
         stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
         imageUrl: q.imageUrl || null, lessonId: q.lessonId,
-        answerType: q.answerType, answerText: q.answerText,
+        answerType: q.answerType, answerText: q.answerText, groupStem: q.groupStem || null,
         options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
       }))
       const res = await fetch('/api/mock/papers', {
@@ -426,6 +441,11 @@ function MockAdminContent() {
     return out
   }
   const flaggedCount = questions.filter(q => reasonsFor(q).length > 0).length
+  // "2a"/"2b" labels keyed by flat index, so the list lines up with what
+  // students see.
+  const draftGroups = groupByStem(questions)
+  const draftLabel = new Map<number, string>()
+  draftGroups.forEach((g, gi) => g.items.forEach((_, si) => draftLabel.set(g.start + si, partLabel(gi, si, g.items.length))))
   const qWarn = useMemo(() => ({
     disputed: questions.filter(q => q.disputed).length,
     lesson: questions.filter(q => !q.lessonId).length,
@@ -792,7 +812,9 @@ function MockAdminContent() {
                             </div>
                           )}
                           <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <span className={`w-7 h-7 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${reasons.length ? 'bg-red-600 text-white' : 'bg-violet-100 text-violet-800'}`}>{i + 1}</span>
+                            <span className={`min-w-7 h-7 px-1 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${reasons.length ? 'bg-red-600 text-white' : 'bg-violet-100 text-violet-800'}`}>
+                              {draftLabel.get(i) ?? i + 1}
+                            </span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${ref.cls}`}>{ref.text}</span>
                             {reasons.length > 0 && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">需人工审核</span>
@@ -843,6 +865,17 @@ function MockAdminContent() {
                               freely and the AI grades it against the reference
                               answer. Which of the two this is comes from the
                               paper's mode, chosen at creation. */}
+                          {/* The shared stem of a multi-part question. Editing it
+                              writes to every part so the group cannot be split. */}
+                          <div className="mt-3">
+                            <div className="text-xs text-muted-foreground mb-1">
+                              大题共同题干（这几道小问共用；留空表示这是独立的一题）
+                            </div>
+                            <textarea value={q.groupStem} onChange={e => patchGroupStem(i, e.target.value)} rows={2}
+                              placeholder="没有共同题干就留空"
+                              className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                          </div>
+
                           {q.answerType === 'choice' ? (
                             <div className="mt-3 space-y-1.5">
                               {q.options.map((o, oi) => (

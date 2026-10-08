@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   let questions: any[] = []
   if (questionIds.length) {
     const { data: qs } = await supabaseAdmin('questions', {
-      query: `?id=in.(${questionIds.join(',')})&select=id,stem,explanation,image_url,difficulty,lesson_id,is_ai_generated,answer_type,answer_text`,
+      query: `?id=in.(${questionIds.join(',')})&select=id,stem,explanation,image_url,difficulty,lesson_id,is_ai_generated,answer_type,answer_text,group_stem`,
     })
     const { data: opts } = await supabaseAdmin('question_options', {
       query: `?question_id=in.(${questionIds.join(',')})&order=display_order&select=id,question_id,content,is_correct`,
@@ -41,6 +41,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
         id: q.id,
         sortOrder: l.sort_order,
         stem: q.stem,
+        groupStem: q.group_stem ?? null,
         explanation: q.explanation,
         imageUrl: q.image_url,
         answerType: q.answer_type ?? 'choice',
@@ -131,6 +132,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
           question_type: 'mock',
           answer_type: isShort ? 'short' : 'choice',
           answer_text: isShort ? (normaliseMineruText(q.answerText) || null) : null,
+          group_stem: String(q.groupStem ?? '').trim() ? normaliseMineruText(q.groupStem) : null,
           difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
           stem: normaliseMineruText(q.stem),
           explanation: normaliseMineruText(q.explanation),

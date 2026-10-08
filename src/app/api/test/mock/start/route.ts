@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const mode: 'full' | 'retry' = rawMode === 'retry' ? 'retry' : 'full'
 
   const { data: paperRows } = await supabaseAdmin('mock_papers', {
-    query: `?id=eq.${paperId}&select=id,title,duration_minutes,mock_course_id,is_published`,
+    query: `?id=eq.${paperId}&select=id,title,mode,duration_minutes,mock_course_id,is_published`,
   })
   const paper = paperRows?.[0]
   if (!paper) return NextResponse.json({ error: '试卷不存在' }, { status: 404 })
@@ -67,12 +67,19 @@ export async function POST(request: Request) {
 
     if (mode === 'retry') {
       // Only what they have never got right — including questions they left blank.
+      // A multi-part question comes back whole, so its parts stay together.
       const remaining = await neverCorrectQuestions(user.id, paperId)
       if (remaining.length === 0) {
         return NextResponse.json({ empty: true, error: '这份卷子已经全部答对了，没有错题需要重测' }, { status: 400 })
       }
-      // Re-ordered, so the sequence is not a memory aid.
-      questionIds = shuffled(remaining)
+      // Re-ordering stops a student answering from memory of "it was the third
+      // one" — but it must NOT happen when the questions are grouped: (b) has to
+      // follow (a) and sit under their shared stem.
+      const { data: gq } = await supabaseAdmin('questions', {
+        query: `?id=in.(${remaining.join(',')})&select=id,group_stem`,
+      })
+      const hasGroups = ((gq || []) as any[]).some((q) => String(q.group_stem ?? '').trim())
+      questionIds = hasGroups || paper.mode === 'short' ? remaining : shuffled(remaining)
     } else {
       const { data: pq } = await supabaseAdmin('mock_paper_questions', {
         query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id`,

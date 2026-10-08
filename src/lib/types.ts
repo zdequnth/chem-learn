@@ -815,6 +815,7 @@ export interface MockReviewQuestion {
   questionId: string
   sortOrder: number
   stem: string
+  groupStem: string | null   // shared stem of a multi-part question
   imageUrl: string | null
   explanation: string
   chapterId: string | null

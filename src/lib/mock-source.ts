@@ -172,10 +172,15 @@ export interface SessionRow {
  */
 export async function neverCorrectQuestions(studentId: string, paperId: string): Promise<string[]> {
   const { data: paperQs } = await supabaseAdmin('mock_paper_questions', {
-    query: `?paper_id=eq.${paperId}&select=question_id`,
+    query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id`,
   })
   const all = ((paperQs || []) as any[]).map((r) => r.question_id)
   if (all.length === 0) return []
+
+  const { data: meta } = await supabaseAdmin('questions', {
+    query: `?id=in.(${all.join(',')})&select=id,group_stem`,
+  })
+  const groupOf = new Map<string, string>((meta || []).map((q: any) => [q.id, String(q.group_stem ?? '').trim()]))
 
   const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
     query: `?student_id=eq.${studentId}&paper_id=eq.${paperId}&status=eq.submitted&select=id`,
@@ -190,7 +195,23 @@ export async function neverCorrectQuestions(studentId: string, paperId: string):
     })
     for (const a of (data || []) as any[]) everCorrect.add(a.question_id)
   }
-  return all.filter((q) => !everCorrect.has(q))
+
+  // A part already answered correctly still comes back when a sibling part is
+  // wrong. The parts share material and feed each other — (b) routinely needs
+  // (a)'s result — so retesting only the wrong part would be asking them to
+  // redo a step from memory. The whole question is retested instead.
+  const wrongGroups = new Set<string>()
+  const wrongAlone = new Set<string>()
+  for (const id of all) {
+    if (everCorrect.has(id)) continue
+    const g = groupOf.get(id)
+    if (g) wrongGroups.add(g)
+    else wrongAlone.add(id)
+  }
+  return all.filter((id) => {
+    const g = groupOf.get(id)
+    return g ? wrongGroups.has(g) : wrongAlone.has(id)
+  })
 }
 
 export function isPastDeadline(session: SessionRow, graceSeconds = GRACE_SECONDS): boolean {
@@ -516,6 +537,7 @@ export async function buildReview(session: SessionRow) {
       questionId: qid,
       sortOrder: i,
       stem: q?.stem ?? '',
+      groupStem: q?.group_stem ?? null,
       imageUrl: q?.image_url ?? null,
       explanation: stripAnswerPrefix(q?.explanation ?? ''),
       chapterId: ref?.chapterId ?? null,
@@ -579,7 +601,7 @@ export async function buildExamPaper(session: SessionRow) {
   const rows = (answers || []) as any[]
   const qIds = rows.map((r) => r.question_id)
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,answer_type` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,answer_type,group_stem` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', { query: `?question_id=in.(${qIds.join(',')})&order=display_order&select=id,question_id,content` })
@@ -592,6 +614,7 @@ export async function buildExamPaper(session: SessionRow) {
       questionId: r.question_id,
       sortOrder: r.sort_order,
       stem: q?.stem ?? '',
+      groupStem: q?.group_stem ?? null,
       imageUrl: q?.image_url ?? null,
       answerType: q?.answer_type === 'short' ? 'short' : 'choice',
       flagged: !!r.flagged,

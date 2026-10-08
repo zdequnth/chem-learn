@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import { kindTheme } from '@/lib/course-kind'
+import { groupByStem, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -16,6 +17,7 @@ interface PQ {
   questionId: string
   sortOrder: number
   stem: string
+  groupStem?: string | null
   imageUrl: string | null
   explanation: string
   difficulty: number
@@ -53,6 +55,8 @@ function PreviewContent() {
   const cur = questions[idx]
   const flagged = questions.filter(q => q.noAnswer).length
   const isShortPaper = questions.length > 0 && questions.every(q => q.answerType === 'short')
+  const groups = groupByStem(questions)
+  const curGroupIdx = cur ? (groupIndexOf(groups).get(cur.questionId) ?? -1) : -1
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,15 +96,26 @@ function PreviewContent() {
               </div>
             )}
 
-            {/* number palette — the same jumping-off point students get */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {questions.map((q, i) => (
-                <button key={q.questionId} onClick={() => setIdx(i)}
-                  className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
-                    i === idx ? 'ring-2 ring-violet-400 ' : ''
-                  }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                  {i + 1}
-                </button>
+            {/* number palette — the same jumping-off point students get. One row
+                per big question, so it is plain which parts belong together. */}
+            <div className="space-y-1 mb-4">
+              {groups.map((g, gi) => (
+                <div key={gi} className="flex flex-wrap items-center gap-1.5">
+                  <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                    {g.items.length > 1 ? `第 ${gi + 1} 题` : ''}
+                  </span>
+                  {g.items.map((q, si) => {
+                    const i = g.start + si
+                    return (
+                      <button key={q.questionId} onClick={() => setIdx(i)}
+                        className={`h-8 min-w-8 px-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          i === idx ? 'ring-2 ring-violet-400 ' : ''
+                        }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                        {partLabel(gi, si, g.items.length)}
+                      </button>
+                    )
+                  })}
+                </div>
               ))}
             </div>
 
@@ -116,6 +131,14 @@ function PreviewContent() {
                   )}
                 </div>
 
+                {cur.groupStem && (
+                  <div className="mb-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm">
+                    <div className="text-xs text-muted-foreground mb-1.5">
+                      第 {curGroupIdx + 1} 题的共同题干（下面各小问共用）
+                    </div>
+                    <KatexHtml text={cur.groupStem} />
+                  </div>
+                )}
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
                 {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
 
