@@ -60,6 +60,7 @@ function MockAdminContent() {
   const [outline, setOutline] = useState<OutChapter[]>([])
   const [sourceName, setSourceName] = useState<string | null>(null)
   const [importText, setImportText] = useState('')
+  const [answerText, setAnswerText] = useState('')
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [resultsFor, setResultsFor] = useState<string | null>(null)
@@ -157,7 +158,7 @@ function MockAdminContent() {
       while (i < total) {
         const res = await fetch('/api/ai/parse-mock-paper', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: importText, courseId, batchIndex: i }),
+          body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText }),
         })
         const raw = await res.text()
         let j: any = {}
@@ -523,6 +524,23 @@ function MockAdminContent() {
                   <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
                     placeholder={lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+
+                  {/* The key sits in its own box on purpose: inside the paper text its
+                      answer lines look exactly like question numbers. */}
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium mb-1">
+                      {lang === 'zh' ? '试卷自带答案？（可选）' : 'Answer key (optional)'}
+                    </label>
+                    <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={2}
+                      placeholder={lang === 'zh' ? '把答案区原样粘进来即可，如「1. B  2. C  3. A」或「1-5 BCDAB」。填了就以官方答案为准；不填 AI 会自己解题。' : 'Paste the answer key, e.g. "1. B  2. C" or "1-5 BCDAB". Given one, AI uses it; otherwise it solves the paper itself.'}
+                      className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {lang === 'zh'
+                        ? '粘过来的答案区记得从上面的试卷文本里删掉 —— 留在上面，每个「1. B」都会被当成一道题拆出来。'
+                        : 'Remove the key from the paper text above — left in, every "1. B" gets split out as its own question.'}
+                    </p>
+                  </div>
+
                   <div className="flex items-center gap-3 mt-2">
                     <button onClick={handleParse} disabled={busy !== ''}
                       className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">

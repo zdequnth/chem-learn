@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
+import { parseAnswerKey } from '@/lib/answer-key'
 import OpenAI from 'openai'
 
 // Batching makes this slower than Vercel's default function timeout.
@@ -50,7 +51,7 @@ function splitIntoBatches(text: string): string[] {
   return batches.length > 0 ? batches : [text]
 }
 
-function buildPrompt(text: string, courseName: string, lessonList: string): string {
+function buildPrompt(text: string, courseName: string, lessonList: string, answerKey: Map<number, string> | null): string {
   return `你是 AP/IGCSE 化学题库录入助手。把下面这份试卷的文本拆成一道道的单项选择题，输出 JSON。
 
 【试卷排版特点，必须正确处理】
@@ -64,9 +65,17 @@ function buildPrompt(text: string, courseName: string, lessonList: string): stri
 ${lessonList}
 lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
 
-【求解答案】
-这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
+${answerKey && answerKey.size > 0 ? `【官方答案】
+试卷末尾的答案区已由老师单独提供，下面是「题号:选项」（本批只会用到其中一部分，其余题号与你无关）：
+${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 
+以官方答案为准：
+- 题号就是本批文本里每题开头那个数字（如 "17."）。
+- 本批中出现的题号，直接按官方答案标 isCorrect，不要用你自己解出的结果。
+- 若官方答案与你自己独立解出的结果不一致，仍按官方答案标 isCorrect，并在 explanation 末尾加一句中文注明分歧，例如"⚠️ 官方答案 B，独立解答为 C"。
+` : `【求解答案】
+这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
+`}
 【输出字段】每题一个对象：
 {"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null}
 - stem/options/explanation 保持原语言（英文），不要翻译
@@ -117,7 +126,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { text, courseId, batchIndex: rawBatchIndex } = await request.json()
+  const { text, courseId, batchIndex: rawBatchIndex, answerText } = await request.json()
   if (!text?.trim()) return NextResponse.json({ error: '请粘贴试卷文本' }, { status: 400 })
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
 
@@ -154,7 +163,13 @@ export async function POST(request: Request) {
   const batchIndex = Math.min(Math.max(0, Number(rawBatchIndex) || 0), batches.length - 1)
   const chunk = batches[batchIndex]
 
-  const prompt = buildPrompt(chunk, outline.courseName, outline.promptList)
+  // The key is the same for every batch, so the whole thing is handed to each
+  // one and the model picks out the numbers it sees. Far simpler than working
+  // out which question numbers landed in which chunk.
+  const parsedKey = typeof answerText === 'string' && answerText.trim() ? parseAnswerKey(answerText) : null
+  const answerKey = parsedKey && parsedKey.size > 0 ? parsedKey : null
+
+  const prompt = buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
   let result = await parseChunk(client, prompt)
   if (!result.ok) result = await parseChunk(client, prompt) // retry once, failures are random
   const raw: any[] = result.ok ? result.questions : []
