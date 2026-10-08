@@ -17,7 +17,7 @@ interface PQ {
   questionId: string
   sortOrder: number
   stem: string
-  groupStem?: string | null
+  groupRef?: string | null
   imageUrl: string | null
   explanation: string
   difficulty: number
@@ -131,14 +131,6 @@ function PreviewContent() {
                   )}
                 </div>
 
-                {cur.groupStem && (
-                  <div className="mb-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm">
-                    <div className="text-xs text-muted-foreground mb-1.5">
-                      第 {curGroupIdx + 1} 题的共同题干（下面各小问共用）
-                    </div>
-                    <KatexHtml text={cur.groupStem} />
-                  </div>
-                )}
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
                 {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
 

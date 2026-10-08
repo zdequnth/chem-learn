@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const rows = (links || []) as any[]
   const qIds = rows.map((r) => r.question_id)
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,explanation,difficulty,lesson_id,answer_type,answer_text,group_stem` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,explanation,difficulty,lesson_id,answer_type,answer_text,group_ref` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', { query: `?question_id=in.(${qIds.join(',')})&order=display_order&select=id,question_id,content,is_correct` })
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       questionId: r.question_id,
       sortOrder: r.sort_order,
       stem: q?.stem ?? '',
-      groupStem: q?.group_stem ?? null,
+      groupRef: q?.group_ref ?? null,
       imageUrl: q?.image_url ?? null,
       explanation: stripAnswerPrefix(q?.explanation ?? ''),
       difficulty: q?.difficulty ?? 3,

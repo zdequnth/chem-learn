@@ -235,7 +235,7 @@ export interface Question {
   answer_type: AnswerType
   answer_text: string | null      // reference answer, for 'short'
   group_id: string | null         // parts of one multi-part question share this
-  group_stem: string | null       // their shared passage / data / figure
+  group_ref: string | null       // their shared passage / data / figure
   difficulty: number
   stem: string
   explanation: string
@@ -254,7 +254,7 @@ export interface QuestionInsert {
   answer_type?: AnswerType
   answer_text?: string | null
   group_id?: string | null
-  group_stem?: string | null
+  group_ref?: string | null
   difficulty?: number
   stem: string
   explanation?: string
@@ -270,7 +270,7 @@ export interface QuestionUpdate {
   answer_type?: AnswerType
   answer_text?: string | null
   group_id?: string | null
-  group_stem?: string | null
+  group_ref?: string | null
   difficulty?: number
   stem?: string
   explanation?: string
@@ -815,7 +815,7 @@ export interface MockReviewQuestion {
   questionId: string
   sortOrder: number
   stem: string
-  groupStem: string | null   // shared stem of a multi-part question
+  groupRef: string | null   // shared stem of a multi-part question
   imageUrl: string | null
   explanation: string
   chapterId: string | null

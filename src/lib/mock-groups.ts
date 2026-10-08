@@ -1,29 +1,31 @@
 /**
- * A multi-part question is a run of consecutive questions carrying the same
- * shared stem — "第 1 题" with parts (a)(b)(c).
+ * A multi-part question is "第 1 题" with parts (a)(b)(c). The parts carry the
+ * big question's number as `groupRef`; consecutive questions sharing one are a
+ * group.
  *
- * Grouping by contiguity rather than by an id means the parser never has to
- * invent ids, and a group cannot straddle a batch: the splitter breaks on
- * question starts, and "(a)" does not match that pattern, so a whole big
- * question always lands in one chunk.
+ * The ref comes from the paper's own numbering rather than from comparing the
+ * shared text — the number is printed on the paper, so the model can copy it,
+ * whereas "are these two passages the same passage?" is a judgement it gets
+ * wrong. Contiguity still matters: a group cannot straddle a parse batch,
+ * because the splitter breaks on question numbers and "(a)" is not one.
  */
 export interface QGroup<T> {
   start: number
   items: T[]
 }
 
-export function groupByStem<T extends { groupStem?: string | null }>(qs: T[]): QGroup<T>[] {
+export function groupByStem<T extends { groupRef?: string | null }>(qs: T[]): QGroup<T>[] {
   const out: QGroup<T>[] = []
   let i = 0
   while (i < qs.length) {
-    const stem = (qs[i].groupStem || '').trim()
-    if (!stem) {
+    const ref = (qs[i].groupRef || '').trim()
+    if (!ref) {
       out.push({ start: i, items: [qs[i]] })
       i++
       continue
     }
     let j = i + 1
-    while (j < qs.length && (qs[j].groupStem || '').trim() === stem) j++
+    while (j < qs.length && (qs[j].groupRef || '').trim() === ref) j++
     out.push({ start: i, items: qs.slice(i, j) })
     i = j
   }

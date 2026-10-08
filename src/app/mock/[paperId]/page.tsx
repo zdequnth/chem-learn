@@ -19,7 +19,7 @@ interface ExamQuestion {
   questionId: string
   sortOrder: number
   stem: string
-  groupStem?: string | null   // shared stem of a multi-part question
+  groupRef?: string | null   // shared stem of a multi-part question
   imageUrl: string | null
   answerType?: 'choice' | 'short'
   selectedOptionId: string | null
@@ -557,12 +557,6 @@ function MockExamContent() {
                   )}
                 </div>
 
-                {q.groupStem && (
-                  <div className="mb-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm">
-                    <div className="text-xs text-muted-foreground mb-1">这道大题共同的题干</div>
-                    <KatexHtml text={q.groupStem} />
-                  </div>
-                )}
                 <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
                 {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />}
 
@@ -728,15 +722,6 @@ function MockExamContent() {
                 {flags[cur.questionId] ? '已标记（回头再看）' : '标记这题'}
               </button>
             </div>
-            {/* A multi-part question's shared material, shown once above its parts */}
-            {cur.groupStem && (
-              <div className="mb-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm">
-                <div className="text-xs text-muted-foreground mb-1.5">
-                  第 {curGroupIdx + 1} 题的共同题干（下面各小问共用）
-                </div>
-                <KatexHtml text={cur.groupStem} />
-              </div>
-            )}
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
             {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
             <div className="space-y-2">

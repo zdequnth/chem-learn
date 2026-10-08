@@ -76,9 +76,9 @@ export async function POST(request: Request) {
       // one" — but it must NOT happen when the questions are grouped: (b) has to
       // follow (a) and sit under their shared stem.
       const { data: gq } = await supabaseAdmin('questions', {
-        query: `?id=in.(${remaining.join(',')})&select=id,group_stem`,
+        query: `?id=in.(${remaining.join(',')})&select=id,group_ref`,
       })
-      const hasGroups = ((gq || []) as any[]).some((q) => String(q.group_stem ?? '').trim())
+      const hasGroups = ((gq || []) as any[]).some((q) => String(q.group_ref ?? '').trim())
       questionIds = hasGroups || paper.mode === 'short' ? remaining : shuffled(remaining)
     } else {
       const { data: pq } = await supabaseAdmin('mock_paper_questions', {

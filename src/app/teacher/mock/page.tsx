@@ -31,7 +31,7 @@ interface DraftQuestion {
   aiGenerated: boolean
   answerType: 'choice' | 'short'   // 'short' = free response, no options
   answerText: string               // reference answer, AI grades against this
-  groupStem: string                // shared stem of a multi-part question ('' = none)
+  groupRef: string                 // the big question's number, e.g. "1" ('' = stands alone)
   officialAnswer?: string | null   // from the pasted key, when there is one
   independentAnswer?: string | null
   disputed?: boolean               // AI's own answer differs from the official one
@@ -174,7 +174,7 @@ function MockAdminContent() {
         aiGenerated: true,
         answerType: q.answerType === 'short' ? 'short' : 'choice',
         answerText: q.answerText || '',
-        groupStem: q.groupStem || '',
+        groupRef: q.groupRef || '',
         // Not a DB column — the parse prompt writes the mismatch into the
         // explanation, so re-reading it is what keeps the flag alive after saving.
         disputed: /官方答案/.test(q.explanation || ''),
@@ -241,7 +241,7 @@ function MockAdminContent() {
         aiGenerated: true,
         answerType: q.answerType === 'short' ? 'short' : 'choice',
         answerText: q.answerText || '',
-        groupStem: q.groupStem || '',
+        groupRef: q.groupRef || '',
         officialAnswer: q.officialAnswer ?? null,
         independentAnswer: q.independentAnswer ?? null,
         disputed: !!q.disputed,
@@ -300,24 +300,13 @@ function MockAdminContent() {
     setQuestions(prev => [...prev, {
       stem: '', explanation: '', difficulty: 3, imageUrl: '', lessonId: '',
       lessonRef: null, chapterTitle: null, lessonTitle: null, aiGenerated: false,
-      answerType: mode, answerText: '', groupStem: '',
+      answerType: mode, answerText: '', groupRef: '',
       options: mode === 'choice'
         ? [{ content: '', isCorrect: true }, { content: '', isCorrect: false }]
         : [],
     }])
     setDirty(true)
     setReviewOnly(false)
-  }
-  // The shared stem is stored on every part, so editing it writes to all of
-  // them — otherwise one edit would silently split the group in two.
-  const patchGroupStem = (i: number, next: string) => {
-    const before = questions[i]?.groupStem ?? ''
-    setQuestions(list => list.map((q, k) => {
-      if (k === i) return { ...q, groupStem: next }
-      if (before && q.groupStem === before) return { ...q, groupStem: next }
-      return q
-    }))
-    setDirty(true)
   }
   // MinerU 有时会把两栏排版的选项读串（A/B/C 属性和题对不上），一键换顺序后手工改
   const shuffleOptions = (i: number) => {
@@ -371,7 +360,7 @@ function MockAdminContent() {
       const payload = questions.map(q => ({
         stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
         imageUrl: q.imageUrl || null, lessonId: q.lessonId,
-        answerType: q.answerType, answerText: q.answerText, groupStem: q.groupStem || null,
+        answerType: q.answerType, answerText: q.answerText, groupRef: q.groupRef || null,
         options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
       }))
       const res = await fetch('/api/mock/papers', {
@@ -865,17 +854,6 @@ function MockAdminContent() {
                               freely and the AI grades it against the reference
                               answer. Which of the two this is comes from the
                               paper's mode, chosen at creation. */}
-                          {/* The shared stem of a multi-part question. Editing it
-                              writes to every part so the group cannot be split. */}
-                          <div className="mt-3">
-                            <div className="text-xs text-muted-foreground mb-1">
-                              大题共同题干（这几道小问共用；留空表示这是独立的一题）
-                            </div>
-                            <textarea value={q.groupStem} onChange={e => patchGroupStem(i, e.target.value)} rows={2}
-                              placeholder="没有共同题干就留空"
-                              className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
-                          </div>
-
                           {q.answerType === 'choice' ? (
                             <div className="mt-3 space-y-1.5">
                               {q.options.map((o, oi) => (
