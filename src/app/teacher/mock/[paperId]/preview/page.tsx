@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 
@@ -22,6 +22,8 @@ interface PQ {
   chapterTitle: string | null
   lessonRef: string | null
   lessonTitle: string | null
+  answerType: 'choice' | 'short'
+  answerText: string
   options: { id: string; content: string; isCorrect: boolean }[]
   correctOptionId: string | null
   noAnswer: boolean
@@ -50,6 +52,7 @@ function PreviewContent() {
   const questions: PQ[] = data?.questions || []
   const cur = questions[idx]
   const flagged = questions.filter(q => q.noAnswer).length
+  const isShortPaper = questions.length > 0 && questions.every(q => q.answerType === 'short')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -83,7 +86,9 @@ function PreviewContent() {
             {flagged > 0 && (
               <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                {flagged} 题的正确答案不是恰好 1 个（可能是 AI 没标对，或多选了）。显示答案时它们会标红。
+                {isShortPaper
+                  ? <>{flagged} 题还没有参考答案 —— 没有它 AI 判不了分。它们会标红。</>
+                  : <>{flagged} 题的正确答案不是恰好 1 个（可能是 AI 没标对，或多选了）。显示答案时它们会标红。</>}
               </div>
             )}
 
@@ -114,6 +119,22 @@ function PreviewContent() {
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
                 {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
 
+                {cur.answerType === 'short' ? (
+                  showAnswers ? (
+                    <div className="px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50">
+                      <div className="text-xs text-emerald-800 mb-1">参考答案（学生看到的判分依据）</div>
+                      <div className="text-sm whitespace-pre-wrap">
+                        {cur.answerText
+                          ? <KatexHtml text={wrapBareLatex(cur.answerText)} />
+                          : <span className="text-rose-600">（还没填参考答案 —— AI 判不了这道题）</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-muted-foreground">
+                      学生在这里写一段文字作答（这里不显示参考答案）
+                    </div>
+                  )
+                ) : (
                 <div className="space-y-2">
                   {cur.options.map((o, oi) => {
                     const reveal = showAnswers && o.isCorrect
@@ -130,6 +151,7 @@ function PreviewContent() {
                     )
                   })}
                 </div>
+                )}
 
                 {showAnswers && cur.explanation && (
                   <div className="mt-3 px-3 py-2 bg-gray-50 rounded-lg text-sm text-muted-foreground">

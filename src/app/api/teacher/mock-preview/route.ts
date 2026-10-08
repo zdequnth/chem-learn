@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const rows = (links || []) as any[]
   const qIds = rows.map((r) => r.question_id)
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,explanation,difficulty,lesson_id` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,explanation,difficulty,lesson_id,answer_type,answer_text` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', { query: `?question_id=in.(${qIds.join(',')})&order=display_order&select=id,question_id,content,is_correct` })
@@ -38,6 +38,7 @@ export async function GET(request: Request) {
     const q: any = qById.get(r.question_id)
     const ref = q ? refByLesson.get(q.lesson_id) : undefined
     const options = ((opts || []) as any[]).filter((o) => o.question_id === r.question_id)
+    const isShort = q?.answer_type === 'short'
     return {
       questionId: r.question_id,
       sortOrder: r.sort_order,
@@ -48,9 +49,16 @@ export async function GET(request: Request) {
       chapterTitle: ref?.chapterTitle ?? null,
       lessonRef: ref?.ref ?? null,
       lessonTitle: ref?.lessonTitle ?? null,
+      answerType: isShort ? 'short' : 'choice',
+      answerText: q?.answer_text ?? '',
       options: options.map((o) => ({ id: o.id, content: o.content, isCorrect: !!o.is_correct })),
       correctOptionId: options.find((o) => o.is_correct)?.id ?? null,
-      noAnswer: options.filter((o) => o.is_correct).length !== 1 || options.length < 2,
+      // "Something is wrong with this question's answer" — a different thing
+      // depending on the kind: a missing reference answer, or not exactly one
+      // correct option.
+      noAnswer: isShort
+        ? !String(q?.answer_text ?? '').trim()
+        : (options.filter((o) => o.is_correct).length !== 1 || options.length < 2),
     }
   })
 
