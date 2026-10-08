@@ -162,6 +162,7 @@ export interface SessionRow {
   total_correct: number
   total_wrong: number
   score_percentage: number | null
+  graded_at: string | null        // null = a short paper still being graded
 }
 
 /**
@@ -252,6 +253,27 @@ async function writeWrongBook(session: SessionRow, wrongQuestionIds: string[]) {
 export async function finaliseSession(session: SessionRow, reason: 'manual' | 'timeout'): Promise<SessionRow> {
   if (session.status === 'submitted') return session
 
+  // A free-response answer cannot be marked locally — there is no option to
+  // compare against. The AI grades it in batches after submit and only then is
+  // there a score, so `graded_at` stays null and the review says "grading".
+  const paperMode = await loadPaperMode(session.paper_id)
+  if (paperMode === 'short') {
+    const { data: rows } = await supabaseAdmin('mock_test_answers', {
+      query: `?session_id=eq.${session.id}&select=id`,
+    })
+    const patch = {
+      status: 'submitted',
+      submit_reason: reason,
+      submitted_at: new Date().toISOString(),
+      total_questions: (rows || []).length,
+      total_correct: 0,
+      total_wrong: 0,
+      score_percentage: 0,
+    }
+    await supabaseAdmin('mock_test_sessions', { method: 'PATCH', body: patch, query: `?id=eq.${session.id}` })
+    return { ...session, ...patch } as SessionRow
+  }
+
   const { data: answers } = await supabaseAdmin('mock_test_answers', {
     query: `?session_id=eq.${session.id}&order=sort_order&select=id,question_id,selected_option_id,is_correct`,
   })
@@ -284,11 +306,90 @@ export async function finaliseSession(session: SessionRow, reason: 'manual' | 't
     total_correct: correct,
     total_wrong: total - correct,
     score_percentage: total > 0 ? Math.round((correct / total) * 10000) / 100 : 0,
+    graded_at: new Date().toISOString(),
   }
   await supabaseAdmin('mock_test_sessions', { method: 'PATCH', body: patch, query: `?id=eq.${session.id}` })
   await writeWrongBook(session, wrongIds)
 
   return { ...session, ...patch } as SessionRow
+}
+
+async function loadPaperMode(paperId: string): Promise<'choice' | 'short'> {
+  const { data } = await supabaseAdmin('mock_papers', { query: `?id=eq.${paperId}&select=mode` })
+  return data?.[0]?.mode === 'short' ? 'short' : 'choice'
+}
+
+/**
+ * The next batch of free-response answers still waiting on a verdict, plus the
+ * question text and reference answer the grader needs. Blank answers need no
+ * model call — they are marked wrong here and never enter a batch.
+ */
+export async function pendingShortAnswers(session: SessionRow, limit: number) {
+  const { data: ans } = await supabaseAdmin('mock_test_answers', {
+    query: `?session_id=eq.${session.id}&order=sort_order&select=id,question_id,answer_text,feedback`,
+  })
+  const pending = ((ans || []) as any[]).filter((a) => a.feedback === null)
+
+  const blank = pending.filter((a) => !String(a.answer_text ?? '').trim())
+  for (const a of blank) {
+    await supabaseAdmin('mock_test_answers', {
+      method: 'PATCH', body: { is_correct: false, feedback: '未作答' }, query: `?id=eq.${a.id}`,
+    })
+  }
+
+  const rest = pending.filter((a) => String(a.answer_text ?? '').trim())
+  const batch = rest.slice(0, limit)
+  if (batch.length === 0) return { batch: [], remaining: Math.max(0, rest.length) }
+
+  const qIds = batch.map((b: any) => b.question_id)
+  const { data: qs } = await supabaseAdmin('questions', {
+    query: `?id=in.(${qIds.join(',')})&select=id,stem,answer_text`,
+  })
+  const qById = new Map<string, any>((qs || []).map((q: any) => [q.id, q]))
+
+  return {
+    batch: batch.map((b: any) => ({
+      questionId: b.question_id,
+      stem: qById.get(b.question_id)?.stem ?? '',
+      reference: qById.get(b.question_id)?.answer_text ?? '',
+      studentAnswer: b.answer_text ?? '',
+    })),
+    remaining: Math.max(0, rest.length - batch.length),
+  }
+}
+
+/** Write verdicts back. When nothing is left pending, close out the score. */
+export async function applyGrades(
+  session: SessionRow,
+  batch: { questionId: string; correct: boolean; feedback: string }[],
+): Promise<{ remaining: number }> {
+  for (const g of batch) {
+    await supabaseAdmin('mock_test_answers', {
+      method: 'PATCH',
+      body: { is_correct: g.correct, feedback: (g.feedback || '').slice(0, 800) },
+      query: `?session_id=eq.${session.id}&question_id=eq.${g.questionId}`,
+    })
+  }
+
+  const { data: ans } = await supabaseAdmin('mock_test_answers', {
+    query: `?session_id=eq.${session.id}&select=question_id,is_correct,feedback`,
+  })
+  const rows = (ans || []) as any[]
+  const remaining = rows.filter((r) => r.feedback === null).length
+  if (remaining > 0) return { remaining }
+
+  const correct = rows.filter((r) => r.is_correct).length
+  const total = rows.length
+  const patch = {
+    total_questions: total,
+    total_correct: correct,
+    total_wrong: total - correct,
+    score_percentage: total > 0 ? Math.round((correct / total) * 10000) / 100 : 0,
+    graded_at: new Date().toISOString(),
+  }
+  await supabaseAdmin('mock_test_sessions', { method: 'PATCH', body: patch, query: `?id=eq.${session.id}` })
+  await writeWrongBook(session, rows.filter((r) => !r.is_correct).map((r) => r.question_id))
+  return { remaining: 0 }
 }
 
 /**
@@ -320,7 +421,7 @@ export async function studentPaperHistory(studentId: string, paperId: string) {
   for (let i = 0; i < sessions.length; i += 100) {
     const chunk = sessions.slice(i, i + 100).map((s) => s.id)
     const { data } = await supabaseAdmin('mock_test_answers', {
-      query: `?session_id=in.(${chunk.join(',')})&order=sort_order&select=session_id,question_id,selected_option_id,is_correct,flagged`,
+      query: `?session_id=in.(${chunk.join(',')})&order=sort_order&select=session_id,question_id,selected_option_id,answer_text,is_correct,flagged`,
     })
     for (const a of (data || []) as any[]) {
       if (!answersBySession.has(a.session_id)) answersBySession.set(a.session_id, [])
@@ -336,7 +437,10 @@ export async function studentPaperHistory(studentId: string, paperId: string) {
     const ans = answersBySession.get(s.id) || []
     let correctHere = 0
     for (const a of ans) {
-      if (a.selected_option_id) everAnswered.add(a.question_id)
+      // A choice question is answered by picking an option; a short one by
+      // writing something. Either counts as "attempted".
+      const answered = !!a.selected_option_id || !!String(a.answer_text ?? '').trim()
+      if (answered) everAnswered.add(a.question_id)
       const h = hist.get(a.question_id) || { asked: 0, wrong: 0, firstCorrectAttempt: null as number | null, lastSelection: null as string | null, flagged: false }
       h.asked++
       if (a.selected_option_id) h.lastSelection = a.selected_option_id
@@ -384,13 +488,13 @@ export async function buildReview(session: SessionRow) {
   const here = new Map<string, any>()
   // The answer rows of THIS session only — used to show what was picked now.
   const { data: thisAnswers } = await supabaseAdmin('mock_test_answers', {
-    query: `?session_id=eq.${session.id}&select=question_id,selected_option_id,is_correct,flagged`,
+    query: `?session_id=eq.${session.id}&select=question_id,selected_option_id,answer_text,feedback,is_correct,flagged`,
   })
   for (const a of (thisAnswers || []) as any[]) here.set(a.question_id, a)
 
   const qIds = paperQids.length ? paperQids : [...here.keys()]
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,image_url,lesson_id` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,image_url,lesson_id,answer_type,answer_text` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', {
@@ -420,6 +524,11 @@ export async function buildReview(session: SessionRow) {
       lessonTitle: ref?.lessonTitle ?? null,
       lessonRef: ref?.ref ?? null,
       options: options.map((o) => ({ id: o.id, content: o.content })),
+      // free-response answers: what they wrote, the reference, and the verdict
+      answerType: q?.answer_type === 'short' ? 'short' : 'choice',
+      myAnswer: mine?.answer_text ?? '',
+      referenceAnswer: q?.answer_text ?? null,
+      feedback: mine?.feedback ?? null,
       // this sitting's answer, else what they last picked for it
       selectedOptionId: mine ? mine.selected_option_id : (h?.lastSelection ?? null),
       correctOptionId: options.find((o) => o.is_correct)?.id ?? null,
@@ -448,6 +557,9 @@ export async function buildReview(session: SessionRow) {
     },
     attempts,
     sessionMode: session.mode || 'full',
+    // A short paper is graded after submit, in batches. Until the last batch
+    // lands there is no honest score to show, so the review says so.
+    grading: !session.graded_at,
     durationSeconds: session.duration_seconds,
     usedSeconds: Math.max(0, Math.round((new Date(session.submitted_at || new Date()).getTime() - new Date(session.started_at).getTime()) / 1000)),
     submittedAt: session.submitted_at,
@@ -462,12 +574,12 @@ export async function buildReview(session: SessionRow) {
  */
 export async function buildExamPaper(session: SessionRow) {
   const { data: answers } = await supabaseAdmin('mock_test_answers', {
-    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,flagged`,
+    query: `?session_id=eq.${session.id}&order=sort_order&select=question_id,sort_order,selected_option_id,answer_text,flagged`,
   })
   const rows = (answers || []) as any[]
   const qIds = rows.map((r) => r.question_id)
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,answer_type` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', { query: `?question_id=in.(${qIds.join(',')})&order=display_order&select=id,question_id,content` })
@@ -481,8 +593,12 @@ export async function buildExamPaper(session: SessionRow) {
       sortOrder: r.sort_order,
       stem: q?.stem ?? '',
       imageUrl: q?.image_url ?? null,
+      answerType: q?.answer_type === 'short' ? 'short' : 'choice',
       flagged: !!r.flagged,
       selectedOptionId: r.selected_option_id,
+      // the student's own draft, so a refresh mid-exam keeps what they typed.
+      // The REFERENCE answer is never sent here.
+      answerText: r.answer_text ?? '',
       options: ((opts || []) as any[]).filter((o) => o.question_id === r.question_id).map((o) => ({ id: o.id, content: o.content })),
     }
   })

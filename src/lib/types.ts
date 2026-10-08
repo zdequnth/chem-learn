@@ -823,6 +823,12 @@ export interface MockReviewQuestion {
   lessonTitle: string | null
   lessonRef: string | null
   options: { id: string; content: string }[]
+  // Free-response questions carry what the student wrote, the reference answer
+  // and the grader's remark instead of an option pair.
+  answerType: 'choice' | 'short'
+  myAnswer: string
+  referenceAnswer: string | null
+  feedback: string | null
   selectedOptionId: string | null
   correctOptionId: string | null
   isCorrect: boolean
@@ -867,6 +873,9 @@ export interface MockReview {
   }
   /** Every sitting, oldest first — the score box lists these. */
   attempts: MockReviewAttempt[]
+  // A free-response paper is graded after submit; until the last batch lands
+  // there is no score worth showing.
+  grading: boolean
   sessionMode: 'full' | 'retry'
   durationSeconds: number
   usedSeconds: number

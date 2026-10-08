@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { sessionId, questionId, selectedOptionId, flagged } = await request.json()
+  const { sessionId, questionId, selectedOptionId, answerText, flagged } = await request.json()
   if (!sessionId || !questionId) return NextResponse.json({ error: '参数不全' }, { status: 400 })
 
   const session = await loadSession(sessionId)
@@ -45,6 +45,14 @@ export async function POST(request: Request) {
     patch.selected_option_id = selectedOptionId || null
     patch.answered_at = new Date().toISOString()
   }
+
+  // Free-response answer. Like the option above, this is the student's own
+  // writing — no correctness is derived or returned here.
+  if (answerText !== undefined) {
+    patch.answer_text = String(answerText ?? '').slice(0, 8000)
+    patch.answered_at = new Date().toISOString()
+  }
+
   if (typeof flagged === 'boolean') patch.flagged = flagged
 
   if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true })

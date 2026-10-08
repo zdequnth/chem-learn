@@ -18,7 +18,9 @@ interface ExamQuestion {
   sortOrder: number
   stem: string
   imageUrl: string | null
+  answerType?: 'choice' | 'short'
   selectedOptionId: string | null
+  answerText?: string        // the student's own draft, never the reference
   flagged?: boolean
   options: { id: string; content: string }[]
 }
@@ -60,6 +62,9 @@ function MockExamContent() {
   const [sessionMode, setSessionMode] = useState<'full' | 'retry'>('full')
   const [questions, setQuestions] = useState<ExamQuestion[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [grading, setGrading] = useState<{ done: number; total: number } | null>(null)
+  const [gradingError, setGradingError] = useState('')
   const [flags, setFlags] = useState<Record<string, boolean>>({})
   const [onlyFlagged, setOnlyFlagged] = useState(false)
   const [idx, setIdx] = useState(0)
@@ -81,6 +86,14 @@ function MockExamContent() {
 
   const submittedRef = useRef(false)
   const pendingSubmitRef = useRef(false)
+  // Mirrors of the three above, so doSubmit can flush the on-screen draft
+  // without being rebuilt (and re-triggering the countdown) on every keystroke.
+  const questionsRef = useRef<ExamQuestion[]>([])
+  const idxRef = useRef(0)
+  const draftsRef = useRef<Record<string, string>>({})
+  useEffect(() => { questionsRef.current = questions }, [questions])
+  useEffect(() => { idxRef.current = idx }, [idx])
+  useEffect(() => { draftsRef.current = drafts }, [drafts])
 
   const applyServerNow = (serverNow: string) => setServerOffset(new Date(serverNow).getTime() - Date.now())
 
@@ -92,16 +105,71 @@ function MockExamContent() {
     setBusy(false)
   }, [])
 
+  /** Load a paper's questions into the three per-question maps. */
+  const applyPaper = (qs: any[]) => {
+    const list = qs || []
+    setQuestions(list)
+    setAnswers(Object.fromEntries(list.filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
+    setDrafts(Object.fromEntries(list.filter((q: any) => q.answerText).map((q: any) => [q.questionId, q.answerText])))
+    setFlags(Object.fromEntries(list.filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
+  }
+
+  /**
+   * A free-response paper cannot be marked when it is handed in — the AI grades
+   * it in batches afterwards, so the student waits a little before the score.
+   * One request per batch, looping here, same shape as the paper importer.
+   */
+  const runGrading = useCallback(async (sid: string) => {
+    setGradingError('')
+    setGrading({ done: 0, total: 0 })
+    let fails = 0
+    for (let guard = 0; guard < 400; guard++) {
+      let j: any
+      try {
+        const res = await fetch('/api/test/mock/grade', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sid }),
+        })
+        j = await res.json()
+        if (!res.ok || j.error) { setGrading(null); setGradingError(j.error || String(res.status)); return }
+      } catch { setGrading(null); setGradingError('网络中断，判分没完成'); return }
+
+      if (j.review) { setGrading(null); gradeAndShow(j.review); return }
+      if (j.failed) {
+        // A stalled model call leaves the batch ungraded so it can be retried.
+        if (++fails <= 4) continue
+        setGrading(null); setGradingError('判分多次失败，请点「重试判分」'); return
+      }
+      fails = 0
+      setGrading(g => {
+        const done = (g?.done || 0) + (j.graded || 0)
+        return { done, total: Math.max(g?.total || 0, done + (j.remaining || 0)) }
+      })
+    }
+    setGrading(null); setGradingError('判分没有结束，请点「重试判分」')
+  }, [gradeAndShow])
+
   const doSubmit = useCallback(async (reason: 'manual' | 'timeout') => {
     if (!sessionId || submittedRef.current) return
     setBusy(true)
     try {
+      // Flush the answer currently on screen before handing in — a draft is only
+      // written on blur, and 交卷 is usually clicked straight after typing.
+      const cur = questionsRef.current[idxRef.current]
+      if (cur?.answerType === 'short') {
+        await fetch('/api/test/mock/answer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, questionId: cur.questionId, answerText: draftsRef.current[cur.questionId] ?? '' }),
+        }).catch(() => {})
+      }
       const res = await fetch('/api/test/mock/submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, reason }),
       })
       const j = await res.json()
       if (!res.ok || j.error) { alert('交卷失败：' + (j.error || res.status)); setBusy(false); return }
+      // A short paper comes back ungraded; grade it before showing anything.
+      if (j.review?.grading) { setBusy(false); await runGrading(sessionId); return }
       gradeAndShow(j.review)
     } catch {
       // Offline — remember it and retry when the connection or tab comes back.
@@ -109,7 +177,7 @@ function MockExamContent() {
       setOffline(true)
       setBusy(false)
     }
-  }, [sessionId, gradeAndShow])
+  }, [sessionId, gradeAndShow, runGrading])
 
   // ?mode=retry means "start a retest of my wrong questions" — it must NOT ask
   // for the current state, because the latest session is a submitted one and the
@@ -124,19 +192,24 @@ function MockExamContent() {
       try {
         const j = await (await fetch(`/api/test/mock/start?paperId=${paperId}`)).json()
         if (j.serverNow) applyServerNow(j.serverNow)
-        if (j.state === 'submitted') { setReview(j.review); setPhase('review'); return }
+        if (j.state === 'submitted') {
+          setReview(j.review); setPhase('review')
+          // Handed in but not fully graded (they closed the tab mid-grading) —
+          // pick the grading back up rather than showing a half score.
+          if (j.review?.grading) await runGrading(j.review.sessionId)
+          return
+        }
         if (j.state === 'in_progress') {
-          setSessionId(j.sessionId); setQuestions(j.questions || [])
+          setSessionId(j.sessionId)
+          applyPaper(j.questions)
           setSessionMode(j.mode === 'retry' ? 'retry' : 'full')
-          setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
-          setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
           setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
           setPhase('exam'); return
         }
         setPhase('intro')
       } catch { setPhase('intro') }
     })()
-  }, [user, paperId])
+  }, [user, paperId, runGrading])
 
   const startExam = async () => {
     setBusy(true)
@@ -152,10 +225,9 @@ function MockExamContent() {
         return
       }
       applyServerNow(j.serverNow)
-      setSessionId(j.sessionId); setTitle(j.title); setQuestions(j.questions || [])
+      setSessionId(j.sessionId); setTitle(j.title)
+      applyPaper(j.questions)
       setSessionMode(j.mode === 'retry' ? 'retry' : 'full')
-      setAnswers(Object.fromEntries((j.questions || []).filter((q: any) => q.selectedOptionId).map((q: any) => [q.questionId, q.selectedOptionId])))
-      setFlags(Object.fromEntries((j.questions || []).filter((q: any) => q.flagged).map((q: any) => [q.questionId, true])))
       setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
       setIdx(0); setPhase('exam')
     } catch (e: any) {
@@ -198,6 +270,13 @@ function MockExamContent() {
     return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', onVisible) }
   }, [phase, doSubmit])
 
+  // The answer endpoint grades the paper when it notices the deadline has
+  // passed. A short paper comes back ungraded, so it still needs the loop.
+  const showReturnedReview = useCallback((rev: MockReview) => {
+    if (rev?.grading) { setReview(rev); setPhase('review'); runGrading(rev.sessionId) }
+    else gradeAndShow(rev)
+  }, [gradeAndShow, runGrading])
+
   const choose = async (q: ExamQuestion, optionId: string) => {
     // Optimistic: the selection shows immediately, the write happens behind it.
     setAnswers(prev => ({ ...prev, [q.questionId]: optionId }))
@@ -207,11 +286,29 @@ function MockExamContent() {
         body: JSON.stringify({ sessionId, questionId: q.questionId, selectedOptionId: optionId }),
       })
       const j = await res.json()
-      if (j.expired || j.submitted) { gradeAndShow(j.review); return }
+      if (j.expired || j.submitted) { showReturnedReview(j.review); return }
       if (j.serverNow) applyServerNow(j.serverNow)
       setOffline(false)
     } catch {
       setOffline(true)   // kept locally; the next successful write catches up
+    }
+  }
+
+  // A free-response draft: typing only touches local state, the write happens on
+  // blur, so a long answer is not one request per keystroke.
+  const saveDraft = async (q: ExamQuestion, text: string) => {
+    setDrafts(prev => ({ ...prev, [q.questionId]: text }))
+    try {
+      const res = await fetch('/api/test/mock/answer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, questionId: q.questionId, answerText: text }),
+      })
+      const j = await res.json()
+      if (j.expired || j.submitted) { showReturnedReview(j.review); return }
+      if (j.serverNow) applyServerNow(j.serverNow)
+      setOffline(false)
+    } catch {
+      setOffline(true)
     }
   }
 
@@ -226,7 +323,7 @@ function MockExamContent() {
         body: JSON.stringify({ sessionId, questionId: q.questionId, flagged: next }),
       })
       const j = await res.json()
-      if (j.expired || j.submitted) gradeAndShow(j.review)
+      if (j.expired || j.submitted) showReturnedReview(j.review)
     } catch { /* kept locally; the exam does not depend on this landing */ }
   }
 
@@ -252,7 +349,15 @@ function MockExamContent() {
     } finally { setPracticeLoading(false) }
   }
 
-  const answeredCount = useMemo(() => Object.keys(answers).length, [answers])
+  // A choice question is answered by picking an option, a short one by writing
+  // something non-blank.
+  const isDone = (q: ExamQuestion) => q.answerType === 'short'
+    ? !!String(drafts[q.questionId] ?? '').trim()
+    : !!answers[q.questionId]
+  const answeredCount = useMemo(
+    () => questions.filter(isDone).length,
+    [questions, answers, drafts],
+  )
   const cur = questions[idx]
   const lowTime = remaining <= 300
 
@@ -277,6 +382,39 @@ function MockExamContent() {
             className={`px-8 py-3 rounded-xl text-white font-semibold disabled:opacity-50 ${theme.solid}`}>
             {busy ? '准备中…' : '开始考试'}
           </button>
+        </main>
+      </div>
+    )
+  }
+
+  // ── grading (free-response papers only)
+  if (grading || gradingError) {
+    const pct = grading && grading.total ? Math.round((grading.done / grading.total) * 100) : 5
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-xl mx-auto px-4 pt-32 pb-24 text-center">
+          <div className="text-5xl mb-4">📝</div>
+          <h1 className="text-xl font-bold mb-2">交卷了，正在判分</h1>
+          {gradingError ? (
+            <>
+              <p className="text-muted-foreground mb-5">{gradingError}</p>
+              <button onClick={() => runGrading(review?.sessionId || sessionId)}
+                className={`px-6 py-2.5 rounded-xl text-white font-medium ${theme.solid}`}>重试判分</button>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-5">
+                简答题由 AI 对照参考答案逐题判定，几十道题要分批跑，请稍候。
+              </p>
+              <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-2">
+                <div className="h-full bg-violet-500 transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="text-sm tabular-nums text-muted-foreground">
+                {grading!.done} / {grading!.total || '…'} 题
+              </p>
+            </>
+          )}
         </main>
       </div>
     )
@@ -403,7 +541,28 @@ function MockExamContent() {
                 {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />}
 
                 <div className="space-y-1">
-                  {q.options.map((o, oi) => {
+                  {q.answerType === 'short' ? (
+                    <div className="space-y-2 text-sm">
+                      <div className={`px-3 py-2 rounded-lg border ${q.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                        <div className="text-xs text-muted-foreground mb-1">我的作答</div>
+                        <div className="whitespace-pre-wrap">
+                          {q.myAnswer ? q.myAnswer : <span className="text-muted-foreground">（未作答）</span>}
+                        </div>
+                      </div>
+                      {q.referenceAnswer && (
+                        <div className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50/60">
+                          <div className="text-xs text-muted-foreground mb-1">参考答案</div>
+                          <div className="whitespace-pre-wrap"><KatexHtml text={q.referenceAnswer} /></div>
+                        </div>
+                      )}
+                      {q.feedback && (
+                        <div className="px-3 py-2 rounded-lg bg-gray-50 text-muted-foreground">
+                          <span className="text-xs">AI 批语：</span>{q.feedback}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                  q.options.map((o, oi) => {
                     const isCorrect = o.id === q.correctOptionId
                     const picked = o.id === q.selectedOptionId
                     return (
@@ -417,7 +576,8 @@ function MockExamContent() {
                         {picked && !isCorrect && <span className="text-xs text-rose-700 shrink-0">你选的</span>}
                       </div>
                     )
-                  })}
+                  })
+                  )}
                 </div>
 
                 {q.explanation && (
@@ -513,7 +673,7 @@ function MockExamContent() {
           <span className="text-xs text-muted-foreground shrink-0">已答 {answeredCount}/{questions.length}</span>
           {/* Submit sits next to the clock: the two things a student looks for
               when deciding whether to stop. */}
-          <button onClick={() => { const n = Object.keys(answers).length; if (confirm(`还有 ${questions.length - n} 题没作答。确定交卷？`)) doSubmit('manual') }}
+          <button onClick={() => { if (confirm(`还有 ${questions.length - answeredCount} 题没作答。确定交卷？`)) doSubmit('manual') }}
             disabled={busy}
             className={`ml-auto shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
             {busy ? '交卷中…' : '交卷'}
@@ -545,7 +705,21 @@ function MockExamContent() {
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
             {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
             <div className="space-y-2">
-              {(shownOptions.get(cur.questionId) || cur.options).map((o, oi) => {
+              {cur.answerType === 'short' ? (
+                <>
+                  <textarea
+                    value={drafts[cur.questionId] ?? ''}
+                    onChange={e => setDrafts(prev => ({ ...prev, [cur.questionId]: e.target.value }))}
+                    onBlur={e => saveDraft(cur, e.target.value)}
+                    rows={7}
+                    placeholder="把你的解答写在这里（文字、计算过程或结论都可以）"
+                    className="w-full px-3 py-2.5 border rounded-xl bg-background text-sm outline-none focus:ring-2 focus:ring-violet-400" />
+                  <p className="text-xs text-muted-foreground">
+                    这题由 AI 对照参考答案判分，交卷后要等一会儿才出结果。离开这一题时自动保存。
+                  </p>
+                </>
+              ) : (
+              (shownOptions.get(cur.questionId) || cur.options).map((o, oi) => {
                 const picked = answers[cur.questionId] === o.id
                 return (
                   <button key={o.id} onClick={() => choose(cur, o.id)}
@@ -557,7 +731,8 @@ function MockExamContent() {
                     <span className="flex-1 text-sm"><KatexHtml text={cleanOption(o.content)} /></span>
                   </button>
                 )
-              })}
+              })
+              )}
             </div>
 
             <div className="flex items-center justify-center gap-3 mt-6">
@@ -573,7 +748,7 @@ function MockExamContent() {
             ones to come back to stand out among the answered (violet) ones. */}
         <div className="flex flex-wrap items-center gap-1.5">
           {questions.map((q, i) => {
-            const done = !!answers[q.questionId]
+            const done = isDone(q)
             const on = !!flags[q.questionId]
             if (onlyFlagged && !on) return null
             return (
