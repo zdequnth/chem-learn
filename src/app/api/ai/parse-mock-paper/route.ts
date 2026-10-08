@@ -7,6 +7,9 @@ import OpenAI from 'openai'
 // Batching makes this slower than Vercel's default function timeout.
 export const maxDuration = 60
 
+// Measured: a 6.7k-char batch generates ~30 questions in ~12s, so this is many
+// times inside the 60s function limit. The limit is not what breaks; a stalled
+// call is (see the client timeout below).
 const MAX_CHARS_PER_BATCH = 3000
 
 /**
@@ -144,7 +147,12 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 })
-  const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
+  // A normal batch answers in ~12s. Without an explicit timeout the SDK waits up
+  // to 10 MINUTES and retries twice on its own, so one stalled call keeps the
+  // request alive until the platform kills the function at 60s and answers with
+  // an HTML error page — which is what the browser reported as "not valid JSON".
+  // Fail at 40s instead, so the route can answer properly and the client retries.
+  const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: 40_000, maxRetries: 0 })
 
   // Strip pre-rendered KaTeX HTML + normalize LaTeX delimiters. Only real HTML
   // tags are removed — a bare "<" (e.g. "a < b") must stay.
@@ -170,8 +178,10 @@ export async function POST(request: Request) {
   const answerKey = parsedKey && parsedKey.size > 0 ? parsedKey : null
 
   const prompt = buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
-  let result = await parseChunk(client, prompt)
-  if (!result.ok) result = await parseChunk(client, prompt) // retry once, failures are random
+  // One attempt only: a second one could add 40s to a request that has 60s to
+  // live. The route answers 200 with `failed` instead, and the client decides
+  // whether to re-run.
+  const result = await parseChunk(client, prompt)
   const raw: any[] = result.ok ? result.questions : []
   const failed: string[] = result.ok ? [] : [chunk.slice(0, 80)]
 

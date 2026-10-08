@@ -150,38 +150,62 @@ function MockAdminContent() {
     if (!importText.trim()) return alert('先粘贴试卷文本')
     if (!courseId) return
     setBusy('parse'); setProgress(null)
-    let i = 0, total = 1, failed = 0
-    try {
-      // One batch per request, looping here. A whole paper is 10+ LLM calls;
-      // sending them all in one request blew the serverless timeout, and the
-      // platform's error page is what surfaced as "is not valid JSON".
-      while (i < total) {
-        const res = await fetch('/api/ai/parse-mock-paper', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText }),
-        })
-        const raw = await res.text()
-        let j: any = {}
-        try { j = raw ? JSON.parse(raw) : {} }
-        catch { throw new Error(`第 ${i + 1} 批的响应不是 JSON（HTTP ${res.status}）`) }
-        if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+    let total = 1
 
-        total = j.totalBatches || 1
-        if (j.failed?.length) failed++
-        const batch: DraftQuestion[] = (j.questions || []).map((q: any) => ({
-          stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
-          imageUrl: q.imageUrl || '', lessonId: q.lessonId || '', lessonRef: q.lessonRef,
-          chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
-          options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
-          aiGenerated: true,
-        }))
-        if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
-        i++
-        setProgress({ done: i, total })
+    // Returns how many questions came out. Throws only if the request itself
+    // never produced JSON (a 502/504 means the platform killed the function and
+    // answered with an HTML error page).
+    const runBatch = async (i: number): Promise<number> => {
+      const res = await fetch('/api/ai/parse-mock-paper', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText }),
+      })
+      const raw = await res.text()
+      let j: any = {}
+      try { j = raw ? JSON.parse(raw) : {} }
+      catch { throw new Error(`第 ${i + 1} 批没有正常返回（HTTP ${res.status}）`) }
+      if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+
+      total = Math.max(total, j.totalBatches || 1)
+      const batch: DraftQuestion[] = (j.questions || []).map((q: any) => ({
+        stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
+        imageUrl: q.imageUrl || '', lessonId: q.lessonId || '', lessonRef: q.lessonRef,
+        chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
+        options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
+        aiGenerated: true,
+      }))
+      if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
+      return batch.length
+    }
+
+    try {
+      // One batch per request, looping here: a whole paper is 10+ LLM calls, and
+      // sending them all in one request blew the serverless timeout.
+      //
+      // A work queue rather than a plain for-loop, for two reasons: the batch
+      // count is only known once the first response lands, and a batch that came
+      // back empty (504, or the model returned nothing) gets one more go instead
+      // of leaving a hole in the paper.
+      const tries = new Map<number, number>()
+      const succeeded = new Set<number>()
+      const queue = [0]
+      let guard = 0
+      while (queue.length > 0 && guard++ < 4 * total + 20) {
+        const i = queue.shift()!
+        const n = (tries.get(i) || 0) + 1
+        tries.set(i, n)
+        let got = 0
+        try { got = await runBatch(i) } catch { got = 0 }
+        if (got > 0) succeeded.add(i)
+        else if (n < 2) queue.push(i)
+        // Newly discovered batches join the queue.
+        for (let k = 0; k < total; k++) if (!tries.has(k) && !queue.includes(k)) queue.push(k)
+        setProgress({ done: succeeded.size, total })
       }
-      if (failed) alert(`解析完成，但有 ${failed} 批失败。再点一次「AI 解析」会从头再跑一遍（已解析的题不会重复添加，手动核对时去重即可）。`)
+      const lost = total - succeeded.size
+      if (lost > 0) alert(`解析完成，但有 ${lost} 批没成功，题目没全。再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
     } catch (e: any) {
-      alert('解析出错：' + (e?.message || e) + (i > 0 ? `\n第 ${i} 批之前的题目已经放进列表，没丢。` : ''))
+      alert('解析出错：' + (e?.message || e))
     } finally { setBusy(''); setProgress(null) }
   }
 
