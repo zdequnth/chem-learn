@@ -27,6 +27,9 @@ interface DraftQuestion {
   lessonTitle: string | null
   options: DraftOption[]
   aiGenerated: boolean
+  officialAnswer?: string | null   // from the pasted key, when there is one
+  independentAnswer?: string | null
+  disputed?: boolean               // AI's own answer differs from the official one
 }
 interface PaperRow { id: string; title: string; durationMinutes: number; questionCount: number; attemptCount: number; isPublished: boolean }
 
@@ -61,6 +64,7 @@ function MockAdminContent() {
   const [sourceName, setSourceName] = useState<string | null>(null)
   const [importText, setImportText] = useState('')
   const [answerText, setAnswerText] = useState('')
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [resultsFor, setResultsFor] = useState<string | null>(null)
@@ -126,6 +130,9 @@ function MockAdminContent() {
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
+        // Not a DB column — the parse prompt writes the mismatch into the
+        // explanation, so re-reading it is what keeps the flag alive after saving.
+        disputed: /官方答案/.test(q.explanation || ''),
       })))
       setImportText(''); setDirty(false)
     } finally { setBusy('') }
@@ -173,6 +180,9 @@ function MockAdminContent() {
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
+        officialAnswer: q.officialAnswer ?? null,
+        independentAnswer: q.independentAnswer ?? null,
+        disputed: !!q.disputed,
       }))
       if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
       return batch.length
@@ -332,7 +342,19 @@ function MockAdminContent() {
       setDetail(j)
     } catch { setDetailFor(null) }
   }
+  // One list of reasons, so the warning box, the card highlight and the filter
+  // can never disagree about what still needs a human.
+  const reasonsFor = (q: DraftQuestion): string[] => {
+    const out: string[] = []
+    if (q.disputed) out.push(`AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`)
+    if (!q.lessonId) out.push('没能自动对应章节课时，请手动选')
+    if (q.options.length < 2) out.push('选项没拆出来，需要手工补')
+    else if (q.options.filter(o => o.isCorrect).length !== 1) out.push('正确答案不是恰好 1 个，AI 解错了或漏标')
+    return out
+  }
+  const flaggedCount = questions.filter(q => reasonsFor(q).length > 0).length
   const qWarn = useMemo(() => ({
+    disputed: questions.filter(q => q.disputed).length,
     lesson: questions.filter(q => !q.lessonId).length,
     options: questions.filter(q => q.options.length < 2).length,
     answer: questions.filter(q => q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length,
@@ -585,11 +607,16 @@ function MockAdminContent() {
                   )}
                   {/* Warnings recomputed from the list itself, so they stay correct
                       across a multi-batch import instead of flashing per batch. */}
-                  {(qWarn.lesson || qWarn.options || qWarn.answer) > 0 && (
+                  {(qWarn.disputed || qWarn.lesson || qWarn.options || qWarn.answer) > 0 && (
                     <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-0.5">
+                      {qWarn.disputed > 0 && <div>⚠️ {qWarn.disputed} 题的 AI 独立解答与官方答案不一致，请重点核对</div>}
                       {qWarn.lesson > 0 && <div>⚠️ {qWarn.lesson} 题没能自动对应章节课时，请手动选</div>}
                       {qWarn.options > 0 && <div>⚠️ {qWarn.options} 题的选项没拆出来，需要手工补（在列表里，别漏掉）</div>}
                       {qWarn.answer > 0 && <div>⚠️ {qWarn.answer} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查</div>}
+                      <button onClick={() => setReviewOnly(v => !v)}
+                        className="mt-1 font-semibold underline underline-offset-2 hover:text-amber-950">
+                        {reviewOnly ? `显示全部 ${questions.length} 题` : `只看这 ${flaggedCount} 道有问题的题 →`}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -597,14 +624,37 @@ function MockAdminContent() {
                 {/* question review */}
                 {questions.length > 0 && (
                   <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">{lang === 'zh' ? `共 ${questions.length} 题` : `${questions.length} questions`}</div>
-                    {questions.map((q, i) => {
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-muted-foreground">
+                        {reviewOnly ? `需人工审核 ${flaggedCount} / 共 ${questions.length} 题` : `共 ${questions.length} 题`}
+                      </span>
+                      <button onClick={() => setReviewOnly(false)}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${reviewOnly ? 'hover:bg-accent' : 'bg-violet-100 border-violet-300 text-violet-800'}`}>
+                        全部
+                      </button>
+                      <button onClick={() => setReviewOnly(true)} disabled={flaggedCount === 0}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-40 ${reviewOnly ? 'bg-red-600 border-red-600 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}`}>
+                        只看有问题的{flaggedCount > 0 ? ` (${flaggedCount})` : ''}
+                      </button>
+                    </div>
+                    {questions.map((q, i) => ({ q, i }))
+                      .filter(({ q }) => !reviewOnly || reasonsFor(q).length > 0)
+                      .map(({ q, i }) => {
                       const ref = refLabel(q)
+                      const reasons = reasonsFor(q)
                       return (
-                        <div key={i} className="bg-card border rounded-2xl p-4">
+                        <div key={i} className={`border rounded-2xl p-4 ${reasons.length ? 'bg-red-50 border-red-400 ring-1 ring-red-300' : 'bg-card'}`}>
+                          {reasons.length > 0 && (
+                            <div className="mb-2 px-3 py-2 rounded-lg bg-red-100 border border-red-300 text-xs text-red-800 space-y-0.5">
+                              {reasons.map((r, k) => <div key={k}>⚠️ {r}</div>)}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <span className="w-7 h-7 rounded-lg bg-violet-100 text-violet-800 text-sm font-semibold flex items-center justify-center shrink-0">{i + 1}</span>
+                            <span className={`w-7 h-7 rounded-lg text-sm font-semibold flex items-center justify-center shrink-0 ${reasons.length ? 'bg-red-600 text-white' : 'bg-violet-100 text-violet-800'}`}>{i + 1}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${ref.cls}`}>{ref.text}</span>
+                            {reasons.length > 0 && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">需人工审核</span>
+                            )}
                             <label className="text-xs text-muted-foreground flex items-center gap-1">
                               难度
                               <input type="number" min={1} max={5} value={q.difficulty}
@@ -663,6 +713,17 @@ function MockAdminContent() {
                             ))}
                             <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
                           </div>
+
+                          {/* the official answer as pasted by the teacher, so the
+                              mismatch can be judged without leaving the card */}
+                          {q.officialAnswer && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              官方答案：<b className="text-foreground">{q.officialAnswer}</b>
+                              {q.independentAnswer && (
+                                <> · AI 独立解答：<b className={q.disputed ? 'text-red-600' : 'text-foreground'}>{q.independentAnswer}</b>{q.disputed ? '（不一致）' : '（一致）'}</>
+                              )}
+                            </p>
+                          )}
 
                           {/* explanation */}
                           <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={2}

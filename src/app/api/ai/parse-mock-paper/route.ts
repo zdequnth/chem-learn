@@ -76,6 +76,9 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 - 题号就是本批文本里每题开头那个数字（如 "17."）。
 - 本批中出现的题号，直接按官方答案标 isCorrect，不要用你自己解出的结果。
 - 若官方答案与你自己独立解出的结果不一致，仍按官方答案标 isCorrect，并在 explanation 末尾加一句中文注明分歧，例如"⚠️ 官方答案 B，独立解答为 C"。
+- 每题额外多给两个字段，老师要靠它们复核：
+  - "num"：该题在试卷里的题号，整数（如 17）
+  - "independentAnswer"：假设你没看到官方答案、自己解题会选哪个，单个大写字母（如 "C"）
 ` : `【求解答案】
 这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
 `}
@@ -86,6 +89,7 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 - explanation 以 "Answer: X" 开头
 - 选项 content 不要带 "(A) " 前缀
 - 题目里夹着的图片：链接放进 imageUrl，并从 stem 里去掉那行 ![](...)；没有就填 null
+- num / independentAnswer 只在有官方答案时才需要，其余情况填 null
 - 绝对不要输出任何 HTML 标签
 
 输出纯 JSON（不要 markdown 代码块）：{"questions":[...]}
@@ -190,6 +194,14 @@ export async function POST(request: Request) {
   const questions = raw.map((q) => {
     const ref = typeof q.lessonRef === 'string' ? q.lessonRef.trim() : null
     const hit = ref ? outline.byRef.get(ref) : undefined
+
+    // The model reports its own answer next to the official one; where they part
+    // ways is exactly where a human should look (a wrong key, or a trap).
+    const num = Number.isInteger(q.num) ? q.num : null
+    const official = num !== null && answerKey ? answerKey.get(num) ?? null : null
+    const own = typeof q.independentAnswer === 'string' ? q.independentAnswer.trim().toUpperCase().slice(0, 1) : ''
+    const disputed = !!official && !!own && official !== own
+
     return {
       stem: String(q.stem ?? '').trim(),
       explanation: String(q.explanation ?? '').trim(),
@@ -200,6 +212,10 @@ export async function POST(request: Request) {
       chapterId: hit ? hit.chapterId : null,
       chapterTitle: hit ? hit.chapterTitle : null,
       lessonTitle: hit ? hit.lessonTitle : null,
+      num,
+      officialAnswer: official,
+      independentAnswer: own || null,
+      disputed,
       options: (Array.isArray(q.options) ? q.options : [])
         .map((o: any) => ({ content: String(o?.content ?? '').trim(), isCorrect: o?.isCorrect === true }))
         .filter((o: any) => o.content),
