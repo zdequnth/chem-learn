@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
@@ -792,9 +792,17 @@ function MockAdminContent() {
                               <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
                             </div>
                           ) : (
-                            <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
-                              placeholder="参考答案（必填）—— 学生的答案由 AI 对照它判分，所以这里写错，全班这道题都会判错"
-                              className="mt-3 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                            <>
+                              <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
+                                placeholder={'参考答案（必填）—— 学生的答案由 AI 对照它判分，所以这里写错，全班这道题都会判错。\n公式要用 $…$ 包起来，例如 $0.5\\ \\text{mol}$'}
+                                className="mt-3 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                              {q.answerText.trim() && (
+                                <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm">
+                                  <div className="text-xs text-muted-foreground mb-1">预览（学生看到的样子）</div>
+                                  <KatexHtml text={wrapBareLatex(q.answerText)} />
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {/* the official answer as pasted by the teacher, so the

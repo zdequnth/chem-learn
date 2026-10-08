@@ -122,13 +122,16 @@ function MockListContent() {
                         )}
                         {/* Once every question has been answered correctly there is
                             nothing left to retest, so the button reports that rather
-                            than offering an empty round. */}
+                            than offering an empty round. `?mode=retry` is used only
+                            for a paper already sat — a first attempt was being
+                            started as a retest, which shuffled the questions and
+                            announced itself as 错题重测. */}
                         {done && (p.wrongCount ?? 0) === 0 ? (
                           <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
                             <Check className="w-4 h-4" /> 所有题目全部答对，无错题
                           </span>
                         ) : (
-                          <Link href={live ? `/mock/${p.id}` : `/mock/${p.id}?mode=retry`}
+                          <Link href={live || !done ? `/mock/${p.id}` : `/mock/${p.id}?mode=retry`}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
                             {live ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? '继续考试' : 'Resume'}</>
                                   : done ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? `错题重测 (${p.wrongCount})` : `Retest (${p.wrongCount})`}</>

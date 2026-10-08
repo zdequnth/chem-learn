@@ -172,4 +172,20 @@ export function cleanOption(text: string): string {
   return text.replace(/^[A-D]\.\s*/, '')
 }
 
+/**
+ * A hand-typed reference answer often arrives as bare LaTeX with no $…$
+ * delimiters, which renderLatex would print as a wall of backslashes. When the
+ * whole field is one formula — it has a LaTeX command, no Chinese and no
+ * delimiter of its own — wrap it so it renders as maths. Text that mixes prose
+ * with formulas still needs explicit $…$ and is left untouched.
+ */
+export function wrapBareLatex(text: string): string {
+  const t = (text || '').trim()
+  if (!t) return text
+  if (t.includes('$')) return text
+  if (!/\\[a-zA-Z]+/.test(t)) return text
+  if (/[一-鿿]/.test(t)) return text
+  return `$$${t}$$`
+}
+
 export { renderLatex }

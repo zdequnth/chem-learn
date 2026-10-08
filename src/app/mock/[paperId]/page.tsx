@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff, Flag } from 'lucide-react'
@@ -552,7 +552,7 @@ function MockExamContent() {
                       {q.referenceAnswer && (
                         <div className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50/60">
                           <div className="text-xs text-muted-foreground mb-1">参考答案</div>
-                          <div className="whitespace-pre-wrap"><KatexHtml text={q.referenceAnswer} /></div>
+                          <div className="whitespace-pre-wrap"><KatexHtml text={wrapBareLatex(q.referenceAnswer)} /></div>
                         </div>
                       )}
                       {q.feedback && (
