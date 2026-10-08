@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { loadMockCourse, isAdminUser } from '@/lib/mock-source'
+import { normaliseMineruText } from '@/lib/mineru-text'
 import { importRemoteImage, isLocalImage } from '@/lib/storage'
 import { NextResponse } from 'next/server'
 
@@ -140,10 +141,12 @@ export async function POST(request: Request) {
         lesson_id: q.lessonId,
         question_type: 'mock',
         answer_type: isShort ? 'short' : 'choice',
-        answer_text: isShort ? (String(q.answerText ?? '').trim() || null) : null,
+        answer_text: isShort ? (normaliseMineruText(q.answerText) || null) : null,
         difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
-        stem: String(q.stem ?? '').trim(),
-        explanation: String(q.explanation ?? '').trim(),
+        // Stored normalised, so MinerU's <eq>/<table> markup never reaches the
+        // database, the grading prompt or the renderer.
+        stem: normaliseMineruText(q.stem),
+        explanation: normaliseMineruText(q.explanation),
         image_url: imageUrl,
         is_approved: true,
         is_ai_generated: q.isAiGenerated !== false,

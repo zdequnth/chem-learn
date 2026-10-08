@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { loadPaperForTeacher, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { importRemoteImage, isLocalImage } from '@/lib/storage'
+import { normaliseMineruText } from '@/lib/mineru-text'
 import { NextResponse } from 'next/server'
 
 // One paper, with its questions in paper order and their chapter/lesson resolved
@@ -129,10 +130,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
           lesson_id: q.lessonId,
           question_type: 'mock',
           answer_type: isShort ? 'short' : 'choice',
-          answer_text: isShort ? (String(q.answerText ?? '').trim() || null) : null,
+          answer_text: isShort ? (normaliseMineruText(q.answerText) || null) : null,
           difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
-          stem: String(q.stem ?? '').trim(),
-          explanation: String(q.explanation ?? '').trim(),
+          stem: normaliseMineruText(q.stem),
+          explanation: normaliseMineruText(q.explanation),
           image_url: imageUrl,
           is_approved: true,
           is_ai_generated: q.isAiGenerated !== false,
