@@ -27,6 +27,8 @@ interface DraftQuestion {
   lessonTitle: string | null
   options: DraftOption[]
   aiGenerated: boolean
+  answerType: 'choice' | 'short'   // 'short' = free response, no options
+  answerText: string               // reference answer, AI grades against this
   officialAnswer?: string | null   // from the pasted key, when there is one
   independentAnswer?: string | null
   disputed?: boolean               // AI's own answer differs from the official one
@@ -130,6 +132,8 @@ function MockAdminContent() {
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
+        answerType: q.answerType === 'short' ? 'short' : 'choice',
+        answerText: q.answerText || '',
         // Not a DB column — the parse prompt writes the mismatch into the
         // explanation, so re-reading it is what keeps the flag alive after saving.
         disputed: /官方答案/.test(q.explanation || ''),
@@ -180,6 +184,8 @@ function MockAdminContent() {
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
+        answerType: 'choice',   // the parser does not emit short answers yet
+        answerText: '',
         officialAnswer: q.officialAnswer ?? null,
         independentAnswer: q.independentAnswer ?? null,
         disputed: !!q.disputed,
@@ -234,6 +240,18 @@ function MockAdminContent() {
     if (q.id && !confirm('这道题已经存进试卷了，删除后学生学习记录也会一起删掉。确定？')) return
     setQuestions(prev => prev.filter((_, k) => k !== i)); setDirty(true)
   }
+  const addQuestion = (answerType: 'choice' | 'short') => {
+    setQuestions(prev => [...prev, {
+      stem: '', explanation: '', difficulty: 3, imageUrl: '', lessonId: '',
+      lessonRef: null, chapterTitle: null, lessonTitle: null, aiGenerated: false,
+      answerType, answerText: '',
+      options: answerType === 'choice'
+        ? [{ content: '', isCorrect: true }, { content: '', isCorrect: false }]
+        : [],
+    }])
+    setDirty(true)
+    setReviewOnly(false)
+  }
   // MinerU 有时会把两栏排版的选项读串（A/B/C 属性和题对不上），一键换顺序后手工改
   const shuffleOptions = (i: number) => {
     const q = questions[i]
@@ -286,7 +304,8 @@ function MockAdminContent() {
       const payload = questions.map(q => ({
         stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
         imageUrl: q.imageUrl || null, lessonId: q.lessonId,
-        options: q.options.filter(o => o.content.trim()),
+        answerType: q.answerType, answerText: q.answerText,
+        options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
       }))
       const res = await fetch('/api/mock/papers', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -348,7 +367,9 @@ function MockAdminContent() {
     const out: string[] = []
     if (q.disputed) out.push(`AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`)
     if (!q.lessonId) out.push('没能自动对应章节课时，请手动选')
-    if (q.options.length < 2) out.push('选项没拆出来，需要手工补')
+    if (q.answerType === 'short') {
+      if (!q.answerText.trim()) out.push('简答题还没有参考答案 —— 没有它，AI 判不了分')
+    } else if (q.options.length < 2) out.push('选项没拆出来，需要手工补')
     else if (q.options.filter(o => o.isCorrect).length !== 1) out.push('正确答案不是恰好 1 个，AI 解错了或漏标')
     return out
   }
@@ -356,8 +377,9 @@ function MockAdminContent() {
   const qWarn = useMemo(() => ({
     disputed: questions.filter(q => q.disputed).length,
     lesson: questions.filter(q => !q.lessonId).length,
-    options: questions.filter(q => q.options.length < 2).length,
-    answer: questions.filter(q => q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length,
+    noRef: questions.filter(q => q.answerType === 'short' && !q.answerText.trim()).length,
+    options: questions.filter(q => q.answerType === 'choice' && q.options.length < 2).length,
+    answer: questions.filter(q => q.answerType === 'choice' && q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length,
   }), [questions])
   const refLabel = (q: DraftQuestion) => {
     if (!q.lessonId) return { text: '未指定课时', cls: 'bg-rose-50 text-rose-700 border-rose-200' }
@@ -607,9 +629,10 @@ function MockAdminContent() {
                   )}
                   {/* Warnings recomputed from the list itself, so they stay correct
                       across a multi-batch import instead of flashing per batch. */}
-                  {(qWarn.disputed || qWarn.lesson || qWarn.options || qWarn.answer) > 0 && (
+                  {(qWarn.disputed || qWarn.lesson || qWarn.noRef || qWarn.options || qWarn.answer) > 0 && (
                     <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-0.5">
                       {qWarn.disputed > 0 && <div>⚠️ {qWarn.disputed} 题的 AI 独立解答与官方答案不一致，请重点核对</div>}
+                      {qWarn.noRef > 0 && <div>⚠️ {qWarn.noRef} 道简答题还没有参考答案，AI 判不了分</div>}
                       {qWarn.lesson > 0 && <div>⚠️ {qWarn.lesson} 题没能自动对应章节课时，请手动选</div>}
                       {qWarn.options > 0 && <div>⚠️ {qWarn.options} 题的选项没拆出来，需要手工补（在列表里，别漏掉）</div>}
                       {qWarn.answer > 0 && <div>⚠️ {qWarn.answer} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查</div>}
@@ -622,7 +645,7 @@ function MockAdminContent() {
                 </div>
 
                 {/* question review */}
-                {questions.length > 0 && (
+                {(
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-muted-foreground">
@@ -636,7 +659,18 @@ function MockAdminContent() {
                         className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-40 ${reviewOnly ? 'bg-red-600 border-red-600 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}`}>
                         只看有问题的{flaggedCount > 0 ? ` (${flaggedCount})` : ''}
                       </button>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <button onClick={() => addQuestion('choice')}
+                          className="text-xs px-2.5 py-1 rounded-lg border font-medium hover:bg-accent transition-colors">+ 选择题</button>
+                        <button onClick={() => addQuestion('short')}
+                          className="text-xs px-2.5 py-1 rounded-lg border border-violet-300 text-violet-700 font-medium hover:bg-violet-50 transition-colors">+ 简答题</button>
+                      </div>
                     </div>
+                    {questions.length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        还没有题目 —— 上面粘贴试卷让 AI 拆，或点右上角「+ 选择题 / + 简答题」自己写一道。
+                      </p>
+                    )}
                     {questions.map((q, i) => ({ q, i }))
                       .filter(({ q }) => !reviewOnly || reasonsFor(q).length > 0)
                       .map(({ q, i }) => {
@@ -697,22 +731,43 @@ function MockAdminContent() {
                             <span className="text-xs text-muted-foreground">{lang === 'zh' ? '带图/表格的题建议截图粘贴（学生会看到这张图）' : ''}</span>
                           </div>
 
-                          {/* options */}
-                          <div className="mt-3 space-y-1.5">
-                            {q.options.map((o, oi) => (
-                              <div key={oi} className="flex items-center gap-2">
-                                <button onClick={() => setCorrect(i, oi)} title="设为正确答案"
-                                  className={`w-6 h-6 rounded-full border text-xs font-semibold shrink-0 ${o.isCorrect ? 'bg-emerald-500 border-emerald-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
-                                  {LETTERS[oi]}
-                                </button>
-                                <input value={o.content} onChange={e => setOptionText(i, oi, e.target.value)}
-                                  className="flex-1 px-3 py-1.5 border rounded-lg bg-background font-mono text-xs" />
-                                <span className="text-xs text-muted-foreground w-40 truncate hidden sm:block"><KatexHtml text={cleanOption(o.content)} /></span>
-                                <button onClick={() => removeOption(i, oi)} className="p-1 text-red-300 hover:text-red-500 shrink-0"><X className="w-3.5 h-3.5" /></button>
-                              </div>
+                          {/* answer type: a short answer has no options — the
+                              student writes freely and the AI grades it against
+                              the reference answer below. */}
+                          <div className="mt-3 flex items-center gap-2">
+                            {(['choice', 'short'] as const).map(t => (
+                              <button key={t} onClick={() => {
+                                if (t === q.answerType) return
+                                if (t === 'short' && q.options.length > 0 && !confirm('改成简答题会清空这道题的选项，确定？')) return
+                                patchQ(i, { answerType: t, ...(t === 'short' ? { options: [] } : {}) })
+                              }}
+                                className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${q.answerType === t ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
+                                {t === 'choice' ? '选择题' : '简答题'}
+                              </button>
                             ))}
-                            <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
                           </div>
+
+                          {q.answerType === 'choice' ? (
+                            <div className="mt-3 space-y-1.5">
+                              {q.options.map((o, oi) => (
+                                <div key={oi} className="flex items-center gap-2">
+                                  <button onClick={() => setCorrect(i, oi)} title="设为正确答案"
+                                    className={`w-6 h-6 rounded-full border text-xs font-semibold shrink-0 ${o.isCorrect ? 'bg-emerald-500 border-emerald-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+                                    {LETTERS[oi]}
+                                  </button>
+                                  <input value={o.content} onChange={e => setOptionText(i, oi, e.target.value)}
+                                    className="flex-1 px-3 py-1.5 border rounded-lg bg-background font-mono text-xs" />
+                                  <span className="text-xs text-muted-foreground w-40 truncate hidden sm:block"><KatexHtml text={cleanOption(o.content)} /></span>
+                                  <button onClick={() => removeOption(i, oi)} className="p-1 text-red-300 hover:text-red-500 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                                </div>
+                              ))}
+                              <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
+                            </div>
+                          ) : (
+                            <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
+                              placeholder="参考答案（必填）—— 学生的答案由 AI 对照它判分，所以这里写错，全班这道题都会判错"
+                              className="mt-3 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                          )}
 
                           {/* the official answer as pasted by the teacher, so the
                               mismatch can be judged without leaving the card */}

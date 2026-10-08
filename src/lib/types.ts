@@ -222,11 +222,20 @@ export interface VideoLinkUpdate {
 // "this question is from Ch.2 2.1" mapping.
 export type QuestionType = 'gate_test' | 'boss_test' | 'mock'
 
+// 'short' covers fill-in-the-blank, numeric and free text — all graded by AI
+// against answer_text. A DB CHECK keeps it to mock questions only, so the gate
+// bank stays purely multiple-choice.
+export type AnswerType = 'choice' | 'short'
+
 export interface Question {
   id: string
   knowledge_point_id: string | null
   lesson_id: string
   question_type: QuestionType
+  answer_type: AnswerType
+  answer_text: string | null      // reference answer, for 'short'
+  group_id: string | null         // parts of one multi-part question share this
+  group_stem: string | null       // their shared passage / data / figure
   difficulty: number
   stem: string
   explanation: string
@@ -242,6 +251,10 @@ export interface QuestionInsert {
   knowledge_point_id?: string
   lesson_id: string
   question_type: QuestionType
+  answer_type?: AnswerType
+  answer_text?: string | null
+  group_id?: string | null
+  group_stem?: string | null
   difficulty?: number
   stem: string
   explanation?: string
@@ -254,6 +267,10 @@ export interface QuestionInsert {
 export interface QuestionUpdate {
   knowledge_point_id?: string | null
   question_type?: QuestionType
+  answer_type?: AnswerType
+  answer_text?: string | null
+  group_id?: string | null
+  group_stem?: string | null
   difficulty?: number
   stem?: string
   explanation?: string
@@ -777,6 +794,8 @@ export interface MockTestAnswer {
   question_id: string
   sort_order: number
   selected_option_id: string | null
+  answer_text: string | null      // what the student wrote, for 'short'
+  feedback: string | null         // AI's comment on a 'short' answer
   is_correct: boolean
   answered_at: string | null
 }

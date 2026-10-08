@@ -113,11 +113,14 @@ export async function POST(request: Request) {
       else { imageWarnings.push(`第 ${i + 1} 题配图未能入库（${got.error}）`); imageUrl = null }
     }
 
+    const isShort = q.answerType === 'short'
     const { data: qRows, error: qErr } = await supabaseAdmin('questions', {
       method: 'POST',
       body: {
         lesson_id: q.lessonId,
         question_type: 'mock',
+        answer_type: isShort ? 'short' : 'choice',
+        answer_text: isShort ? (String(q.answerText ?? '').trim() || null) : null,
         difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
         stem: String(q.stem ?? '').trim(),
         explanation: String(q.explanation ?? '').trim(),
