@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     papers: (papers || []).map((p: any) => ({
       id: p.id,
       title: p.title,
+      mode: p.mode ?? 'choice',
       durationMinutes: p.duration_minutes,
       questionCount: counts.get(p.id) || 0,
       attemptCount: attempts.get(p.id) || 0,
@@ -60,6 +61,10 @@ export async function POST(request: Request) {
   const { courseId, title, durationMinutes, questions } = body
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
   if (!title?.trim()) return NextResponse.json({ error: '请填写试卷标题' }, { status: 400 })
+
+  // One shape per paper. The question rows still carry their own answer_type, so
+  // relaxing this later is a UI change, not a migration.
+  const mode: 'choice' | 'short' = body.mode === 'short' ? 'short' : 'choice'
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
   if (error) return NextResponse.json({ error }, { status: status || 400 })
@@ -86,11 +91,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `第 ${bad + 1} 题没有指定所属章节/课时（或指定的课时不属于这门课的绑定课程）` }, { status: 400 })
   }
 
+  // The paper's mode wins over each question's own answerType — a short paper
+  // must not smuggle in a choice question, or the student page renders neither.
+  const mismatched = list.findIndex((q) => (q?.answerType === 'short' ? 'short' : 'choice') !== mode)
+  if (mismatched >= 0) {
+    return NextResponse.json({
+      error: `第 ${mismatched + 1} 题的题型和这份试卷不一致（这份是${mode === 'short' ? '简答题' : '选择题'}卷）`,
+    }, { status: 400 })
+  }
+  // A short answer with no reference answer cannot be graded.
+  if (mode === 'short') {
+    const noRef = list.findIndex((q) => !String(q?.answerText ?? '').trim())
+    if (noRef >= 0) return NextResponse.json({ error: `第 ${noRef + 1} 题是简答题但没填参考答案，AI 无法判分` }, { status: 400 })
+  }
+
   const { data: paperRows, error: pErr } = await supabaseAdmin('mock_papers', {
     method: 'POST',
     body: {
       mock_course_id: courseId,
       title: title.trim(),
+      mode,
       duration_minutes: Math.min(600, Math.max(1, Number(durationMinutes) || 60)),
       sort_order: 0,
     },
@@ -113,7 +133,7 @@ export async function POST(request: Request) {
       else { imageWarnings.push(`第 ${i + 1} 题配图未能入库（${got.error}）`); imageUrl = null }
     }
 
-    const isShort = q.answerType === 'short'
+    const isShort = mode === 'short'
     const { data: qRows, error: qErr } = await supabaseAdmin('questions', {
       method: 'POST',
       body: {

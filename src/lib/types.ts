@@ -738,11 +738,17 @@ export interface GateTestState {
 // ============================================================
 // Mock exam (模拟考) — a paper of full-suite questions taken under a timer
 // ============================================================
+// A paper is all-choice or all-short; chosen when it is created so the student
+// exam, grading and review only ever deal with one shape.
+export type MockPaperMode = 'choice' | 'short'
+
 export interface MockPaper {
   id: string
   mock_course_id: string
   title: string
+  mode: MockPaperMode
   duration_minutes: number
+  is_published: boolean
   sort_order: number
   created_at: string
   updated_at: string
@@ -751,6 +757,7 @@ export interface MockPaper {
 export interface MockPaperInsert {
   mock_course_id: string
   title: string
+  mode?: MockPaperMode
   duration_minutes?: number
   sort_order?: number
 }
@@ -784,6 +791,7 @@ export interface MockTestSession {
   total_correct: number
   total_wrong: number
   score_percentage: number | null
+  graded_at: string | null        // null = short paper still being graded
 }
 
 // One row per question of the paper, pre-inserted at start — so this table is

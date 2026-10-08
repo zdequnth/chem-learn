@@ -55,7 +55,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   }
 
   return NextResponse.json({
-    paper: { id: paper!.id, title: paper!.title, durationMinutes: paper!.duration_minutes, courseId: paper!.mock_course_id, isPublished: !!paper!.is_published },
+    paper: { id: paper!.id, title: paper!.title, mode: paper!.mode ?? 'choice', durationMinutes: paper!.duration_minutes, courseId: paper!.mock_course_id, isPublished: !!paper!.is_published },
     courseName: course?.name ?? '',
     sourceCourseName: outline?.courseName ?? null,
     questions,
@@ -108,9 +108,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
     })
     let next = ((last?.[0]?.sort_order ?? -1) as number) + 1
     const imageWarnings: string[] = []
+    const paperMode: 'choice' | 'short' = (paper as any)?.mode === 'short' ? 'short' : 'choice'
     for (const q of add) {
       if (!q?.lessonId || !validLesson.has(q.lessonId)) {
         return NextResponse.json({ error: '新增的题必须指定所属章节/课时' }, { status: 400 })
+      }
+      if ((q?.answerType === 'short' ? 'short' : 'choice') !== paperMode) {
+        return NextResponse.json({ error: '新增的题和这份试卷的题型不一致' }, { status: 400 })
       }
       let imageUrl: string | null = q.imageUrl?.trim?.() || null
       if (imageUrl && !isLocalImage(imageUrl)) {
@@ -118,7 +122,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
         if (got.url) imageUrl = got.url
         else { imageWarnings.push(got.error || '取图失败'); imageUrl = null }
       }
-      const isShort = q.answerType === 'short'
+      const isShort = paperMode === 'short'
       const { data: qRows } = await supabaseAdmin('questions', {
         method: 'POST',
         body: {
