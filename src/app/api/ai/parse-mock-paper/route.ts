@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
+import { normaliseMineruText } from '@/lib/mineru-text'
 import OpenAI from 'openai'
 
 // Batching makes this slower than Vercel's default function timeout.
@@ -98,6 +99,68 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 ${text}`
 }
 
+/**
+ * Free-response papers. The key difference from the multiple-choice prompt: the
+ * model must produce the REFERENCE ANSWER, because that is what the grader will
+ * mark students against — not a decorative explanation.
+ */
+function buildShortPrompt(
+  text: string,
+  courseName: string,
+  lessonList: string,
+  position: 'end' | 'inline' | 'none',
+  keyText: string,
+): string {
+  const answerBlock =
+    position === 'end' && keyText.trim()
+      ? `【参考答案】
+试卷末尾的答案区已由老师单独提供，下面按题号给出（本批只会用到其中一部分，其余题号与你无关）：
+${keyText.trim()}
+
+以这份答案为准：
+- 题号就是本批文本里每题开头那个数字（如 "17."）。
+- 对应题号的 answerText 直接填这份答案，不要用你自己解出的结果。
+- 若它与你自己解出的结果不一致，仍填这份，并在 explanation 末尾用一句中文注明分歧。
+- 每题额外给出 "num"：该题在试卷里的题号，整数（如 17）。`
+      : position === 'inline'
+      ? `【参考答案】
+这份试卷的答案紧跟在每道题后面。请把答案部分从题目里剥出来，完整写进 answerText；
+stem 里只留问题本身，不要保留答案。`
+      : `【参考答案】
+这份试卷没有答案。请你自己解题，把完整的解题过程和结论写进 answerText。
+
+⚠️ 你写的答案会成为判分的标准答案（老师必须逐题核对后才能发布），所以请写全、写准，不要省略计算步骤。`
+
+  return `你是 AP/IGCSE 化学题库录入助手。把下面这份试卷的文本拆成一道道简答题（问答题、计算题、填空题），输出 JSON。
+
+【试卷排版特点，必须正确处理】
+1. 大题可能带小问 (a)(b)(c)：每个小问单独成为一道题，stem 里保留小问的标号（如 "(a)"）和它的完整内容。
+2. 独立的公式块或表格属于紧随其后的那道题，要并进它的 stem，不要丢，也不要单列成一道题。
+3. 题号（"17."、"Question 3" 等）不要写进 stem。
+4. 要求画图或填表的题：把要求原样写进 stem（图本身老师会另外补）。
+
+【逐题判断所属课时】
+下面是这门课（${courseName}）的章节课时清单。为每道题判断它最匹配的课时，返回 lessonRef，格式 "章号.课时号"，例如 "5.1"：
+${lessonList}
+lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
+
+${answerBlock}
+
+【输出字段】每题一个对象：
+{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"num":null}
+- stem / answerText / explanation 保持原语言（英文），不要翻译
+- answerText 必填：完整的参考答案，含关键计算过程 —— 它就是判分标准
+- explanation 是给老师看的讲解，可以简略；不要以 "Answer:" 开头（那是选择题的格式）
+- LaTeX 写成 $...$ 或 $$...$$，不要用 <eq> 或任何 HTML 标签
+- 题目里夹着的图片：链接放进 imageUrl，并从 stem 里去掉那行 ![](...)；没有就填 null
+- 绝对不要输出任何 HTML 标签
+
+输出纯 JSON（不要 markdown 代码块）：{"questions":[...]}
+
+试卷文本：
+${text}`
+}
+
 async function parseChunk(client: OpenAI, prompt: string): Promise<{ ok: boolean; questions: any[] }> {
   try {
     const completion = await client.chat.completions.create({
@@ -133,9 +196,20 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { text, courseId, batchIndex: rawBatchIndex, answerText } = await request.json()
+  const {
+    text, courseId, batchIndex: rawBatchIndex, answerText,
+    paperMode: rawPaperMode, answerPosition: rawAnswerPosition,
+  } = await request.json()
   if (!text?.trim()) return NextResponse.json({ error: '请粘贴试卷文本' }, { status: 400 })
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+
+  const paperMode: 'choice' | 'short' = rawPaperMode === 'short' ? 'short' : 'choice'
+  // Where the answers are. "end" means they were pasted into the answer box;
+  // without a box the only sensible fallback is for the model to solve it.
+  const answerPosition: 'end' | 'inline' | 'none' =
+    rawAnswerPosition === 'inline' ? 'inline'
+    : rawAnswerPosition === 'none' ? 'none'
+    : String(answerText ?? '').trim() ? 'end' : 'none'
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
   if (error) return NextResponse.json({ error }, { status: status || 400 })
@@ -158,13 +232,15 @@ export async function POST(request: Request) {
   // Fail at 40s instead, so the route can answer properly and the client retries.
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: 40_000, maxRetries: 0 })
 
-  // Strip pre-rendered KaTeX HTML + normalize LaTeX delimiters. Only real HTML
-  // tags are removed — a bare "<" (e.g. "a < b") must stay.
-  const cleanText = text
-    .replace(/<span[^>]*class="katex"[^>]*>[\s\S]*?<\/span>/g, ' ')
-    .replace(/<[a-zA-Z/!][^>]*>/g, '')
-    .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
-    .replace(/\\\[/g, '$$$').replace(/\\\]/g, '$$$')
+  // Normalise the pasted text before splitting. normaliseMineruText turns
+  // MinerU's <eq>…</eq> into $…$ and its HTML tables into markdown tables, so
+  // the model sees structure instead of tags (and formulas survive as math).
+  const cleanText = normaliseMineruText(
+    text
+      .replace(/<span[^>]*class="katex"[^>]*>[\s\S]*?<\/span>/g, ' ')
+      .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
+      .replace(/\\\[/g, '$$$').replace(/\\\]/g, '$$$'),
+  )
 
   // ONE batch per request, with the client looping over batchIndex. A whole paper
   // is 10+ LLM calls; doing them in a single request exceeded the serverless
@@ -178,10 +254,13 @@ export async function POST(request: Request) {
   // The key is the same for every batch, so the whole thing is handed to each
   // one and the model picks out the numbers it sees. Far simpler than working
   // out which question numbers landed in which chunk.
-  const parsedKey = typeof answerText === 'string' && answerText.trim() ? parseAnswerKey(answerText) : null
+  const keyText = typeof answerText === 'string' ? answerText : ''
+  const parsedKey = paperMode === 'choice' && keyText.trim() ? parseAnswerKey(keyText) : null
   const answerKey = parsedKey && parsedKey.size > 0 ? parsedKey : null
 
-  const prompt = buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
+  const prompt = paperMode === 'short'
+    ? buildShortPrompt(chunk, outline.courseName, outline.promptList, answerPosition, keyText)
+    : buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
   // One attempt only: a second one could add 40s to a request that has 60s to
   // live. The route answers 200 with `failed` instead, and the client decides
   // whether to re-run.
@@ -194,15 +273,7 @@ export async function POST(request: Request) {
   const questions = raw.map((q) => {
     const ref = typeof q.lessonRef === 'string' ? q.lessonRef.trim() : null
     const hit = ref ? outline.byRef.get(ref) : undefined
-
-    // The model reports its own answer next to the official one; where they part
-    // ways is exactly where a human should look (a wrong key, or a trap).
-    const num = Number.isInteger(q.num) ? q.num : null
-    const official = num !== null && answerKey ? answerKey.get(num) ?? null : null
-    const own = typeof q.independentAnswer === 'string' ? q.independentAnswer.trim().toUpperCase().slice(0, 1) : ''
-    const disputed = !!official && !!own && official !== own
-
-    return {
+    const common = {
       stem: String(q.stem ?? '').trim(),
       explanation: String(q.explanation ?? '').trim(),
       difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
@@ -212,6 +283,29 @@ export async function POST(request: Request) {
       chapterId: hit ? hit.chapterId : null,
       chapterTitle: hit ? hit.chapterTitle : null,
       lessonTitle: hit ? hit.lessonTitle : null,
+    }
+
+    if (paperMode === 'short') {
+      return {
+        ...common,
+        answerType: 'short' as const,
+        answerText: String(q.answerText ?? '').trim(),
+        num: Number.isInteger(q.num) ? q.num : null,
+        options: [],
+      }
+    }
+
+    // The model reports its own answer next to the official one; where they part
+    // ways is exactly where a human should look (a wrong key, or a trap).
+    const num = Number.isInteger(q.num) ? q.num : null
+    const official = num !== null && answerKey ? answerKey.get(num) ?? null : null
+    const own = typeof q.independentAnswer === 'string' ? q.independentAnswer.trim().toUpperCase().slice(0, 1) : ''
+    const disputed = !!official && !!own && official !== own
+
+    return {
+      ...common,
+      answerType: 'choice' as const,
+      answerText: '',
       num,
       officialAnswer: official,
       independentAnswer: own || null,
@@ -225,8 +319,9 @@ export async function POST(request: Request) {
   // Kept rather than dropped, so a question the model mangled can be repaired in
   // the review UI instead of silently disappearing. Counted here so the page can
   // warn about exactly how many need a look.
-  const suspect = questions.filter(
-    (q) => q.options.length < 2 || q.options.filter((o: any) => o.isCorrect).length !== 1,
+  const suspect = questions.filter((q) => paperMode === 'short'
+    ? !q.answerText
+    : (q.options.length < 2 || q.options.filter((o: any) => o.isCorrect).length !== 1),
   ).length
   return NextResponse.json({ questions, failed, suspect, batchIndex, totalBatches: batches.length })
 }

@@ -35,6 +35,38 @@ interface DraftQuestion {
 }
 interface PaperRow { id: string; title: string; mode: 'choice' | 'short'; durationMinutes: number; questionCount: number; attemptCount: number; isPublished: boolean }
 
+// MinerU is how a PDF becomes pasteable text. Both paper kinds need the same
+// instructions, so they live in one place.
+function MineruHelp({ lang }: { lang: string }) {
+  return (
+    <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+      <div className="font-medium mb-1.5">
+        {lang === 'zh' ? '📄 手里是 PDF？先用 MinerU 转成文本' : '📄 Have a PDF? Turn it into text with MinerU first'}
+      </div>
+      <ol className="list-decimal list-inside space-y-0.5">
+        {lang === 'zh' ? (
+          <>
+            <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，登录（免费）</li>
+            <li>上传试卷 PDF，等它解析完</li>
+            <li>在 MinerU 页面里直接全选复制，粘贴到下面的框里（不用下载文件）</li>
+          </>
+        ) : (
+          <>
+            <li>Open <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a> and sign in (free)</li>
+            <li>Upload the paper PDF and wait for it to finish</li>
+            <li>Select all and copy right on the MinerU page, then paste it below (no download needed)</li>
+          </>
+        )}
+      </ol>
+      <p className="mt-1.5 text-blue-800/80">
+        {lang === 'zh'
+          ? '表格、公式、图片都会一起转出来，扫描版和手写也能认；复杂版面偶尔会错位（尤其选项里的图）。粘贴后要逐题核实。'
+          : 'Tables, formulas and images all come through, including scanned and handwritten papers; complex layouts can misalign (especially images in options). Check every question after pasting.'}
+      </p>
+    </div>
+  )
+}
+
 function fmt(seconds: number) {
   const s = Math.max(0, Math.floor(seconds))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -68,6 +100,7 @@ function MockAdminContent() {
   const [answerText, setAnswerText] = useState('')
   const [reviewOnly, setReviewOnly] = useState(false)
   const [mode, setMode] = useState<'choice' | 'short'>('choice')
+  const [answerPosition, setAnswerPosition] = useState<'inline' | 'end' | 'none'>('inline')
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [resultsFor, setResultsFor] = useState<string | null>(null)
@@ -179,7 +212,7 @@ function MockAdminContent() {
     const runBatch = async (i: number): Promise<number> => {
       const res = await fetch('/api/ai/parse-mock-paper', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText }),
+        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText, paperMode: mode, answerPosition }),
       })
       const raw = await res.text()
       let j: any = {}
@@ -194,8 +227,8 @@ function MockAdminContent() {
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
-        answerType: 'choice',   // the parser does not emit short answers yet
-        answerText: '',
+        answerType: q.answerType === 'short' ? 'short' : 'choice',
+        answerText: q.answerText || '',
         officialAnswer: q.officialAnswer ?? null,
         independentAnswer: q.independentAnswer ?? null,
         disputed: !!q.disputed,
@@ -590,8 +623,60 @@ function MockAdminContent() {
                     multiple-choice questions, which a short paper would reject
                     on save. */}
                 {mode === 'short' ? (
-                  <div className="bg-card border rounded-2xl p-5 text-sm text-muted-foreground">
-                    📝 简答题卷目前要<b>逐题手写</b>（点下面的「+ 加一道题」）。粘贴试卷自动拆简答题还在做，之后会开放。
+                  <div className="bg-card border rounded-2xl p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆简答题' : 'Paste paper text'}</h2>
+                    </div>
+
+                    <MineruHelp lang={lang} />
+
+                    <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
+                      placeholder={lang === 'zh' ? '把整套试卷的文本粘进来。AI 会拆成一道道简答题，每题都会带上参考答案（判分要用），并自动判断它对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
+                      className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+
+                    {/* Where the answers are. Guessing this wrong would misplace
+                        every answer in the paper, so it is asked, not inferred. */}
+                    <div className="mt-3">
+                      <div className="text-xs font-medium mb-1.5">答案在哪里？</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([['inline', '紧跟每道题后面'], ['end', '集中放在末尾'], ['none', '没有答案']] as const).map(([k, label]) => (
+                          <button key={k} onClick={() => setAnswerPosition(k)}
+                            className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${answerPosition === k ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        {answerPosition === 'inline' && '答案和题目混在一起 —— AI 会把答案剥出来单独存，题干只留问题本身。'}
+                        {answerPosition === 'end' && '把试卷末尾的答案区粘到下面那个框里。'}
+                        {answerPosition === 'none' && '⚠️ AI 会自己解题当参考答案。这份答案就是判分标准，你必须逐题核对后才能发布。'}
+                      </p>
+                    </div>
+
+                    {answerPosition === 'end' && (
+                      <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={4}
+                        placeholder="把试卷末尾的答案区原样粘进来（按题号即可，如「1. ... 2. ...」）"
+                        className="mt-2 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                    )}
+
+                    <div className="flex items-center gap-3 mt-2">
+                      <button onClick={handleParse} disabled={busy !== ''}
+                        className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
+                        {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        {busy === 'parse'
+                          ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
+                          : (lang === 'zh' ? 'AI 解析' : 'Parse')}
+                      </button>
+                      <span className="text-xs text-muted-foreground">
+                        {lang === 'zh' ? '解析结果会追加到下面。参考答案是判分标准，逐题核对。' : ''}
+                      </span>
+                    </div>
+                    {progress && (
+                      <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                        <div className="h-full bg-violet-500 transition-all"
+                          style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
+                      </div>
+                    )}
                   </div>
                 ) : (
                 <div className="bg-card border rounded-2xl p-5">
@@ -599,33 +684,7 @@ function MockAdminContent() {
                     <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆题' : 'Paste paper text'}</h2>
                   </div>
 
-                  {/* Turning a PDF into pasteable text is the step nobody can guess,
-                      so the instructions live right here. */}
-                  <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                    <div className="font-medium mb-1.5">
-                      {lang === 'zh' ? '📄 手里是 PDF？先用 MinerU 转成文本' : '📄 Have a PDF? Turn it into text with MinerU first'}
-                    </div>
-                    <ol className="list-decimal list-inside space-y-0.5">
-                      {lang === 'zh' ? (
-                        <>
-                          <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，登录（免费）</li>
-                          <li>上传试卷 PDF，等它解析完</li>
-                          <li>在 MinerU 页面里直接全选复制，粘贴到下面的框里（不用下载文件）</li>
-                        </>
-                      ) : (
-                        <>
-                          <li>Open <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a> and sign in (free)</li>
-                          <li>Upload the paper PDF and wait for it to finish</li>
-                          <li>Select all and copy right on the MinerU page, then paste it below (no download needed)</li>
-                        </>
-                      )}
-                    </ol>
-                    <p className="mt-1.5 text-blue-800/80">
-                      {lang === 'zh'
-                        ? '表格、公式、图片都会一起转出来，扫描版和手写也能认；复杂版面偶尔会错位（尤其选项里的图）。粘贴后要逐题核实。'
-                        : 'Tables, formulas and images all come through, including scanned and handwritten papers; complex layouts can misalign (especially images in options). Check every question after pasting.'}
-                    </p>
-                  </div>
+                  <MineruHelp lang={lang} />
 
                   <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
                     placeholder={lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
