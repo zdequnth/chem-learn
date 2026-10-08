@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
+import ChemToolbar from '@/components/ChemToolbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
@@ -84,6 +85,7 @@ function MockExamContent() {
   const [practiceChoice, setPracticeChoice] = useState<string | null>(null)
   const [practiceLoading, setPracticeLoading] = useState(false)
 
+  const answerRef = useRef<HTMLTextAreaElement | null>(null)
   const submittedRef = useRef(false)
   const pendingSubmitRef = useRef(false)
   // Mirrors of the three above, so doSubmit can flush the on-screen draft
@@ -707,7 +709,12 @@ function MockExamContent() {
             <div className="space-y-2">
               {cur.answerType === 'short' ? (
                 <>
+                  <ChemToolbar
+                    value={drafts[cur.questionId] ?? ''}
+                    onChange={next => setDrafts(prev => ({ ...prev, [cur.questionId]: next }))}
+                    textareaRef={answerRef} />
                   <textarea
+                    ref={answerRef}
                     value={drafts[cur.questionId] ?? ''}
                     onChange={e => setDrafts(prev => ({ ...prev, [cur.questionId]: e.target.value }))}
                     onBlur={e => saveDraft(cur, e.target.value)}
@@ -715,7 +722,8 @@ function MockExamContent() {
                     placeholder="把你的解答写在这里（文字、计算过程或结论都可以）"
                     className="w-full px-3 py-2.5 border rounded-xl bg-background text-sm outline-none focus:ring-2 focus:ring-violet-400" />
                   <p className="text-xs text-muted-foreground">
-                    这题由 AI 对照参考答案判分，交卷后要等一会儿才出结果。离开这一题时自动保存。
+                    判分的是 AI，它看的是化学含义，所以直接写 <code>CH3NH2</code>、<code>10^-4</code> 这种普通写法也认。
+                    下标/上标可以点上面的按钮。离开这一题时自动保存。
                   </p>
                 </>
               ) : (
