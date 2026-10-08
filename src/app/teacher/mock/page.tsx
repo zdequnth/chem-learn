@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import ChemToolbar from '@/components/ChemToolbar'
-import { groupByStem, partLabel } from '@/lib/mock-groups'
+import { groupsForPaper, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
@@ -432,7 +432,7 @@ function MockAdminContent() {
   const flaggedCount = questions.filter(q => reasonsFor(q).length > 0).length
   // "2a"/"2b" labels keyed by flat index, so the list lines up with what
   // students see.
-  const draftGroups = groupByStem(questions)
+  const draftGroups = groupsForPaper(questions, mode === 'short')
   const draftLabel = new Map<number, string>()
   draftGroups.forEach((g, gi) => g.items.forEach((_, si) => draftLabel.set(g.start + si, partLabel(gi, si, g.items.length))))
   const qWarn = useMemo(() => ({

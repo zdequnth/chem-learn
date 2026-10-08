@@ -9,7 +9,7 @@ import ChemToolbar from '@/components/ChemToolbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
-import { groupByStem, groupIndexOf, partLabel } from '@/lib/mock-groups'
+import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff, Flag } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -19,7 +19,7 @@ interface ExamQuestion {
   questionId: string
   sortOrder: number
   stem: string
-  groupRef?: string | null   // shared stem of a multi-part question
+  groupRef?: string | null   // the big question's number, for grouping a short paper
   imageUrl: string | null
   answerType?: 'choice' | 'short'
   selectedOptionId: string | null
@@ -366,12 +366,16 @@ function MockExamContent() {
   // A multi-part question is a run of consecutive questions sharing a stem —
   // shown as one row "第 2 题 [2a][2b][2c]" so it is clear which parts belong
   // together.
-  const groups = useMemo(() => groupByStem(questions), [questions])
+  // Grouped numbering (1a/1b) is a free-response thing; a choice paper numbers
+  // its questions straight through.
+  const isShortPaper = questions.length > 0 && questions.every(q => q.answerType === 'short')
+  const groups = useMemo(() => groupsForPaper(questions, isShortPaper), [questions, isShortPaper])
   const groupOf = useMemo(() => groupIndexOf(groups), [groups])
   const curGroupIdx = cur ? (groupOf.get(cur.questionId) ?? -1) : -1
   // The review shows the whole paper, so its labels come from the paper's own
   // grouping — not from the position in the (filtered) list on screen.
-  const reviewGroups = useMemo(() => groupByStem(review?.questions ?? []), [review])
+  const reviewShort = (review?.questions ?? []).length > 0 && (review?.questions ?? []).every(q => q.answerType === 'short')
+  const reviewGroups = useMemo(() => groupsForPaper(review?.questions ?? [], reviewShort), [review, reviewShort])
   const reviewLabel = useMemo(() => {
     const m = new Map<string, string>()
     reviewGroups.forEach((g, gi) => g.items.forEach((q, si) => m.set(q.questionId, partLabel(gi, si, g.items.length))))

@@ -32,6 +32,16 @@ export function groupByStem<T extends { groupRef?: string | null }>(qs: T[]): QG
   return out
 }
 
+/**
+ * Only a free-response paper is grouped. Its parts belong to one problem — (b)
+ * needs (a)'s result — so they are numbered 1a/1b and shown in one row.
+ * A multiple-choice paper is numbered straight through: its questions stand
+ * alone, and "2a/2b/2c" would just be noise.
+ */
+export function groupsForPaper<T extends { groupRef?: string | null }>(qs: T[], grouped: boolean): QGroup<T>[] {
+  return grouped ? groupByStem(qs) : qs.map((q, i) => ({ start: i, items: [q] }))
+}
+
 /** "3a" inside a multi-part question; plain "3" when it stands alone. */
 export function partLabel(groupIdx: number, subIdx: number, size: number): string {
   return size > 1 ? `${groupIdx + 1}${String.fromCharCode(97 + subIdx)}` : `${groupIdx + 1}`

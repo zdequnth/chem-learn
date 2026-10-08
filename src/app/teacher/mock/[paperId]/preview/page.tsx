@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import { kindTheme } from '@/lib/course-kind'
-import { groupByStem, groupIndexOf, partLabel } from '@/lib/mock-groups'
+import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -55,7 +55,7 @@ function PreviewContent() {
   const cur = questions[idx]
   const flagged = questions.filter(q => q.noAnswer).length
   const isShortPaper = questions.length > 0 && questions.every(q => q.answerType === 'short')
-  const groups = groupByStem(questions)
+  const groups = groupsForPaper(questions, isShortPaper)
   const curGroupIdx = cur ? (groupIndexOf(groups).get(cur.questionId) ?? -1) : -1
 
   return (

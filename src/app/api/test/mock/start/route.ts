@@ -73,13 +73,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ empty: true, error: '这份卷子已经全部答对了，没有错题需要重测' }, { status: 400 })
       }
       // Re-ordering stops a student answering from memory of "it was the third
-      // one" — but it must NOT happen when the questions are grouped: (b) has to
-      // follow (a) and sit under their shared stem.
-      const { data: gq } = await supabaseAdmin('questions', {
-        query: `?id=in.(${remaining.join(',')})&select=id,group_ref`,
-      })
-      const hasGroups = ((gq || []) as any[]).some((q) => String(q.group_ref ?? '').trim())
-      questionIds = hasGroups || paper.mode === 'short' ? remaining : shuffled(remaining)
+      // one". It must NOT happen on a free-response paper: (b) has to follow (a)
+      // and often needs (a)'s result, so the order is part of the question.
+      questionIds = paper.mode === 'short' ? remaining : shuffled(remaining)
     } else {
       const { data: pq } = await supabaseAdmin('mock_paper_questions', {
         query: `?paper_id=eq.${paperId}&order=sort_order&select=question_id`,

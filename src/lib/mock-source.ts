@@ -177,9 +177,17 @@ export async function neverCorrectQuestions(studentId: string, paperId: string):
   const all = ((paperQs || []) as any[]).map((r) => r.question_id)
   if (all.length === 0) return []
 
-  const { data: meta } = await supabaseAdmin('questions', {
-    query: `?id=in.(${all.join(',')})&select=id,group_ref`,
+  // Grouping applies to free-response papers only. There the parts of one
+  // problem depend on each other, so they come back together. A multiple-choice
+  // paper is numbered straight through and its questions stand alone.
+  const { data: paperRow } = await supabaseAdmin('mock_papers', {
+    query: `?id=eq.${paperId}&select=mode`,
   })
+  const grouped = paperRow?.[0]?.mode === 'short'
+
+  const { data: meta } = grouped
+    ? await supabaseAdmin('questions', { query: `?id=in.(${all.join(',')})&select=id,group_ref` })
+    : { data: [] as any[] }
   const groupOf = new Map<string, string>((meta || []).map((q: any) => [q.id, String(q.group_ref ?? '').trim()]))
 
   const { data: sessions } = await supabaseAdmin('mock_test_sessions', {
