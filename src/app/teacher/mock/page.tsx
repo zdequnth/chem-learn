@@ -190,7 +190,13 @@ function MockAdminContent() {
     setMode(m); setQuestions([]); setDirty(true)
   }
 
-  const togglePublish = async (id: string, next: boolean) => {    const r = await fetch(`/api/mock/papers/${id}`, {
+  const togglePublish = async (id: string, next: boolean, paperMode?: 'choice' | 'short') => {
+    // A short paper's reference answers ARE the marking scheme: one wrong one
+    // marks the whole class wrong on that question. Publishing is the last place
+    // to catch it, so it takes an explicit confirmation.
+    if (next && paperMode === 'short' &&
+      !confirm('简答题的参考答案就是判分标准 —— 写错的话，全班这道题都会判错。\n\n确定已经逐题核对过参考答案了吗？')) return
+    const r = await fetch(`/api/mock/papers/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isPublished: next }),
     })
@@ -530,7 +536,7 @@ function MockAdminContent() {
                     <div className="text-xs text-muted-foreground">{p.durationMinutes} 分钟 · {p.questionCount} 题 · {p.attemptCount} 人次考过</div>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
-                    <button onClick={() => togglePublish(p.id, !p.isPublished)}
+                    <button onClick={() => togglePublish(p.id, !p.isPublished, p.mode)}
                       className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
                         p.isPublished ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
                       {p.isPublished ? '取消发布' : '发布'}
@@ -602,7 +608,7 @@ function MockAdminContent() {
                             {published ? '已发布' : '未发布'}
                           </span>
                           {published ? '学生现在看得到这套卷子。' : '学生看不到这套卷子——审完确认无误再发布。'}
-                          <button onClick={() => togglePublish(paperId, !published)}
+                          <button onClick={() => togglePublish(paperId, !published, mode)}
                             className={`px-2 py-0.5 rounded-md font-medium ${published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
                             {published ? '取消发布' : '立即发布'}
                           </button>
