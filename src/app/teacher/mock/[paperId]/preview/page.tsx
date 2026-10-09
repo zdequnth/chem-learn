@@ -18,7 +18,7 @@ interface PQ {
   sortOrder: number
   stem: string
   groupRef?: string | null
-  imageUrl: string | null
+  images: string[]
   explanation: string
   difficulty: number
   chapterTitle: string | null
@@ -145,7 +145,7 @@ function PreviewContent() {
                 </div>
 
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
-                {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
+                {(cur.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />)}
 
                 {cur.answerType === 'short' ? (
                   showAnswers ? (

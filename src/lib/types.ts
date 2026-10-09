@@ -240,6 +240,9 @@ export interface Question {
   stem: string
   explanation: string
   image_url: string | null
+  // Mock questions only: a question can show several figures. Gate questions
+  // keep using the single image_url above, untouched.
+  image_urls: string[] | null
   is_approved: boolean
   is_ai_generated: boolean
   created_by: string | null
@@ -255,6 +258,7 @@ export interface QuestionInsert {
   answer_text?: string | null
   group_id?: string | null
   group_ref?: string | null
+  image_urls?: string[] | null
   difficulty?: number
   stem: string
   explanation?: string
@@ -271,6 +275,7 @@ export interface QuestionUpdate {
   answer_text?: string | null
   group_id?: string | null
   group_ref?: string | null
+  image_urls?: string[] | null
   difficulty?: number
   stem?: string
   explanation?: string
@@ -815,8 +820,8 @@ export interface MockReviewQuestion {
   questionId: string
   sortOrder: number
   stem: string
-  groupRef: string | null   // shared stem of a multi-part question
-  imageUrl: string | null
+  groupRef: string | null    // which big question this part belongs to
+  images: string[]
   explanation: string
   chapterId: string | null
   chapterTitle: string | null

@@ -22,7 +22,7 @@ interface DraftQuestion {
   stem: string
   explanation: string
   difficulty: number
-  imageUrl: string
+  images: string[]               // one question can show several figures
   lessonId: string
   lessonRef: string | null
   chapterTitle: string | null
@@ -168,7 +168,7 @@ function MockAdminContent() {
       setMode(j.paper.mode === 'short' ? 'short' : 'choice')
       setQuestions((j.questions || []).map((q: any) => ({
         id: q.id, stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
-        imageUrl: q.imageUrl || '', lessonId: q.lessonId, lessonRef: q.lessonRef,
+        images: q.images || [], lessonId: q.lessonId, lessonRef: q.lessonRef,
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
@@ -235,7 +235,7 @@ function MockAdminContent() {
       total = Math.max(total, j.totalBatches || 1)
       const batch: DraftQuestion[] = (j.questions || []).map((q: any) => ({
         stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
-        imageUrl: q.imageUrl || '', lessonId: q.lessonId || '', lessonRef: q.lessonRef,
+        images: q.images || [], lessonId: q.lessonId || '', lessonRef: q.lessonRef,
         chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
         options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
         aiGenerated: true,
@@ -298,7 +298,7 @@ function MockAdminContent() {
   }
   const addQuestion = () => {
     setQuestions(prev => [...prev, {
-      stem: '', explanation: '', difficulty: 3, imageUrl: '', lessonId: '',
+      stem: '', explanation: '', difficulty: 3, images: [], lessonId: '',
       lessonRef: null, chapterTitle: null, lessonTitle: null, aiGenerated: false,
       answerType: mode, answerText: '', groupRef: '',
       options: mode === 'choice'
@@ -336,9 +336,12 @@ function MockAdminContent() {
       const fd = new FormData(); fd.append('file', file)
       const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
       const j = await r.json()
-      if (j.url) patchQ(i, { imageUrl: j.url })
+      // Append — a question can carry several figures. Overwriting here is what
+      // used to make the second paste replace the first.
+      if (j.url) setQuestions(list => list.map((q, k) => (k === i ? { ...q, images: [...q.images, j.url] } : q)))
       else alert('上传失败：' + (j.error || r.status))
     } finally { setUploadingIdx(null) }
+    setDirty(true)
   }
 
   const handlePaste = (i: number) => async (e: React.ClipboardEvent) => {
@@ -359,7 +362,7 @@ function MockAdminContent() {
     try {
       const payload = questions.map(q => ({
         stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
-        imageUrl: q.imageUrl || null, lessonId: q.lessonId,
+        images: q.images, lessonId: q.lessonId,
         answerType: q.answerType, answerText: q.answerText, groupRef: q.groupRef || null,
         options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
       }))
@@ -839,15 +842,19 @@ function MockAdminContent() {
                               <input type="file" accept="image/*" className="hidden"
                                 onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(i, f) }} />
                             </label>
-                            {q.imageUrl && (
-                              <>
-                                <button onClick={() => setZoom(q.imageUrl)} className="border rounded p-0.5">
-                                  <img src={q.imageUrl} alt="" className="h-14 w-20 object-contain bg-white" />
+                            {q.images.map((src, k) => (
+                              <span key={k} className="flex items-center gap-1 border rounded p-0.5">
+                                <button onClick={() => setZoom(src)}>
+                                  <img src={src} alt="" className="h-14 w-20 object-contain bg-white" />
                                 </button>
-                                <button onClick={() => patchQ(i, { imageUrl: '' })} className="text-xs text-red-500 hover:underline">移除配图</button>
-                              </>
-                            )}
-                            <span className="text-xs text-muted-foreground">{lang === 'zh' ? '带图/表格的题建议截图粘贴（学生会看到这张图）' : ''}</span>
+                                <button onClick={() => patchQ(i, { images: q.images.filter((_, n) => n !== k) })}
+                                  title="删掉这张图" className="p-0.5 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+                              </span>
+                            ))}
+                            <span className="text-xs text-muted-foreground">
+                              {q.images.length > 0 && `${q.images.length} 张 · `}
+                              {lang === 'zh' ? '带图/表格的题建议截图粘贴，可以贴多张（学生会按顺序看到全部）' : ''}
+                            </span>
                           </div>
 
                           {/* A short answer has no options: the student writes

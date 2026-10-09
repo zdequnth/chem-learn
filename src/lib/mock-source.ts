@@ -523,7 +523,7 @@ export async function buildReview(session: SessionRow) {
 
   const qIds = paperQids.length ? paperQids : [...here.keys()]
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,image_url,lesson_id,answer_type,answer_text` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,explanation,image_url,image_urls,lesson_id,answer_type,answer_text` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', {
@@ -546,7 +546,7 @@ export async function buildReview(session: SessionRow) {
       sortOrder: i,
       stem: q?.stem ?? '',
       groupRef: q?.group_ref ?? null,
-      imageUrl: q?.image_url ?? null,
+      images: (q?.image_urls ?? []),
       explanation: stripAnswerPrefix(q?.explanation ?? ''),
       chapterId: ref?.chapterId ?? null,
       chapterTitle: ref?.chapterTitle ?? null,
@@ -609,7 +609,7 @@ export async function buildExamPaper(session: SessionRow) {
   const rows = (answers || []) as any[]
   const qIds = rows.map((r) => r.question_id)
   const { data: qs } = qIds.length
-    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,answer_type,group_ref` })
+    ? await supabaseAdmin('questions', { query: `?id=in.(${qIds.join(',')})&select=id,stem,image_url,image_urls,answer_type,group_ref` })
     : { data: [] as any[] }
   const { data: opts } = qIds.length
     ? await supabaseAdmin('question_options', { query: `?question_id=in.(${qIds.join(',')})&order=display_order&select=id,question_id,content` })
@@ -623,7 +623,7 @@ export async function buildExamPaper(session: SessionRow) {
       sortOrder: r.sort_order,
       stem: q?.stem ?? '',
       groupRef: q?.group_ref ?? null,
-      imageUrl: q?.image_url ?? null,
+      images: (q?.image_urls ?? []),
       answerType: q?.answer_type === 'short' ? 'short' : 'choice',
       flagged: !!r.flagged,
       selectedOptionId: r.selected_option_id,

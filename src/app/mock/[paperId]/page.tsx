@@ -20,7 +20,7 @@ interface ExamQuestion {
   sortOrder: number
   stem: string
   groupRef?: string | null   // the big question's number, for grouping a short paper
-  imageUrl: string | null
+  images: string[]
   answerType?: 'choice' | 'short'
   selectedOptionId: string | null
   answerText?: string        // the student's own draft, never the reference
@@ -562,7 +562,7 @@ function MockExamContent() {
                 </div>
 
                 <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
-                {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />}
+                {(q.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />)}
 
                 <div className="space-y-1">
                   {q.answerType === 'short' ? (
@@ -727,7 +727,7 @@ function MockExamContent() {
               </button>
             </div>
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
-            {cur.imageUrl && <img src={cur.imageUrl} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />}
+            {(cur.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />)}
             <div className="space-y-2">
               {cur.answerType === 'short' ? (
                 <>

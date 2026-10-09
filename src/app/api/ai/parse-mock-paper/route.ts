@@ -87,12 +87,12 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
 `}
 【输出字段】每题一个对象：
-{"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"groupRef":null}
+{"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"groupRef":null}
 - stem/options/explanation 保持原语言（英文），不要翻译
 - LaTeX 原样保留（JSON 字符串里的反斜杠写双反斜杠）
 - explanation 以 "Answer: X" 开头
 - 选项 content 不要带 "(A) " 前缀
-- 题目里夹着的图片：链接放进 imageUrl，并从 stem 里去掉那行 ![](...)；没有就填 null
+- 题目里夹着的图片：把链接放进 images 数组（一道题可能有多张图），并从 stem 里去掉那几行 ![](...)；没有就填空数组 []
 - num / independentAnswer 只在有官方答案时才需要，其余情况填 null
 - 绝对不要输出任何 HTML 标签
 
@@ -156,13 +156,13 @@ lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
 ${answerBlock}
 
 【输出字段】每题一个对象：
-{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","imageUrl":null,"num":null,"groupRef":null}
+{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"num":null,"groupRef":null}
 - groupRef：所属大题的题号（如 "1"）；独立成题的填 null
 - stem / answerText / explanation 保持原语言（英文），不要翻译
 - answerText 必填：完整的参考答案，含关键计算过程 —— 它就是判分标准
 - explanation 是给老师看的讲解，可以简略；不要以 "Answer:" 开头（那是选择题的格式）
 - LaTeX 写成 $...$ 或 $$...$$，不要用 <eq> 或任何 HTML 标签
-- 题目里夹着的图片：链接放进 imageUrl，并从 stem 里去掉那行 ![](...)；没有就填 null
+- 题目里夹着的图片：把链接放进 images 数组（一道题可能有多张图），并从 stem 里去掉那几行 ![](...)；没有就填空数组 []
 - 绝对不要输出任何 HTML 标签
 
 输出纯 JSON（不要 markdown 代码块）：{"questions":[...]}
@@ -293,7 +293,7 @@ export async function POST(request: Request) {
       groupRef: String(q.groupRef ?? '').trim() || null,
       explanation: String(q.explanation ?? '').trim(),
       difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
-      imageUrl: typeof q.imageUrl === 'string' && q.imageUrl.trim() ? q.imageUrl.trim() : null,
+      images: (Array.isArray(q.images) ? q.images : []).map((u: any) => String(u ?? '').trim()).filter(Boolean),
       lessonRef: hit ? hit.ref : null,
       lessonId: hit ? hit.lessonId : null,
       chapterId: hit ? hit.chapterId : null,

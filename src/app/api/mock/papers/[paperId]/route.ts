@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   let questions: any[] = []
   if (questionIds.length) {
     const { data: qs } = await supabaseAdmin('questions', {
-      query: `?id=in.(${questionIds.join(',')})&select=id,stem,explanation,image_url,difficulty,lesson_id,is_ai_generated,answer_type,answer_text,group_ref`,
+      query: `?id=in.(${questionIds.join(',')})&select=id,stem,explanation,image_url,difficulty,lesson_id,is_ai_generated,answer_type,answer_text,group_ref,image_urls`,
     })
     const { data: opts } = await supabaseAdmin('question_options', {
       query: `?question_id=in.(${questionIds.join(',')})&order=display_order&select=id,question_id,content,is_correct`,
@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
         stem: q.stem,
         groupRef: q.group_ref ?? null,
         explanation: q.explanation,
-        imageUrl: q.image_url,
+        images: (q.image_urls ?? []),
         answerType: q.answer_type ?? 'choice',
         answerText: q.answer_text ?? '',
         difficulty: q.difficulty,
@@ -118,11 +118,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
       if ((q?.answerType === 'short' ? 'short' : 'choice') !== paperMode) {
         return NextResponse.json({ error: '新增的题和这份试卷的题型不一致' }, { status: 400 })
       }
-      let imageUrl: string | null = q.imageUrl?.trim?.() || null
-      if (imageUrl && !isLocalImage(imageUrl)) {
-        const got = await importRemoteImage(imageUrl)
-        if (got.url) imageUrl = got.url
-        else { imageWarnings.push(got.error || '取图失败'); imageUrl = null }
+      const images: string[] = []
+      for (const raw of (Array.isArray(q.images) ? q.images : [])) {
+        const url = String(raw ?? '').trim()
+        if (!url) continue
+        if (isLocalImage(url)) { images.push(url); continue }
+        const got = await importRemoteImage(url)
+        if (got.url) images.push(got.url)
+        else imageWarnings.push(got.error || '取图失败')
       }
       const isShort = paperMode === 'short'
       const { data: qRows } = await supabaseAdmin('questions', {
@@ -136,7 +139,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
           difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
           stem: normaliseMineruText(q.stem),
           explanation: normaliseMineruText(q.explanation),
-          image_url: imageUrl,
+          image_urls: images.length ? images : null,
           is_approved: true,
           is_ai_generated: q.isAiGenerated !== false,
           created_by: user.id,

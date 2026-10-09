@@ -127,11 +127,15 @@ export async function POST(request: Request) {
 
     // Pull any third-party image (e.g. a PDF parser's CDN link) into our own
     // storage, otherwise it shows for the teacher but breaks for students.
-    let imageUrl: string | null = typeof q.imageUrl === 'string' && q.imageUrl.trim() ? q.imageUrl.trim() : null
-    if (imageUrl && !isLocalImage(imageUrl)) {
-      const got = await importRemoteImage(imageUrl)
-      if (got.url) imageUrl = got.url
-      else { imageWarnings.push(`第 ${i + 1} 题配图未能入库（${got.error}）`); imageUrl = null }
+    // A question may carry several figures.
+    const images: string[] = []
+    for (const raw of (Array.isArray(q.images) ? q.images : [])) {
+      const url = String(raw ?? '').trim()
+      if (!url) continue
+      if (isLocalImage(url)) { images.push(url); continue }
+      const got = await importRemoteImage(url)
+      if (got.url) images.push(got.url)
+      else imageWarnings.push(`第 ${i + 1} 题配图未能入库（${got.error}）`)
     }
 
     const isShort = mode === 'short'
@@ -150,7 +154,7 @@ export async function POST(request: Request) {
         // database, the grading prompt or the renderer.
         stem: normaliseMineruText(q.stem),
         explanation: normaliseMineruText(q.explanation),
-        image_url: imageUrl,
+        image_urls: images.length ? images : null,
         is_approved: true,
         is_ai_generated: q.isAiGenerated !== false,
         created_by: user.id,
