@@ -595,7 +595,7 @@ function MockExamContent() {
                           isCorrect ? 'bg-emerald-50 border-emerald-200'
                           : picked ? 'bg-rose-50 border-rose-200' : 'border-transparent'}`}>
                         <span className="font-medium text-muted-foreground shrink-0">{LETTERS[oi]}.</span>
-                        <span className="flex-1"><KatexHtml text={cleanOption(o.content)} /></span>
+                        <span className="flex-1">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
                         {isCorrect && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
                         {picked && !isCorrect && <span className="text-xs text-rose-700 shrink-0">你选的</span>}
                       </div>
@@ -667,7 +667,7 @@ function MockExamContent() {
                           className={`w-full text-left flex items-start gap-2 px-2.5 py-1.5 rounded-lg text-sm border transition-colors ${
                             right ? 'bg-emerald-50 border-emerald-200' : wrong ? 'bg-rose-50 border-rose-200' : 'hover:bg-accent'}`}>
                           <span className="font-medium text-muted-foreground shrink-0">{LETTERS[oi]}.</span>
-                          <span className="flex-1"><KatexHtml text={cleanOption(o.content)} /></span>
+                          <span className="flex-1">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
                         </button>
                       )
                     })}
@@ -758,7 +758,7 @@ function MockExamContent() {
                     <span className={`w-6 h-6 rounded-full border text-xs font-semibold flex items-center justify-center shrink-0 ${picked ? 'bg-violet-500 border-violet-500 text-white' : 'text-muted-foreground'}`}>
                       {LETTERS[oi]}
                     </span>
-                    <span className="flex-1 text-sm"><KatexHtml text={cleanOption(o.content)} /></span>
+                    <span className="flex-1 text-sm">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
                   </button>
                 )
               })

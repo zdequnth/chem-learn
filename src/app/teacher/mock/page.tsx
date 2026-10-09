@@ -324,6 +324,19 @@ function MockAdminContent() {
     patchQ(qi, { options: q.options.map((o, k) => ({ ...o, isCorrect: k === oi })) })
   }
   const addOption = (qi: number) => patchQ(qi, { options: [...questions[qi].options, { content: '', isCorrect: false }] })
+
+  // Options that are themselves a picture (or a formula too fiddly to type) live
+  // in the stem instead; each option then holds only its own letter. Keeps the
+  // option non-empty so the save and the「选项没拆出来」check stay happy, and the
+  // letter is exactly what the student taps.
+  const fillOptionLetters = (qi: number) => {
+    const cur = questions[qi]
+    const n = Math.max(4, cur.options.length)
+    const correctAt = Math.max(0, cur.options.findIndex(o => o.isCorrect))
+    patchQ(qi, {
+      options: Array.from({ length: n }, (_, k) => ({ content: LETTERS[k], isCorrect: k === correctAt })),
+    })
+  }
   const removeOption = (qi: number, oi: number) => {
     const q = questions[qi]
     if (q.options.length <= 2) return alert('至少要有两个选项')
@@ -875,7 +888,19 @@ function MockAdminContent() {
                                   <button onClick={() => removeOption(i, oi)} className="p-1 text-red-300 hover:text-red-500 shrink-0"><X className="w-3.5 h-3.5" /></button>
                                 </div>
                               ))}
-                              <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
+                              <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                                <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
+                                {/* When the options themselves are a picture (or a
+                                    formula too fiddly to type), the teacher pastes
+                                    the whole options block into the stem. A lone
+                                    letter keeps each option non-empty, and the
+                                    letter under it is the one the student picks. */}
+                                <button onClick={() => fillOptionLetters(i)}
+                                  title="选项本身就是图片/复杂公式时用这个：题干里贴一张含所有选项的图，各选项只留 A B C D 当占位"
+                                  className="text-xs text-muted-foreground hover:text-foreground">
+                                  选项用字母代替（A B C D）
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <>

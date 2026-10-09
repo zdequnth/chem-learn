@@ -173,7 +173,7 @@ function PreviewContent() {
                         <span className={`w-6 h-6 rounded-full border text-xs font-semibold flex items-center justify-center shrink-0 ${reveal ? 'bg-emerald-500 border-emerald-500 text-white' : 'text-muted-foreground'}`}>
                           {LETTERS[oi]}
                         </span>
-                        <span className="flex-1 text-sm"><KatexHtml text={cleanOption(o.content)} /></span>
+                        <span className="flex-1 text-sm">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
                         {reveal && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
                       </div>
                     )
