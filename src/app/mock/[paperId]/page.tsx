@@ -776,38 +776,40 @@ function MockExamContent() {
 
         {/* question number palette. Flagged questions are filled yellow, so the
             ones to come back to stand out among the answered (violet) ones. */}
-        <div className="space-y-1">
+        {/* A choice paper numbers straight through; only a free-response paper
+            groups its parts, one row per big question. */}
+        <div className={isShortPaper ? 'space-y-1' : 'flex flex-wrap items-center gap-1.5'}>
           {groups.map((g, gi) => {
-            const multi = g.items.length > 1
-            const shown = g.items.map((q, si) => ({ q, i: g.start + si })).filter(({ q }) => !onlyFlagged || flags[q.questionId])
-            if (shown.length === 0) return null
+            const row = g.items.map((q, si) => ({ q, i: g.start + si })).filter(({ q }) => !onlyFlagged || flags[q.questionId])
+            if (row.length === 0 && !(isShortPaper && onlyFlagged)) return null
+            const buttons = row.map(({ q, i }) => {
+              const done = isDone(q)
+              const on = !!flags[q.questionId]
+              return (
+                <button key={q.questionId} onClick={() => setIdx(i)}
+                  className={`${isShortPaper ? 'h-8 min-w-8 px-1.5' : 'w-9 h-9'} rounded-lg text-xs font-medium border transition-colors ${
+                    i === idx ? 'ring-2 ring-violet-400 ' : ''
+                  }${on ? 'bg-amber-400 border-amber-400 text-white' : done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                  {isShortPaper ? partLabel(gi, i - g.start, g.items.length) : i + 1}
+                </button>
+              )
+            })
+            if (!isShortPaper) return buttons
+            if (row.length === 0) return null
             return (
               <div key={gi} className="flex flex-wrap items-center gap-1.5">
-                <span className={`w-14 shrink-0 text-xs ${multi ? 'text-muted-foreground' : ''}`}>
-                  {multi ? `第 ${gi + 1} 题` : ''}
-                </span>
-                {shown.map(({ q, i }) => {
-                  const done = isDone(q)
-                  const on = !!flags[q.questionId]
-                  return (
-                    <button key={q.questionId} onClick={() => setIdx(i)}
-                      className={`h-8 min-w-8 px-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        i === idx ? 'ring-2 ring-violet-400 ' : ''
-                      }${on ? 'bg-amber-400 border-amber-400 text-white' : done ? 'bg-violet-500 border-violet-500 text-white' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                      {partLabel(gi, i - g.start, g.items.length)}
-                    </button>
-                  )
-                })}
+                <span className="w-14 shrink-0 text-xs text-muted-foreground">第 {gi + 1} 题</span>
+                {buttons}
               </div>
             )
           })}
           <button onClick={() => setOnlyFlagged(v => !v)}
-            className={`px-2.5 h-8 rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+            className={`px-2.5 ${isShortPaper ? 'h-8' : 'h-9'} rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
             {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          紫色 = 已作答，黄色 = 你标记过的。同一行的小问属于同一道大题。答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
+          紫色 = 已作答，黄色 = 你标记过的。{isShortPaper ? '同一行的小问属于同一道大题。' : ''}答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
         </p>
       </main>
     </div>

@@ -114,7 +114,16 @@ function basicMarkdown(text: string): string {
     if (lines.length < 2) return match
     // Skip separator line (|---|---|)
     const rows = lines.filter(l => !/^[\|\s\-:]+\|[\|\-:\s]+$/.test(l))
-    const cells = rows.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()))
+    // Drop only the empties the leading/trailing pipes produce. An empty cell in
+    // the MIDDLE is real — a table whose first column is blank (a row label
+    // column holding only A/B/C/D in the data rows) would otherwise shift left
+    // by one and every cell would sit under the wrong heading.
+    const cells = rows.map(r => {
+      const parts = r.split('|').map(c => c.trim())
+      if (parts.length && parts[0] === '') parts.shift()
+      if (parts.length && parts[parts.length - 1] === '') parts.pop()
+      return parts
+    }).filter(r => r.length > 0)
     if (cells.length === 0) return match
     const thead = `<thead class="bg-gray-100"><tr>${cells[0].map(c => `<th class="px-3 py-2 text-left text-xs font-medium border">${c}</th>`).join('')}</tr></thead>`
     const tbody = cells.length > 1
