@@ -153,6 +153,41 @@ export default function HomePage() {
         </div>
       </section>
 
+
+      {/* The whole journey: accumulate vocabulary, master the course lesson by
+          lesson, then hold it together under exam conditions. The middle two
+          boxes are one stage — 知识树 and 关卡测试 both belong to the gate course —
+          so they share a background and a tag. */}
+      <section id="flow" className="py-20 px-4 max-w-5xl mx-auto">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl font-bold mb-4">学习流程</h2>
+          <p className="text-muted-foreground text-lg">先背单词打底，再一关关过课，最后整套模拟考检验</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { icon: '📖', title: '背单词', tag: '背单词课程', tagCls: 'bg-amber-100 text-amber-800', box: 'bg-amber-50 border-amber-200',
+              desc: '按课时背专业词汇，卡片 + 发音 + 测验，日常积累打底' },
+            { icon: '📚', title: '知识树', tag: '通关课程', tagCls: 'bg-emerald-100 text-emerald-800', box: 'bg-emerald-50 border-emerald-200',
+              desc: '查看知识点清单和视频链接，系统学习每个概念' },
+            { icon: '🎯', title: '关卡测试', tag: '通关课程', tagCls: 'bg-emerald-100 text-emerald-800', box: 'bg-emerald-50 border-emerald-200',
+              desc: '连续答对7题或正确率≥90%即通关，答错3题锁定10分钟' },
+            { icon: '📝', title: '模拟考', tag: '模拟考课程', tagCls: 'bg-violet-100 text-violet-800', box: 'bg-violet-50 border-violet-200',
+              desc: '考前一两个月冲刺：限时做完整套题，看真实水平' },
+          ].map((f) => (
+            <div key={f.title} className={`rounded-2xl p-6 border shadow-sm text-center flex flex-col ${f.box}`}>
+              <div className="text-4xl mb-3">{f.icon}</div>
+              <span className={`self-center text-[11px] px-2 py-0.5 rounded-full font-medium mb-2 ${f.tagCls}`}>{f.tag}</span>
+              <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          中间两块同属<b>通关课程</b>：先在知识树里学，再到关卡测试里过关，过了才解锁下一课。
+        </p>
+      </section>
       {/* Subjects Grid */}
       <section id="subjects" className="py-12 px-4 max-w-5xl mx-auto">
         <div className="text-center mb-10">
@@ -166,27 +201,6 @@ export default function HomePage() {
               <div className="text-4xl mb-3">{s.icon}</div>
               <h3 className={`font-semibold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.name}</h3>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="py-20 px-4 max-w-3xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold mb-4">学习流程</h2>
-          <p className="text-muted-foreground text-lg">游戏化闯关，让学习不再枯燥</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {[
-            { icon: '📚', title: '知识树', desc: '查看知识点清单和视频链接，系统学习每个概念' },
-            { icon: '🎯', title: '关卡测试', desc: '连续答对7题或正确率≥90%即通关，答错3题锁定10分钟' },
-          ].map((f, i) => (
-            <div key={i} className="bg-card rounded-2xl p-8 shadow-sm border text-center">
-              <div className="text-4xl mb-4">{f.icon}</div>
-              <h3 className="text-xl font-semibold mb-2">{f.title}</h3>
-              <p className="text-muted-foreground">{f.desc}</p>
-            </div>
           ))}
         </div>
       </section>
