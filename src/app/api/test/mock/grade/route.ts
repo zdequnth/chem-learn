@@ -49,7 +49,7 @@ async function gradeBatch(
 ): Promise<{ questionId: string; correct: boolean; feedback: string }[] | null> {
   try {
     const completion = await client.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-flash',
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: buildPrompt(batch) },

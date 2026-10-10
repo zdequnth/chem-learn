@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-flash',
       messages: [
         { role: 'system', content: '你是经验丰富的化学教师，用 Markdown 输出，公式用 LaTeX。' },
         { role: 'user', content: prompt },

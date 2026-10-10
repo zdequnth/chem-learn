@@ -4,7 +4,7 @@ import OpenAI from 'openai'
 
 async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
   const completion = await client.chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-flash',
     messages: [
       { role: 'system', content: '你是国际学校教师。输出纯JSON，不要markdown代码块。' },
       { role: 'user', content: prompt },

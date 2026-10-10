@@ -174,7 +174,7 @@ ${text}`
 async function parseChunk(client: OpenAI, prompt: string): Promise<{ ok: boolean; questions: any[] }> {
   try {
     const completion = await client.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-flash',
       messages: [
         { role: 'system', content: '你是题目解析助手。只输出纯JSON，不要markdown代码块，不要任何多余文字。' },
         { role: 'user', content: prompt },
