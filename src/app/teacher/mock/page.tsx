@@ -32,6 +32,7 @@ interface DraftQuestion {
   answerType: 'choice' | 'short'   // 'short' = free response, no options
   answerText: string               // reference answer, AI grades against this
   groupRef: string                 // the big question's number, e.g. "1" ('' = stands alone)
+  needsFigure?: boolean            // read off a page image: has a figure the teacher must paste
   officialAnswer?: string | null   // from the pasted key, when there is one
   independentAnswer?: string | null
   disputed?: boolean               // AI's own answer differs from the official one
@@ -104,6 +105,9 @@ function MockAdminContent() {
   const [reviewOnly, setReviewOnly] = useState(false)
   const [mode, setMode] = useState<'choice' | 'short'>('choice')
   const [answerPosition, setAnswerPosition] = useState<'inline' | 'end' | 'none'>('inline')
+  // How the paper text gets in: typed/pasted as text, or read off page images.
+  const [importMode, setImportMode] = useState<'text' | 'images'>('text')
+  const [pageImages, setPageImages] = useState<string[]>([])
   // The symbol toolbar inserts into whichever answer field was last focused.
   const focusedAnswer = useRef<HTMLTextAreaElement | null>(null)
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
@@ -151,7 +155,7 @@ function MockAdminContent() {
   // course changed → reload papers + the bound course outline
   useEffect(() => {
     if (!courseId) return
-    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false)
+    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false); setPageImages([]); setImportMode('text')
     loadPapers(courseId)
     fetch(`/api/mock/outline?courseId=${courseId}`).then(r => r.json()).then((j) => {
       setOutline(j.chapters || [])
@@ -186,7 +190,7 @@ function MockAdminContent() {
   const startNewPaper = () => {
     setOpen(true)
     setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false); setPublished(false)
-    setMode('choice'); setAnswerText('')
+    setMode('choice'); setAnswerText(''); setPageImages([]); setImportMode('text')
   }
   // The mode is fixed at creation: the student page, grading and review all
   // branch on it, so switching later would strand the questions already written.
@@ -212,6 +216,46 @@ function MockAdminContent() {
     loadPapers(courseId)
   }
 
+  // Page images go up one at a time, in order — the order IS the paper order.
+  const uploadPageImages = async (files: File[]) => {
+    const added: string[] = []
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue
+      setUploadingIdx(-1)   // -1 = "a page image is uploading"
+      try {
+        const fd = new FormData(); fd.append('file', f)
+        const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
+        const j = await r.json()
+        if (j.url) added.push(j.url)
+        else alert('第 ' + (pageImages.length + added.length + 1) + ' 页上传失败：' + (j.error || r.status))
+      } finally { setUploadingIdx(null) }
+    }
+    if (added.length) setPageImages(prev => [...prev, ...added])
+  }
+
+  const handlePagePaste = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.files || [])
+    if (files.length === 0) return
+    e.preventDefault()
+    uploadPageImages(files)
+  }
+
+  /** One server-parsed question → one draft row. Shared by both import paths. */
+  const toDraft = (q: any): DraftQuestion => ({
+    stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
+    images: q.images || [], lessonId: q.lessonId || '', lessonRef: q.lessonRef,
+    chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
+    options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
+    aiGenerated: true,
+    answerType: q.answerType === 'short' ? 'short' : 'choice',
+    answerText: q.answerText || '',
+    groupRef: q.groupRef || '',
+    needsFigure: !!q.needsFigure,
+    officialAnswer: q.officialAnswer ?? null,
+    independentAnswer: q.independentAnswer ?? null,
+    disputed: !!q.disputed,
+  })
+
   const handleParse = async () => {
     if (!importText.trim()) return alert('先粘贴试卷文本')
     if (!courseId) return
@@ -233,19 +277,7 @@ function MockAdminContent() {
       if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
 
       total = Math.max(total, j.totalBatches || 1)
-      const batch: DraftQuestion[] = (j.questions || []).map((q: any) => ({
-        stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
-        images: q.images || [], lessonId: q.lessonId || '', lessonRef: q.lessonRef,
-        chapterTitle: q.chapterTitle, lessonTitle: q.lessonTitle,
-        options: (q.options || []).map((o: any) => ({ content: o.content, isCorrect: o.isCorrect })),
-        aiGenerated: true,
-        answerType: q.answerType === 'short' ? 'short' : 'choice',
-        answerText: q.answerText || '',
-        groupRef: q.groupRef || '',
-        officialAnswer: q.officialAnswer ?? null,
-        independentAnswer: q.independentAnswer ?? null,
-        disputed: !!q.disputed,
-      }))
+      const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
       if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
       return batch.length
     }
@@ -276,6 +308,50 @@ function MockAdminContent() {
       }
       const lost = total - succeeded.size
       if (lost > 0) alert(`解析完成，但有 ${lost} 批没成功，题目没全。再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
+    } catch (e: any) {
+      alert('解析出错：' + (e?.message || e))
+    } finally { setBusy(''); setProgress(null) }
+  }
+
+  /**
+   * Read the paper off page screenshots. One page per request, each carrying the
+   * next page too so a question split by the page break is read whole — the same
+   * loop-with-retry shape as the text path, but the page count is known upfront.
+   */
+  const handleParseImages = async () => {
+    if (pageImages.length === 0) return alert('先粘贴或选择试卷的页面图片')
+    if (!courseId) return
+    setBusy('parse'); setProgress(null)
+
+    const runPage = async (i: number) => {
+      const res = await fetch('/api/ai/parse-mock-paper-images', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, images: pageImages, pageIndex: i, paperMode: mode, answerText, answerPosition }),
+      })
+      const raw = await res.text()
+      let j: any = {}
+      try { j = raw ? JSON.parse(raw) : {} }
+      catch { throw new Error(`第 ${i + 1} 页没有正常返回（HTTP ${res.status}）`) }
+      if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+      const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
+      if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
+    }
+
+    try {
+      const queue = pageImages.map((_, i) => i)
+      const tries = new Map<number, number>()
+      const succeeded = new Set<number>()
+      let guard = 0
+      while (queue.length > 0 && guard++ < 4 * pageImages.length + 20) {
+        const i = queue.shift()!
+        const n = (tries.get(i) || 0) + 1
+        tries.set(i, n)
+        try { await runPage(i); succeeded.add(i) }
+        catch { if (n < 2) queue.push(i) }
+        setProgress({ done: succeeded.size, total: pageImages.length })
+      }
+      const lost = pageImages.length - succeeded.size
+      if (lost > 0) alert(`解析完成，但有 ${lost} 页没成功，题目没全。再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
     } catch (e: any) {
       alert('解析出错：' + (e?.message || e))
     } finally { setBusy(''); setProgress(null) }
@@ -438,6 +514,9 @@ function MockAdminContent() {
   const reasonsFor = (q: DraftQuestion): string[] => {
     const out: string[] = []
     if (q.disputed) out.push(`AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`)
+    // Read off a page image: the figure is part of the page, not something we
+    // could carve out — the teacher pastes it on.
+    if (q.needsFigure && q.images.length === 0) out.push('这题有配图（AI 看图时标出的），请把那张图截图贴到题干下面')
     if (!q.lessonId) out.push('没能自动对应章节课时，请手动选')
     if (q.answerType === 'short') {
       if (!q.answerText.trim()) out.push('简答题还没有参考答案 —— 没有它，AI 判不了分')
@@ -463,6 +542,71 @@ function MockAdminContent() {
     const hit = lessonOptions.find(l => l.id === q.lessonId)
     return { text: hit ? `${hit.chapter} › ${hit.ref} ${hit.title}` : '课时无效', cls: 'bg-violet-50 text-violet-700 border-violet-200' }
   }
+
+  // The two ways a paper gets in: paste text (via MinerU), or hand the AI page
+  // images so it reads the layout itself. Shared by the choice and short cards.
+  const importSource = (placeholder: string) => (
+    <>
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {([['text', '📄 粘贴文本'], ['images', '📷 上传图片']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setImportMode(k)}
+            className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${importMode === k ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
+            {label}
+          </button>
+        ))}
+        <span className="text-xs text-muted-foreground ml-1">
+          {importMode === 'images' ? 'AI 直接看图，版面（选项、配图）不会错位' : '先把 PDF 转成文本再粘'}
+        </span>
+      </div>
+
+      {importMode === 'images' ? (
+        <div className="space-y-2">
+          <div onPaste={handlePagePaste} tabIndex={0}
+            className="rounded-xl border-2 border-dashed border-gray-300 p-5 text-center outline-none focus:border-violet-400 cursor-text">
+            <div className="text-sm font-medium mb-1">在这一块里点一下，然后 Ctrl+V 粘贴截图</div>
+            <div className="text-xs text-muted-foreground">一页一张图。按页的顺序贴 —— <b>顺序就是试卷顺序</b>。</div>
+          </div>
+
+          {pageImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {pageImages.map((src, i) => (
+                <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
+                  <button onClick={() => setZoom(src)} title="放大看">
+                    <img src={src} alt="" className="h-16 w-12 object-cover" />
+                  </button>
+                  <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
+                  <button onClick={() => setPageImages(p => p.filter((_, k) => k !== i))} title="删掉这一页"
+                    className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent">
+              <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '选择图片文件（可多选）'}
+              <input type="file" accept="image/*" multiple className="hidden"
+                onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadPageImages(fs); e.currentTarget.value = '' }} />
+            </label>
+            {pageImages.length > 0 && <span className="text-xs text-muted-foreground">共 {pageImages.length} 页</span>}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            手里是 PDF 就不用一页页截图 —— 一条命令整套转成图片，再全选拖进来：
+            <code className="ml-1 px-1 bg-gray-100 rounded">pdftoppm -png -r 150 "试卷.pdf" "输出目录/试卷"</code>
+          </p>
+        </div>
+      ) : (
+        <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+      )}
+    </>
+  )
+
+  const handleParseAny = () => (importMode === 'images' ? handleParseImages() : handleParse())
 
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
@@ -662,11 +806,8 @@ function MockAdminContent() {
                       <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆简答题' : 'Paste paper text'}</h2>
                     </div>
 
-                    <MineruHelp lang={lang} />
-
-                    <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
-                      placeholder={lang === 'zh' ? '把整套试卷的文本粘进来。AI 会拆成一道道简答题，每题都会带上参考答案（判分要用），并自动判断它对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
-                      className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                    {importMode === 'text' && <MineruHelp lang={lang} />}
+                    {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。AI 会拆成一道道简答题，每题都会带上参考答案（判分要用），并自动判断它对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…')}
 
                     {/* Where the answers are. Guessing this wrong would misplace
                         every answer in the paper, so it is asked, not inferred. */}
@@ -694,7 +835,7 @@ function MockAdminContent() {
                     )}
 
                     <div className="flex items-center gap-3 mt-2">
-                      <button onClick={handleParse} disabled={busy !== ''}
+                      <button onClick={handleParseAny} disabled={busy !== ''}
                         className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
                         {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         {busy === 'parse'
@@ -718,11 +859,8 @@ function MockAdminContent() {
                     <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆题' : 'Paste paper text'}</h2>
                   </div>
 
-                  <MineruHelp lang={lang} />
-
-                  <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
-                    placeholder={lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…'}
-                    className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                  {importMode === 'text' && <MineruHelp lang={lang} />}
+                  {importSource(lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…')}
 
                   {/* The key sits in its own box on purpose: inside the paper text its
                       answer lines look exactly like question numbers. */}
@@ -741,7 +879,7 @@ function MockAdminContent() {
                   </div>
 
                   <div className="flex items-center gap-3 mt-2">
-                    <button onClick={handleParse} disabled={busy !== ''}
+                    <button onClick={handleParseAny} disabled={busy !== ''}
                       className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
                       {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {busy === 'parse'

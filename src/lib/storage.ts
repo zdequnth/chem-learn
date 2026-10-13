@@ -85,6 +85,23 @@ async function shrinkImage(
   return null
 }
 
+/**
+ * Read an image we already store back out, given its /api/img/... URL. The
+ * parse-by-image route needs the bytes to hand to the model, and fetching them
+ * over our own public domain would not work from a local dev server.
+ */
+export async function readStoredImage(url: string): Promise<{ buf: Buffer; contentType: string } | null> {
+  if (!isLocalImage(url)) return null
+  const key = url.replace(/^\/api\/img\//, '')
+  if (!key || key.includes('..') || key.startsWith('/') || key.includes(':')) return null
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${key}`, {
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+  })
+  if (!res.ok) return null
+  const contentType = (res.headers.get('content-type') || 'image/png').split(';')[0].trim()
+  return { buf: Buffer.from(await res.arrayBuffer()), contentType }
+}
+
 /** True for images already on our domain (nothing to import). */
 export function isLocalImage(url: string | null | undefined): boolean {
   return !!url && url.startsWith('/api/img/')
