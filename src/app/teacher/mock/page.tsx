@@ -537,7 +537,9 @@ function MockAdminContent() {
     if (q.disputed) out.push(`AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`)
     // Read off a page image: the figure is part of the page, not something we
     // could carve out — the teacher pastes it on.
-    if (q.needsFigure && q.images.length === 0) out.push('这题有配图（AI 看图时标出的），请把那张图截图贴到题干下面')
+    if (q.needsFigure) out.push(q.images.length > 0
+      ? '配图是 AI 从页面上自动裁的，请核对裁得完整不完整'
+      : '这题有配图，但没能自动裁出来，请手工截图贴到题干下面')
     if (!q.lessonId) out.push('没能自动对应章节课时，请手动选')
     if (q.answerType === 'short') {
       if (!q.answerText.trim()) out.push('简答题还没有参考答案 —— 没有它，AI 判不了分')

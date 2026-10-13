@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
 import { normaliseMineruText } from '@/lib/mineru-text'
-import { readStoredImage } from '@/lib/storage'
+import { readStoredImage, uploadImageBuffer } from '@/lib/storage'
+import sharp from 'sharp'
 import OpenAI from 'openai'
 
 export const maxDuration = 60
@@ -21,14 +22,14 @@ export const maxDuration = 60
  * is told to emit only the questions that START on the requested page.
  */
 function buildPrompt(opts: {
-  courseName: string; lessonList: string; pageNo: number; totalPages: number
+  courseName: string; lessonList: string; pageNo: number; totalPages: number; pageW: number; pageH: number
   paperMode: 'choice' | 'short'; answerBlock: string
 }): string {
-  const { courseName, lessonList, pageNo, totalPages, paperMode, answerBlock } = opts
+  const { courseName, lessonList, pageNo, totalPages, pageW, pageH, paperMode, answerBlock } = opts
 
   const shape = paperMode === 'short'
-    ? `{"number":1,"stem":"...","answerText":"...","explanation":"...","lessonRef":"5.1","groupRef":null,"hasFigure":false}`
-    : `{"number":1,"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","lessonRef":"5.1","groupRef":null,"hasFigure":false}`
+    ? `{"number":1,"stem":"...","answerText":"...","explanation":"...","lessonRef":"5.1","groupRef":null,"hasFigure":false,"figureBox":null}`
+    : `{"number":1,"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","lessonRef":"5.1","groupRef":null,"hasFigure":false,"figureBox":null}`
 
   const shortNote = paperMode === 'short'
     ? `- answerText 必填：完整的参考答案，含关键计算过程 —— 它就是判分标准
@@ -40,11 +41,13 @@ function buildPrompt(opts: {
 
 【最重要的一条】只输出【起始于第 ${pageNo} 页】的题目。下一页上开始的题目不要输出，那是下一轮的事。
 
+本页图片的像素尺寸是 ${pageW} x ${pageH}（figureBox 要基于这个实际尺寸给）。
+
 【怎么拆】
 1. ${paperMode === 'short' ? '简答题/计算题：大题可能带 (a)(b)(c) 小问，每个小问单独成为一道题，stem 里保留小问的标号。' : '选择题：题干后面跟 (A)(B)(C)(D) 选项。选项可能横排一行，也可能一行一个 —— 两种都要按顺序正确拆开。'}
 2. 共用的材料（一段文字、一个数据表、一段实验描述）：把材料【完整写进每道题的 stem 里】，不要写"见上题" —— 学生看到的每一道题都是独立的，重复没关系。同时把这些题的 groupRef 都填上那一道大题的题号（字符串，如 "1"）；独立成题的填 null。
 3. 题号不要写进 stem；另外用 number 字段给出它在卷面上的题号（整数）。
-4. 题干里若带插图（结构式、装置图、曲线图）：hasFigure 填 true，【不要去描述图的内容】（图片老师会另外补）。没有插图就填 false。表格不要当插图 —— 表格要连内容一起写进 stem。
+4. 题干里若带插图（结构式、装置图、曲线图）：hasFigure 填 true，并给出它在第 ${pageNo} 页图片上的【像素】外接矩形 figureBox = [左上x, 左上y, 右下x, 右下y]。只框插图本身（含坐标轴、轴标签、图例），不要把题干文字或选项框进来；框得稍紧一点没关系，系统会自动留边。没有插图就 hasFigure=false、figureBox=null。表格不要当插图 —— 表格要连内容一起写进 stem。
 5. 看不清的地方不要猜，宁可留空。
 
 【逐题判断所属课时】
@@ -148,13 +151,18 @@ export async function POST(request: Request) {
   // The requested page, plus the next one so a question split by the page break
   // can be read whole. The prompt keeps the model to the requested page only.
   const want = [list[pageIndex], list[pageIndex + 1]].filter(Boolean)
-  const loaded: { url: string }[] = []
+  const loaded: { url: string; buf: Buffer; contentType: string }[] = []
   for (const url of want) {
     const img = await readStoredImage(url)
     if (!img) continue
-    loaded.push({ url: `data:${img.contentType};base64,${img.buf.toString('base64')}` })
+    loaded.push({ url: `data:${img.contentType};base64,${img.buf.toString('base64')}`, buf: img.buf, contentType: img.contentType })
   }
   if (loaded.length === 0) return NextResponse.json({ error: '页面图片读不出来（可能已被删除）' }, { status: 400 })
+
+  // The box the model returns is in the page's own pixels, so it has to know them.
+  const meta = await sharp(loaded[0].buf).metadata()
+  const pageW = meta.width || 1000
+  const pageH = meta.height || 1400
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 })
@@ -173,15 +181,26 @@ export async function POST(request: Request) {
     lessonList: outline.promptList,
     pageNo: pageIndex + 1,
     totalPages: list.length,
+    pageW,
+    pageH,
     paperMode,
     answerBlock: answerBlockFor(paperMode, answerPosition, keyText, answerKey),
   })
 
   const result = await parsePage(client, prompt, loaded)
 
-  const questions = (result.ok ? result.questions : []).map((q) => {
+  const questions: any[] = []
+  for (const q of (result.ok ? result.questions : [])) {
     const ref = typeof q.lessonRef === 'string' ? q.lessonRef.trim() : null
     const hit = ref ? outline.byRef.get(ref) : undefined
+    // The figure is part of the page image, so cut it out of the page and store
+    // it as this question's own picture. A wrong box would be worse than none,
+    // so the result is shown for review like everything else.
+    const box = Array.isArray(q.figureBox) ? q.figureBox.map((n: any) => Number(n)) : null
+    const cropped = q.hasFigure === true && box && box.length === 4 && box.every((n: number) => Number.isFinite(n))
+      ? await cropFigure(loaded[0].buf, box, pageW, pageH)
+      : null
+
     const common = {
       stem: String(q.stem ?? '').trim(),
       groupRef: String(q.groupRef ?? '').trim() || null,
@@ -191,28 +210,53 @@ export async function POST(request: Request) {
       chapterId: hit ? hit.chapterId : null,
       chapterTitle: hit ? hit.chapterTitle : null,
       lessonTitle: hit ? hit.lessonTitle : null,
-      // The figure is inside the PAGE image, not something we can carve out —
-      // so flag it and let the teacher paste it onto the question.
+      // needsFigure stays true either way: a cropped one still has to be checked
+      // (is the box right?), and an uncropped one has to be pasted by hand.
       needsFigure: q.hasFigure === true,
+      images: cropped ? [cropped] : [],
       num: Number.isInteger(q.number) ? q.number : null,
     }
     if (paperMode === 'short') {
-      return { ...common, answerType: 'short' as const, answerText: String(q.answerText ?? '').trim(), options: [] }
+      questions.push({ ...common, answerType: 'short', answerText: String(q.answerText ?? '').trim(), options: [] })
+      continue
     }
-    return {
+    questions.push({
       ...common,
-      answerType: 'choice' as const,
+      answerType: 'choice',
       answerText: '',
       options: (Array.isArray(q.options) ? q.options : [])
         .map((o: any) => ({ content: String(o?.content ?? '').trim(), isCorrect: o?.isCorrect === true }))
         .filter((o: any) => o.content),
-    }
-  }).filter((q) => q.stem)
+    })
+  }
 
   return NextResponse.json({
-    questions,
+    questions: questions.filter((q) => q.stem),
     failed: result.ok ? [] : ['本页'],
     pageIndex,
     totalPages: list.length,
   })
+}
+
+/**
+ * Cut a figure out of the page image and store it as the question's own picture.
+ * A little padding, because the box the model gives is tight and a clipped axis
+ * label looks like a bug.
+ */
+async function cropFigure(page: Buffer, box: number[], pageW: number, pageH: number): Promise<string | null> {
+  try {
+    const pad = Math.round(Math.max(pageW, pageH) * 0.012)
+    const left = Math.max(0, Math.min(pageW - 40, Math.round(box[0]) - pad))
+    const top = Math.max(0, Math.min(pageH - 40, Math.round(box[1]) - pad))
+    const right = Math.max(left + 40, Math.min(pageW, Math.round(box[2]) + pad))
+    const bottom = Math.max(top + 40, Math.min(pageH, Math.round(box[3]) + pad))
+    const buf = await sharp(page)
+      .extract({ left, top, width: right - left, height: bottom - top })
+      .png()
+      .toBuffer()
+    const up = await uploadImageBuffer(buf, 'image/png')
+    return up.url ?? null
+  } catch {
+    return null
+  }
 }
