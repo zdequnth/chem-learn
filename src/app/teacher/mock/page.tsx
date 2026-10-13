@@ -10,6 +10,7 @@ import ChemToolbar from '@/components/ChemToolbar'
 import { groupsForPaper, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
+import { pdfToPageFiles } from '@/lib/pdf-to-images'
 import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
@@ -108,6 +109,8 @@ function MockAdminContent() {
   // How the paper text gets in: typed/pasted as text, or read off page images.
   const [importMode, setImportMode] = useState<'text' | 'images'>('text')
   const [pageImages, setPageImages] = useState<string[]>([])
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfProgress, setPdfProgress] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
   const focusedAnswer = useRef<HTMLTextAreaElement | null>(null)
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
@@ -231,6 +234,24 @@ function MockAdminContent() {
       } finally { setUploadingIdx(null) }
     }
     if (added.length) setPageImages(prev => [...prev, ...added])
+  }
+
+  /**
+   * A PDF goes straight to page images in the browser, then down the same upload
+   * path as a screenshot — so a teacher needs no command line and nothing
+   * installed. See src/lib/pdf-to-images.ts for why it is done client-side.
+   */
+  const handlePdfFile = async (file: File) => {
+    setPdfBusy(true)
+    try {
+      const pages = await pdfToPageFiles(file, {
+        onProgress: (done, total) => setPdfProgress(`${done}/${total}`),
+      })
+      if (pages.length === 0) { alert('这个 PDF 没有可读的页面'); return }
+      await uploadPageImages(pages)
+    } catch (e: any) {
+      alert('PDF 转换失败：' + (e?.message || e) + '\n（也可以先把 PDF 转成图片再传）')
+    } finally { setPdfBusy(false); setPdfProgress('') }
   }
 
   const handlePagePaste = (e: React.ClipboardEvent) => {
@@ -585,8 +606,15 @@ function MockAdminContent() {
           )}
 
           <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent">
-              <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '选择图片文件（可多选）'}
+            <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+              pdfBusy ? 'opacity-60 pointer-events-none' : 'hover:bg-accent'}`}>
+              <FileText className="w-3.5 h-3.5 text-violet-500" />
+              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '选一个 PDF 文件（自动拆成每页一张图）'}
+              <input type="file" accept="application/pdf,.pdf" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.currentTarget.value = '' }} />
+            </label>
+            <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+              <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '或者选图片文件（可多选）'}
               <input type="file" accept="image/*" multiple className="hidden"
                 onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadPageImages(fs); e.currentTarget.value = '' }} />
             </label>
@@ -594,8 +622,8 @@ function MockAdminContent() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            手里是 PDF 就不用一页页截图 —— 一条命令整套转成图片，再全选拖进来：
-            <code className="ml-1 px-1 bg-gray-100 rounded">pdftoppm -png -r 150 "试卷.pdf" "输出目录/试卷"</code>
+            有 PDF 就直接选它 —— 在浏览器里转成图片再上传，不用装任何东西、也不用命令行。
+            PDF 页码顺序就是试卷顺序。
           </p>
         </div>
       ) : (
