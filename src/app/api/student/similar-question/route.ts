@@ -42,6 +42,8 @@ ${optionsText ? `\n原题选项：\n${optionsText}\n` : ''}${correct ? `\n正确
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
+      // 关掉推理：实测质量不变，但快 3~4 倍 —— 图像解析原来就是被推理拖过了 45 秒超时
+      reasoning_effort: 'none',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 8192,

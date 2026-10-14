@@ -107,6 +107,8 @@ async function parsePage(client: OpenAI, prompt: string, images: { url: string }
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
+      // 关掉推理：实测质量不变，但快 3~4 倍 —— 图像解析原来就是被推理拖过了 45 秒超时
+      reasoning_effort: 'none',
       max_tokens: 8192,
       temperature: 0.2,
       response_format: { type: 'json_object' },

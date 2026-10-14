@@ -5,6 +5,8 @@ import OpenAI from 'openai'
 async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
   const completion = await client.chat.completions.create({
     model: 'deepseek-flash',
+    // 关掉推理：实测质量不变，但快 3~4 倍 —— 图像解析原来就是被推理拖过了 45 秒超时
+    reasoning_effort: 'none',
     messages: [
       { role: 'system', content: '你是国际学校教师。输出纯JSON，不要markdown代码块。' },
       { role: 'user', content: prompt },

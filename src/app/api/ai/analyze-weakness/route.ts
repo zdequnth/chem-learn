@@ -38,6 +38,8 @@ ${body}
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
+      // 关掉推理：实测质量不变，但快 3~4 倍 —— 图像解析原来就是被推理拖过了 45 秒超时
+      reasoning_effort: 'none',
       messages: [
         { role: 'system', content: '你是经验丰富的化学老师，用 Markdown 输出，公式用 LaTeX。' },
         { role: 'user', content: prompt },
