@@ -22,8 +22,8 @@ export function mimeForImage(name: string): string {
 // Business endpoints answer {code:0,data,msg}; the gateway answers
 // {success:false,msgCode,msg}. Both shapes carry the failure, so both are read.
 const ERR_ZH: Record<string, string> = {
-  A0202: 'MinerU token 无效，请检查 MINERU_API_KEY',
-  A0211: 'MinerU token 已过期',
+  A0202: 'MinerU token 无效。请到 mineru.net/apiManage/token 重新生成，更新 .env.local 和 Vercel 的 MINERU_API_KEY，再 Redeploy',
+  A0211: 'MinerU token 已过期（有效期 90 天，不能续期）。请到 mineru.net/apiManage/token 重新生成，更新 .env.local 和 Vercel 的 MINERU_API_KEY，再 Redeploy',
   '-500': 'MinerU 参数错误',
   '-60005': 'PDF 太大（上限 200MB）',
   '-60006': 'PDF 页数太多（上限 200 页）',
