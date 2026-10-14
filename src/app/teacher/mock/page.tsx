@@ -280,6 +280,16 @@ function MockAdminContent() {
     if (added.length) setAnswerImages(prev => [...prev, ...added])
   }
 
+  // Paste straight into the key box: an image goes up as a key picture, text
+  // pastes normally. The key is usually something you just screenshotted, and
+  // saving it to disk first only to pick it back up is busywork.
+  const handleAnswerPaste = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.files || [])
+    if (files.length === 0) return
+    e.preventDefault()
+    uploadAnswerFiles(files)
+  }
+
   const handlePagePaste = (e: React.ClipboardEvent) => {
     const files = Array.from(e.clipboardData?.files || [])
     if (files.length === 0) return
@@ -967,14 +977,15 @@ function MockAdminContent() {
                     )}
 
                     <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={2}
+                      onPaste={handleAnswerPaste}
                       placeholder={answerImages.length > 0
                         ? '（已经用图片了，这里可以不填）'
-                        : (lang === 'zh' ? '也可以直接把答案文字粘这里，如「1. B 2. C」或「1-5 BCDAB」。' : 'Or paste the key as text, e.g. "1. B  2. C".')}
+                        : (lang === 'zh' ? '答案文字粘这里，如「1. B 2. C」或「1-5 BCDAB」；截图直接 Ctrl+V 也行。' : 'Paste the key as text, or Ctrl+V a screenshot.')}
                       className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {lang === 'zh'
-                        ? '图纸/拍照的答案区就用上面的按钮；别忘了从试卷文本里删掉答案那一块。'
-                        : 'Use the buttons above for a scanned key; remove the key from the paper text.'}
+                        ? '答案区是扫描页/照片的话，截图后直接在这个框里 Ctrl+V。'
+                        : 'For a scanned key, screenshot it and Ctrl+V into the box.'}
                     </p>
                   </div>
 
