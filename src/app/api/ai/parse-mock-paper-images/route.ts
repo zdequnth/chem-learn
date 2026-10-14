@@ -38,11 +38,11 @@ function buildPrompt(opts: {
     : `- 选项 content 不要带 "(A) " 前缀
 - explanation 以 "Answer: X" 开头`
 
-  return `这是一份化学试卷第 ${pageNo} 页（共 ${totalPages} 页）的截图。可能还附带了下一页的截图，那只是让你看清在本页末尾被截断的题目。${answerImageCount > 0 ? `
+  return `这是一份化学试卷第 ${pageNo} 页（共 ${totalPages} 页）的截图。${answerImageCount > 0 ? `
 
 最后 ${answerImageCount} 张【不是】本页的题目，而是老师提供的答案区截图 —— 只从里面读答案，不要把它们当成题目。` : ''}
 
-【最重要的一条】只输出【起始于第 ${pageNo} 页】的题目。下一页上开始的题目不要输出，那是下一轮的事。
+【最重要的一条】只输出【这张图上能看到】的题目。如果一道题的题干在这里但选项被截断了，就把看得见的部分照实输出，不要凭想象补全、也不要跳过。
 
 本页图片的像素尺寸是 ${pageW} x ${pageH}（figureBox 要基于这个实际尺寸给）。
 
@@ -107,8 +107,6 @@ async function parsePage(client: OpenAI, prompt: string, images: { url: string }
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
-      // 关掉推理：实测质量不变，但快 3~4 倍 —— 图像解析原来就是被推理拖过了 45 秒超时
-      reasoning_effort: 'none',
       max_tokens: 8192,
       temperature: 0.2,
       response_format: { type: 'json_object' },
@@ -167,9 +165,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '绑定的通关课程还没有章节课时，无法标注对应关系' }, { status: 400 })
   }
 
-  // The requested page, plus the next one so a question split by the page break
-  // can be read whole. The prompt keeps the model to the requested page only.
-  const want = [list[pageIndex], list[pageIndex + 1]].filter(Boolean)
+  // Only the requested page. Sending the next page too made the model emit
+  // questions that start on the next page a second time (40 questions became 52).
+  const want = [list[pageIndex]].filter(Boolean)
   const loaded: { url: string; buf: Buffer; contentType: string }[] = []
   for (const url of want) {
     const img = await readStoredImage(url)
