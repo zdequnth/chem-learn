@@ -16,6 +16,23 @@ import { useLang } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
+// The two paper kinds look nothing alike on purpose: the whole paper is built
+// one way, so mistaking which kind you are in is the most expensive slip here.
+const PAPER_MODE = {
+  choice: {
+    emoji: '🔤', label: '选择题卷',
+    pill: 'bg-sky-100 text-sky-800 border-sky-200',
+    solid: 'bg-sky-600 border-sky-600 text-white',
+    box: 'border-sky-300 bg-sky-50',
+  },
+  short: {
+    emoji: '✍️', label: '简答题卷',
+    pill: 'bg-amber-100 text-amber-900 border-amber-200',
+    solid: 'bg-amber-600 border-amber-600 text-white',
+    box: 'border-amber-300 bg-amber-50',
+  },
+} as const
+
 interface OutChapter { id: string; title: string; lessons: { ref: string; id: string; title: string }[] }
 interface DraftOption { content: string; isCorrect: boolean }
 interface DraftQuestion {
@@ -40,35 +57,21 @@ interface DraftQuestion {
 }
 interface PaperRow { id: string; title: string; mode: 'choice' | 'short'; durationMinutes: number; questionCount: number; attemptCount: number; isPublished: boolean }
 
-// MinerU is how a PDF becomes pasteable text. Both paper kinds need the same
-// instructions, so they live in one place.
+// How a PDF becomes pasteable text. One line, because the button below is the
+// route most teachers should be taking now.
 function MineruHelp({ lang }: { lang: string }) {
-  return (
-    <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-      <div className="font-medium mb-1.5">
-        {lang === 'zh' ? '📄 手里是 PDF？先用 MinerU 转成文本' : '📄 Have a PDF? Turn it into text with MinerU first'}
-      </div>
-      <ol className="list-decimal list-inside space-y-0.5">
-        {lang === 'zh' ? (
-          <>
-            <li>打开 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>，登录（免费）</li>
-            <li>上传试卷 PDF，等它解析完</li>
-            <li>在 MinerU 页面里直接全选复制，粘贴到下面的框里（不用下载文件）</li>
-          </>
-        ) : (
-          <>
-            <li>Open <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a> and sign in (free)</li>
-            <li>Upload the paper PDF and wait for it to finish</li>
-            <li>Select all and copy right on the MinerU page, then paste it below (no download needed)</li>
-          </>
-        )}
-      </ol>
-      <p className="mt-1.5 text-blue-800/80">
-        {lang === 'zh'
-          ? '表格、公式、图片都会一起转出来，扫描版和手写也能认；复杂版面偶尔会错位（尤其选项里的图）。粘贴后要逐题核实。'
-          : 'Tables, formulas and images all come through, including scanned and handwritten papers; complex layouts can misalign (especially images in options). Check every question after pasting.'}
+  if (lang !== 'zh') {
+    return (
+      <p className="mb-3 text-xs text-muted-foreground">
+        Convert the PDF to text with <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline">mineru.net</a> (free), then paste the result below.
       </p>
-    </div>
+    )
+  }
+  return (
+    <p className="mb-3 text-xs text-blue-800">
+      📄 用 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>（免费）把 PDF 转成文本：打开 → 传 PDF → 全选复制粘到下面。
+      <span className="text-blue-700/70">复杂版面偶尔会错位，粘完逐题扫一眼。</span>
+    </p>
   )
 }
 
@@ -111,6 +114,7 @@ function MockAdminContent() {
   const [pageImages, setPageImages] = useState<string[]>([])
   // which question the 编辑 dialog is open for (null = closed)
   const [editQ, setEditQ] = useState<number | null>(null)
+  const [newOpen, setNewOpen] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfProgress, setPdfProgress] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
@@ -192,10 +196,19 @@ function MockAdminContent() {
     } finally { setBusy('') }
   }
 
+  // 新建试卷 asks for the three things that are awkward to change later — title,
+  // length and kind — before opening the editor. Kind in particular decides how
+  // the whole paper is built and read.
   const startNewPaper = () => {
+    setTitle(''); setDuration(60); setMode('choice')
+    setNewOpen(true)
+  }
+  const confirmNewPaper = () => {
+    if (!title.trim()) return alert('请填试卷标题')
+    setNewOpen(false)
     setOpen(true)
-    setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false); setPublished(false)
-    setMode('choice'); setAnswerText(''); setPageImages([]); setImportMode('text'); setEditQ(null)
+    setPaperId(null); setQuestions([]); setImportText(''); setDirty(false); setPublished(false)
+    setAnswerText(''); setPageImages([]); setImportMode('text'); setEditQ(null)
   }
   // The mode is fixed at creation: the student page, grading and review all
   // branch on it, so switching later would strand the questions already written.
@@ -580,7 +593,7 @@ function MockAdminContent() {
           </button>
         ))}
         <span className="text-xs text-muted-foreground ml-1">
-          {importMode === 'images' ? 'AI 直接看图，版面（选项、配图）不会错位' : '先把 PDF 转成文本再粘'}
+          {importMode === 'images' ? 'AI 直接看图，版面不会错位' : ''}
         </span>
       </div>
 
@@ -626,8 +639,7 @@ function MockAdminContent() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            有 PDF 就直接选它 —— 在浏览器里转成图片再上传，不用装任何东西、也不用命令行。
-            PDF 页码顺序就是试卷顺序。
+            有 PDF 就直接选它，会自动转成每页一张图；页码顺序就是试卷顺序。
           </p>
         </div>
       ) : (
@@ -684,7 +696,9 @@ function MockAdminContent() {
               </button>
             </div>
 
-            {/* paper list */}
+            {/* paper list — hidden while the editor is open, so a new paper's
+                editor is not competing with a list of the others */}
+            {!open && (<>
             {/* Two publish switches exist (course and paper) and it is easy to
                 flip only one. Spell out which one actually decides whether
                 students can see anything. */}
@@ -726,12 +740,12 @@ function MockAdminContent() {
               {papers.length === 0 && <div className="p-6 text-sm text-muted-foreground">{lang === 'zh' ? '这门课还没有试卷。点「新建试卷」，粘一份试卷文本让 AI 拆题。' : 'No papers yet.'}</div>}
               {papers.map(p => (
                 <div key={p.id} className={`p-4 flex items-center gap-3 flex-wrap ${paperId === p.id ? 'bg-violet-50' : ''}`}>
-                  <FileText className="w-5 h-5 text-violet-500 shrink-0" />
+                  <span className="text-xl shrink-0" title={PAPER_MODE[p.mode].label}>{PAPER_MODE[p.mode].emoji}</span>
                   <div className="min-w-0">
                     <div className="font-medium truncate flex items-center gap-2">
                       {p.title}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${p.mode === 'short' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
-                        {p.mode === 'short' ? '📝 简答题卷' : '🔤 选择题卷'}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${PAPER_MODE[p.mode].pill}`}>
+                        {PAPER_MODE[p.mode].label}
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                         {p.isPublished ? '已发布' : '未发布'}
@@ -760,6 +774,7 @@ function MockAdminContent() {
                 </div>
               ))}
             </div>
+            </>)}
 
             {/* editor */}
             {open && (
@@ -780,15 +795,15 @@ function MockAdminContent() {
                     {/* Chosen once, at creation — the student page, grading and
                         review all branch on it. */}
                     {paperId ? (
-                      <span className="text-sm px-3 py-2 rounded-lg border bg-gray-50 text-muted-foreground">
-                        {mode === 'short' ? '📝 简答题卷' : '🔤 选择题卷'}
+                      <span className={`text-sm px-3 py-2 rounded-lg border font-semibold ${PAPER_MODE[mode].box}`}>
+                        {PAPER_MODE[mode].emoji} {PAPER_MODE[mode].label}
                       </span>
                     ) : (
                       <div className="flex items-center gap-1.5">
                         {(['choice', 'short'] as const).map(m => (
                           <button key={m} onClick={() => switchMode(m)}
-                            className={`text-sm px-3 py-2 rounded-lg border font-medium transition-colors ${mode === m ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
-                            {m === 'choice' ? '🔤 选择题卷' : '📝 简答题卷'}
+                            className={`text-sm px-3 py-2 rounded-lg border font-semibold transition-colors ${mode === m ? PAPER_MODE[m].solid : 'hover:bg-accent'}`}>
+                            {PAPER_MODE[m].emoji} {PAPER_MODE[m].label}
                           </button>
                         ))}
                       </div>
@@ -839,7 +854,7 @@ function MockAdminContent() {
                     </div>
 
                     {importMode === 'text' && <MineruHelp lang={lang} />}
-                    {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。AI 会拆成一道道简答题，每题都会带上参考答案（判分要用），并自动判断它对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…')}
+                    {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。' : 'Paste the whole paper…')}
 
                     {/* Where the answers are. Guessing this wrong would misplace
                         every answer in the paper, so it is asked, not inferred. */}
@@ -874,9 +889,6 @@ function MockAdminContent() {
                           ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
                           : (lang === 'zh' ? 'AI 解析' : 'Parse')}
                       </button>
-                      <span className="text-xs text-muted-foreground">
-                        {lang === 'zh' ? '解析结果会追加到下面。参考答案是判分标准，逐题核对。' : ''}
-                      </span>
                     </div>
                     {progress && (
                       <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
@@ -892,20 +904,20 @@ function MockAdminContent() {
                   </div>
 
                   {importMode === 'text' && <MineruHelp lang={lang} />}
-                  {importSource(lang === 'zh' ? '把整套试卷的文本粘进来（MinerU 转出的 markdown 可以直接用）。AI 会拆成题目，并自动判断每题对应绑定课程的哪一章哪一课时。' : 'Paste the whole paper…')}
+                  {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。' : 'Paste the whole paper…')}
 
                   {/* The key sits in its own box on purpose: inside the paper text its
                       answer lines look exactly like question numbers. */}
                   <div className="mt-2">
                     <label className="block text-xs font-medium mb-1">
-                      {lang === 'zh' ? '试卷自带答案？（可选）' : 'Answer key (optional)'}
+                      {lang === 'zh' ? '试卷自带答案（可选）' : 'Answer key (optional)'}
                     </label>
                     <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={2}
-                      placeholder={lang === 'zh' ? '把答案区原样粘进来即可，如「1. B  2. C  3. A」或「1-5 BCDAB」。填了就以官方答案为准；不填 AI 会自己解题。' : 'Paste the answer key, e.g. "1. B  2. C" or "1-5 BCDAB". Given one, AI uses it; otherwise it solves the paper itself.'}
+                      placeholder={lang === 'zh' ? '如「1. B 2. C」或「1-5 BCDAB」。' : 'Paste the answer key, e.g. "1. B  2. C" or "1-5 BCDAB". Given one, AI uses it; otherwise it solves the paper itself.'}
                       className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {lang === 'zh'
-                        ? '粘过来的答案区记得从上面的试卷文本里删掉 —— 留在上面，每个「1. B」都会被当成一道题拆出来。'
+                        ? '别忘了从上面的文本里删掉答案区。'
                         : 'Remove the key from the paper text above — left in, every "1. B" gets split out as its own question.'}
                     </p>
                   </div>
@@ -918,9 +930,6 @@ function MockAdminContent() {
                         ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
                         : (lang === 'zh' ? 'AI 解析' : 'Parse')}
                     </button>
-                    <span className="text-xs text-muted-foreground">
-                      {lang === 'zh' ? '解析结果会追加到下面；这套试卷没有答案，AI 会自己解题，答案和解析都是草稿，请逐题核对。' : ''}
-                    </span>
                   </div>
                   {progress && (
                     <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
@@ -1060,6 +1069,63 @@ function MockAdminContent() {
           </>
         )}
       </main>
+
+      {/* 新建试卷：先定标题 / 时长 / 类型，再进编辑界面。类型决定整份卷子怎么
+          建、怎么看，进来之后再改会很折腾，所以在门口就问清楚。 */}
+      {newOpen && (
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">新建试卷</h2>
+
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs font-medium mb-1">试卷标题</div>
+                <input value={title} onChange={e => setTitle(e.target.value)} autoFocus
+                  placeholder="如 AP Chem 2012"
+                  className="w-full px-3 py-2 border rounded-lg bg-background outline-none focus:ring-2 focus:ring-violet-400" />
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-1">考试时长</div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={1} max={600} value={duration}
+                    onChange={e => setDuration(Math.min(600, Math.max(1, Number(e.target.value) || 60)))}
+                    className="w-24 px-3 py-2 border rounded-lg bg-background" />
+                  <span className="text-sm text-muted-foreground">分钟</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium mb-2">卷子类型</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['choice', 'short'] as const).map(m => (
+                    <button key={m} onClick={() => setMode(m)}
+                      className={`rounded-xl border-2 p-4 text-left transition-all ${
+                        mode === m ? PAPER_MODE[m].solid : 'hover:bg-accent'}`}>
+                      <div className="text-2xl mb-1">{PAPER_MODE[m].emoji}</div>
+                      <div className="font-semibold text-sm">{PAPER_MODE[m].label}</div>
+                      <div className={`text-[11px] mt-0.5 ${mode === m ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        {m === 'choice' ? '每题 A/B/C/D 选项' : '每题写文字，AI 判分'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  一份卷子只有一种题型，之后也能改，但已有题目会被清空。
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={confirmNewPaper}
+                className={`flex-1 py-2.5 rounded-lg font-medium text-white ${PAPER_MODE[mode].solid}`}>
+                确认，开始建卷
+              </button>
+              <button onClick={() => setNewOpen(false)} className="px-5 py-2.5 bg-accent rounded-lg font-medium">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 编辑一道题。The card shows only what students see; every control lives
           here, so proof-reading a paper is reading, not form-filling. */}
