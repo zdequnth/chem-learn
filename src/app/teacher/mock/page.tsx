@@ -11,7 +11,7 @@ import { groupsForPaper, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { pdfToPageFiles } from '@/lib/pdf-to-images'
-import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye, Edit3 } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -109,6 +109,8 @@ function MockAdminContent() {
   // How the paper text gets in: typed/pasted as text, or read off page images.
   const [importMode, setImportMode] = useState<'text' | 'images'>('text')
   const [pageImages, setPageImages] = useState<string[]>([])
+  // which question the 编辑 dialog is open for (null = closed)
+  const [editQ, setEditQ] = useState<number | null>(null)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfProgress, setPdfProgress] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
@@ -158,7 +160,7 @@ function MockAdminContent() {
   // course changed → reload papers + the bound course outline
   useEffect(() => {
     if (!courseId) return
-    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false); setPageImages([]); setImportMode('text')
+    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false); setPageImages([]); setImportMode('text'); setEditQ(null)
     loadPapers(courseId)
     fetch(`/api/mock/outline?courseId=${courseId}`).then(r => r.json()).then((j) => {
       setOutline(j.chapters || [])
@@ -193,7 +195,7 @@ function MockAdminContent() {
   const startNewPaper = () => {
     setOpen(true)
     setPaperId(null); setQuestions([]); setTitle(''); setDuration(60); setImportText(''); setDirty(false); setPublished(false)
-    setMode('choice'); setAnswerText(''); setPageImages([]); setImportMode('text')
+    setMode('choice'); setAnswerText(''); setPageImages([]); setImportMode('text'); setEditQ(null)
   }
   // The mode is fixed at creation: the student page, grading and review all
   // branch on it, so switching later would strand the questions already written.
@@ -992,134 +994,61 @@ function MockAdminContent() {
                             {reasons.length > 0 && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">需人工审核</span>
                             )}
-                            <label className="text-xs text-muted-foreground flex items-center gap-1">
-                              难度
-                              <input type="number" min={1} max={5} value={q.difficulty}
-                                onChange={e => patchQ(i, { difficulty: Math.min(5, Math.max(1, Number(e.target.value) || 3)) })}
-                                className="w-14 px-2 py-0.5 border rounded bg-background text-xs" />
-                            </label>
+                            <span className="text-xs text-muted-foreground">难度 {q.difficulty}</span>
                             <div className="ml-auto flex items-center gap-1">
-                              <button onClick={() => shuffleOptions(i)} title="把选项循环挪一位（对付两栏排版被读串的情况）" className="p-1.5 rounded hover:bg-accent text-muted-foreground"><Shuffle className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => moveQ(i, -1)} disabled={i === 0} className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => moveQ(i, 1)} disabled={i === questions.length - 1} className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => removeQ(i)} className="p-1.5 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setEditQ(i)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-accent transition-colors">
+                                <Edit3 className="w-3.5 h-3.5" /> 编辑
+                              </button>
+                              <button onClick={() => moveQ(i, -1)} disabled={i === 0} title="上移" className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => moveQ(i, 1)} disabled={i === questions.length - 1} title="下移" className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => removeQ(i)} title="删除这道题" className="p-1.5 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
 
-                          {/* stem + kaTeX preview */}
-                          <textarea value={q.stem} onChange={e => patchQ(i, { stem: e.target.value })} rows={3}
-                            onPaste={handlePaste(i)}
-                            placeholder="题干（支持 LaTeX；可直接 Ctrl+V 贴图）"
-                            className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
-                          <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm">
-                            <KatexHtml text={q.stem} />
-                          </div>
+                          {/* Read-only: exactly what the student will see. All
+                              the controls live in the 编辑 dialog — mixing them
+                              in made proof-reading the paper hard work. */}
+                          <div className="space-y-2">
+                            <div className="text-sm"><KatexHtml text={q.stem} /></div>
 
-                          {/* image */}
-                          <div className="flex items-center gap-2 mt-2">
-                            <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border cursor-pointer ${theme.button}`}>
-                              <ImageIcon className="w-3.5 h-3.5" />
-                              {uploadingIdx === i ? '上传中…' : '配图'}
-                              <input type="file" accept="image/*" className="hidden"
-                                onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(i, f) }} />
-                            </label>
                             {q.images.map((src, k) => (
-                              <span key={k} className="flex items-center gap-1 border rounded p-0.5">
-                                <button onClick={() => setZoom(src)}>
-                                  <img src={src} alt="" className="h-14 w-20 object-contain bg-white" />
-                                </button>
-                                <button onClick={() => patchQ(i, { images: q.images.filter((_, n) => n !== k) })}
-                                  title="删掉这张图" className="p-0.5 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
-                              </span>
+                              <button key={k} onClick={() => setZoom(src)} className="block">
+                                <img src={src} alt="" className="max-h-48 rounded-lg border bg-white" />
+                              </button>
                             ))}
-                            <span className="text-xs text-muted-foreground">
-                              {q.images.length > 0 && `${q.images.length} 张 · `}
-                              {lang === 'zh' ? '带图/表格的题建议截图粘贴，可以贴多张（学生会按顺序看到全部）' : ''}
-                            </span>
-                          </div>
 
-                          {/* A short answer has no options: the student writes
-                              freely and the AI grades it against the reference
-                              answer. Which of the two this is comes from the
-                              paper's mode, chosen at creation. */}
-                          {q.answerType === 'choice' ? (
-                            <div className="mt-3 space-y-1.5">
-                              {q.options.map((o, oi) => (
-                                <div key={oi} className="flex items-center gap-2">
-                                  <button onClick={() => setCorrect(i, oi)} title="设为正确答案"
-                                    className={`w-6 h-6 rounded-full border text-xs font-semibold shrink-0 ${o.isCorrect ? 'bg-emerald-500 border-emerald-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
-                                    {LETTERS[oi]}
-                                  </button>
-                                  <input value={o.content} onChange={e => setOptionText(i, oi, e.target.value)}
-                                    className="flex-1 px-3 py-1.5 border rounded-lg bg-background font-mono text-xs" />
-                                  <span className="text-xs text-muted-foreground w-40 truncate hidden sm:block"><KatexHtml text={cleanOption(o.content)} /></span>
-                                  <button onClick={() => removeOption(i, oi)} className="p-1 text-red-300 hover:text-red-500 shrink-0"><X className="w-3.5 h-3.5" /></button>
-                                </div>
-                              ))}
-                              <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                                <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
-                                {/* When the options themselves are a picture (or a
-                                    formula too fiddly to type), the teacher pastes
-                                    the whole options block into the stem. A lone
-                                    letter keeps each option non-empty, and the
-                                    letter under it is the one the student picks. */}
-                                <button onClick={() => fillOptionLetters(i)}
-                                  title="选项本身就是图片/复杂公式时用这个：题干里贴一张含所有选项的图，各选项只留 A B C D 当占位"
-                                  className="text-xs text-muted-foreground hover:text-foreground">
-                                  选项用字母代替（A B C D）
-                                </button>
+                            {q.answerType === 'choice' ? (
+                              <div className="space-y-1">
+                                {q.options.map((o, oi) => (
+                                  <div key={oi}
+                                    className={`flex items-start gap-2 px-2.5 py-1.5 rounded-lg text-sm border ${
+                                      o.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'border-transparent'}`}>
+                                    <span className="font-medium text-muted-foreground shrink-0">{LETTERS[oi]}.</span>
+                                    <span className="flex-1">
+                                      {cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}
+                                    </span>
+                                    {o.isCorrect && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
+                                  </div>
+                                ))}
+                                {q.options.length === 0 && <p className="text-sm text-rose-600">还没有选项</p>}
                               </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="mt-3">
-                                <ChemToolbar value={q.answerText}
-                                  onChange={next => patchQ(i, { answerText: next })}
-                                  textareaRef={focusedAnswer} />
-                              </div>
-                              <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
-                                onFocus={e => { focusedAnswer.current = e.currentTarget }}
-                                placeholder={'参考答案（必填）—— 学生的答案由 AI 对照它判分，所以这里写错，全班这道题都会判错。\n可以直接写 CH3NH2、10^-4 这种普通写法；下标/上标点上面的按钮。公式要用 $…$ 包起来。'}
-                                className="mt-1 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
-                              {q.answerText.trim() && (
-                                <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm">
-                                  <div className="text-xs text-muted-foreground mb-1">预览（学生看到的样子）</div>
-                                  <KatexHtml text={wrapBareLatex(q.answerText)} />
+                            ) : (
+                              <div className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50/60 text-sm">
+                                <div className="text-xs text-muted-foreground mb-1">参考答案（判分依据）</div>
+                                <div className="whitespace-pre-wrap">
+                                  {q.answerText.trim()
+                                    ? <KatexHtml text={wrapBareLatex(q.answerText)} />
+                                    : <span className="text-rose-600">还没填</span>}
                                 </div>
-                              )}
-                            </>
-                          )}
+                              </div>
+                            )}
 
-                          {/* the official answer as pasted by the teacher, so the
-                              mismatch can be judged without leaving the card */}
-                          {q.officialAnswer && (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              官方答案：<b className="text-foreground">{q.officialAnswer}</b>
-                              {q.independentAnswer && (
-                                <> · AI 独立解答：<b className={q.disputed ? 'text-red-600' : 'text-foreground'}>{q.independentAnswer}</b>{q.disputed ? '（不一致）' : '（一致）'}</>
-                              )}
-                            </p>
-                          )}
-
-                          {/* explanation */}
-                          <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={2}
-                            placeholder="解析（AI 草稿，请核对）"
-                            className="mt-3 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
-
-                          {/* lesson picker */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground shrink-0">所属章节课时</span>
-                            <select value={q.lessonId} onChange={e => {
-                              const hit = lessonOptions.find(l => l.id === e.target.value)
-                              patchQ(i, { lessonId: e.target.value, lessonRef: hit?.ref ?? null, chapterTitle: hit?.chapter ?? null, lessonTitle: hit?.title ?? null })
-                            }} className="flex-1 px-2 py-1.5 border rounded-lg bg-background text-xs">
-                              <option value="">— 请选择 —</option>
-                              {outline.map(c => (
-                                <optgroup key={c.id} label={c.title}>
-                                  {c.lessons.map(l => <option key={l.id} value={l.id}>{l.ref} {l.title}</option>)}
-                                </optgroup>
-                              ))}
-                            </select>
+                            {q.explanation.trim() && (
+                              <div className="px-3 py-2 rounded-lg bg-gray-50 text-sm text-muted-foreground">
+                                <KatexHtml text={q.explanation} />
+                              </div>
+                            )}
                           </div>
                         </div>
                       )
@@ -1131,6 +1060,153 @@ function MockAdminContent() {
           </>
         )}
       </main>
+
+      {/* 编辑一道题。The card shows only what students see; every control lives
+          here, so proof-reading a paper is reading, not form-filling. */}
+      {editQ !== null && questions[editQ] && (() => {
+        const i = editQ
+        const q = questions[i]
+        const ref = refLabel(q)
+        return (
+          <div className="fixed inset-0 z-[75] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
+            <div className="bg-card rounded-2xl w-full max-w-2xl my-8">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h2 className="font-semibold flex items-center gap-2 flex-wrap">
+                  编辑第 {draftLabel.get(i) ?? i + 1} 题
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-normal ${ref.cls}`}>{ref.text}</span>
+                </h2>
+                <button onClick={() => setEditQ(null)} title="关闭"
+                  className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="p-5 space-y-4 max-h-[68vh] overflow-y-auto">
+                <div>
+                  <div className="text-xs font-medium mb-1">题干（支持 LaTeX；可直接 Ctrl+V 贴图）</div>
+                  <textarea value={q.stem} onChange={e => patchQ(i, { stem: e.target.value })} rows={4}
+                    onPaste={handlePaste(i)}
+                    className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                  <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm"><KatexHtml text={q.stem} /></div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-medium mb-1">配图（可多张，学生会按顺序看到全部）</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border cursor-pointer ${theme.button}`}>
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      {uploadingIdx === i ? '上传中…' : '选一张图'}
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(i, f); e.currentTarget.value = '' }} />
+                    </label>
+                    <span className="text-xs text-muted-foreground">也可以直接 Ctrl+V 粘到上面的题干框里</span>
+                  </div>
+                  {q.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {q.images.map((src, k) => (
+                        <span key={k} className="relative border rounded-lg p-0.5 bg-white">
+                          <button onClick={() => setZoom(src)} title="放大看"><img src={src} alt="" className="h-16 w-24 object-contain" /></button>
+                          <button onClick={() => patchQ(i, { images: q.images.filter((_, n) => n !== k) })} title="删掉这张图"
+                            className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {q.answerType === 'choice' ? (
+                  <div>
+                    <div className="text-xs font-medium mb-1">选项（点左边的字母圈设为正确答案）</div>
+                    <div className="space-y-1.5">
+                      {q.options.map((o, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <button onClick={() => setCorrect(i, oi)} title="设为正确答案"
+                            className={`w-6 h-6 rounded-full border text-xs font-semibold shrink-0 ${o.isCorrect ? 'bg-emerald-500 border-emerald-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
+                            {LETTERS[oi]}
+                          </button>
+                          <input value={o.content} onChange={e => setOptionText(i, oi, e.target.value)}
+                            className="flex-1 px-3 py-1.5 border rounded-lg bg-background font-mono text-xs" />
+                          <span className="text-xs text-muted-foreground w-32 truncate hidden sm:block"><KatexHtml text={cleanOption(o.content)} /></span>
+                          <button onClick={() => removeOption(i, oi)} className="p-1 text-red-300 hover:text-red-500 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                      <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
+                      <button onClick={() => shuffleOptions(i)} title="把选项循环挪一位（对付两栏排版被读串的情况）"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                        <Shuffle className="w-3.5 h-3.5" /> 选项挪一位
+                      </button>
+                      <button onClick={() => fillOptionLetters(i)}
+                        title="选项本身就是图片/复杂公式时用这个：题干里贴一张含所有选项的图，各选项只留 A B C D 当占位"
+                        className="text-xs text-muted-foreground hover:text-foreground">选项用字母代替（A B C D）</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-xs font-medium mb-1">参考答案（必填）—— 学生的答案由 AI 对照它判分，写错则全班这道题都判错</div>
+                    <ChemToolbar value={q.answerText} onChange={next => patchQ(i, { answerText: next })} textareaRef={focusedAnswer} />
+                    <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
+                      onFocus={e => { focusedAnswer.current = e.currentTarget }}
+                      placeholder="可以直接写 CH3NH2、10^-4 这种普通写法；下标/上标点上面的按钮。公式要用 $…$ 包起来。"
+                      className="mt-1 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                    {q.answerText.trim() && (
+                      <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm">
+                        <div className="text-xs text-muted-foreground mb-1">预览（学生看到的样子）</div>
+                        <KatexHtml text={wrapBareLatex(q.answerText)} />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-xs font-medium mb-1">解析（AI 草稿，请核对）</div>
+                  <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={3}
+                    className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="text-xs text-muted-foreground flex items-center gap-1">
+                    难度
+                    <input type="number" min={1} max={5} value={q.difficulty}
+                      onChange={e => patchQ(i, { difficulty: Math.min(5, Math.max(1, Number(e.target.value) || 3)) })}
+                      className="w-14 px-2 py-1 border rounded bg-background text-xs" />
+                  </label>
+                  <div className="flex-1 min-w-[220px] flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0">所属章节课时</span>
+                    <select value={q.lessonId} onChange={e => {
+                      const hit = lessonOptions.find(l => l.id === e.target.value)
+                      patchQ(i, { lessonId: e.target.value, lessonRef: hit?.ref ?? null, chapterTitle: hit?.chapter ?? null, lessonTitle: hit?.title ?? null })
+                    }} className="flex-1 px-2 py-1.5 border rounded-lg bg-background text-xs">
+                      <option value="">— 请选择 —</option>
+                      {outline.map(c => (
+                        <optgroup key={c.id} label={c.title}>
+                          {c.lessons.map(l => <option key={l.id} value={l.id}>{l.ref} {l.title}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {q.officialAnswer && (
+                  <p className="text-xs text-muted-foreground">
+                    官方答案：<b className="text-foreground">{q.officialAnswer}</b>
+                    {q.independentAnswer && (
+                      <> · AI 独立解答：<b className={q.disputed ? 'text-red-600' : 'text-foreground'}>{q.independentAnswer}</b>{q.disputed ? '（不一致）' : '（一致）'}</>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-4 border-t">
+                <button onClick={() => { removeQ(i); setEditQ(null) }} className="text-xs text-red-500 hover:underline">删除这道题</button>
+                <button onClick={() => setEditQ(null)}
+                  className={`px-5 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>完成</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* paper results: who sat it, and which questions the class missed */}
       {resultsFor && (
