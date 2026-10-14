@@ -1167,7 +1167,7 @@ function MockAdminContent() {
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1.5">
-                  一份卷子只有一种题型，之后也能改，但已有题目会被清空。
+                  一份卷子只有一种题型。建好之后不能改 —— 要换类型就新建一份卷子。
                 </p>
               </div>
             </div>
@@ -1191,7 +1191,7 @@ function MockAdminContent() {
         const ref = refLabel(q)
         return (
           <div className="fixed inset-0 z-[75] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
-            <div className="bg-card rounded-2xl w-full max-w-2xl my-8">
+            <div className="bg-card rounded-2xl w-full max-w-4xl my-8">
               <div className="flex items-center justify-between px-5 py-4 border-b">
                 <h2 className="font-semibold flex items-center gap-2 flex-wrap">
                   编辑第 {draftLabel.get(i) ?? i + 1} 题
@@ -1201,10 +1201,10 @@ function MockAdminContent() {
                   className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
               </div>
 
-              <div className="p-5 space-y-4 max-h-[68vh] overflow-y-auto">
+              <div className="p-5 space-y-4 max-h-[76vh] overflow-y-auto">
                 <div>
                   <div className="text-xs font-medium mb-1">题干（支持 LaTeX；可直接 Ctrl+V 贴图）</div>
-                  <textarea value={q.stem} onChange={e => patchQ(i, { stem: e.target.value })} rows={4}
+                  <textarea value={q.stem} onChange={e => patchQ(i, { stem: e.target.value })} rows={9}
                     onPaste={handlePaste(i)}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                   <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm"><KatexHtml text={q.stem} /></div>
@@ -1268,7 +1268,7 @@ function MockAdminContent() {
                   <div>
                     <div className="text-xs font-medium mb-1">参考答案（必填）—— 学生的答案由 AI 对照它判分，写错则全班这道题都判错</div>
                     <ChemToolbar value={q.answerText} onChange={next => patchQ(i, { answerText: next })} textareaRef={focusedAnswer} />
-                    <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={3}
+                    <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={7}
                       onFocus={e => { focusedAnswer.current = e.currentTarget }}
                       placeholder="可以直接写 CH3NH2、10^-4 这种普通写法；下标/上标点上面的按钮。公式要用 $…$ 包起来。"
                       className="mt-1 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
@@ -1283,7 +1283,7 @@ function MockAdminContent() {
 
                 <div>
                   <div className="text-xs font-medium mb-1">解析（AI 草稿，请核对）</div>
-                  <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={3}
+                  <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={5}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                 </div>
 
