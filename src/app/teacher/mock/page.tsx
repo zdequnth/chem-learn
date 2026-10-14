@@ -110,7 +110,7 @@ function MockAdminContent() {
   const [mode, setMode] = useState<'choice' | 'short'>('choice')
   const [answerPosition, setAnswerPosition] = useState<'inline' | 'end' | 'none'>('inline')
   // How the paper text gets in: typed/pasted as text, or read off page images.
-  const [importMode, setImportMode] = useState<'text' | 'images'>('text')
+  const [importMode, setImportMode] = useState<'text' | 'images' | 'pdf'>('text')
   const [pageImages, setPageImages] = useState<string[]>([])
   // which question the 编辑 dialog is open for (null = closed)
   const [editQ, setEditQ] = useState<number | null>(null)
@@ -355,7 +355,7 @@ function MockAdminContent() {
    * loop-with-retry shape as the text path, but the page count is known upfront.
    */
   const handleParseImages = async () => {
-    if (pageImages.length === 0) return alert('先粘贴或选择试卷的页面图片')
+    if (pageImages.length === 0) return alert('先选一个 PDF，或粘贴/选择试卷页面图片')
     if (!courseId) return
     setBusy('parse'); setProgress(null)
 
@@ -581,76 +581,87 @@ function MockAdminContent() {
     return { text: hit ? `${hit.chapter} › ${hit.ref} ${hit.title}` : '课时无效', cls: 'bg-violet-50 text-violet-700 border-violet-200' }
   }
 
-  // The two ways a paper gets in: paste text (via MinerU), or hand the AI page
-  // images so it reads the layout itself. Shared by the choice and short cards.
+  // Three ways in, and they are peers: paste text (via MinerU), drop screenshots,
+  // or pick a PDF (which becomes page images in the browser). The page-image
+  // modes share one ordered list — a teacher can add a PDF and then a couple of
+  // screenshots on top of it.
   const importSource = (placeholder: string) => (
     <>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        {([['text', '📄 粘贴文本'], ['images', '📷 上传图片']] as const).map(([k, label]) => (
+        {([
+          ['text', '📄 粘贴文本'],
+          ['pdf', '📕 上传 PDF'],
+          ['images', '📷 上传图片'],
+        ] as const).map(([k, label]) => (
           <button key={k} onClick={() => setImportMode(k)}
             className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${importMode === k ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
             {label}
           </button>
         ))}
         <span className="text-xs text-muted-foreground ml-1">
-          {importMode === 'images' ? 'AI 直接看图，版面不会错位' : ''}
+          {importMode === 'text' ? '' : 'AI 直接看图，版面不会错位'}
         </span>
       </div>
 
-      {importMode === 'images' ? (
+      {importMode === 'text' && (
+        <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+      )}
+
+      {importMode === 'pdf' && (
+        <div className="space-y-2">
+          <label className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer hover:border-violet-400 transition-colors">
+            <FileText className="w-7 h-7 text-violet-500" />
+            <span className="text-sm font-medium">
+              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '点这里选一个 PDF 文件'}
+            </span>
+            <span className="text-xs text-muted-foreground">会自动拆成每页一张图，顺序就是试卷顺序</span>
+            <input type="file" accept="application/pdf,.pdf" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.currentTarget.value = '' }} />
+          </label>
+        </div>
+      )}
+
+      {importMode === 'images' && (
         <div className="space-y-2">
           <div onPaste={handlePagePaste} tabIndex={0}
             className="rounded-xl border-2 border-dashed border-gray-300 p-5 text-center outline-none focus:border-violet-400 cursor-text">
             <div className="text-sm font-medium mb-1">在这一块里点一下，然后 Ctrl+V 粘贴截图</div>
             <div className="text-xs text-muted-foreground">一页一张图。按页的顺序贴 —— <b>顺序就是试卷顺序</b>。</div>
           </div>
-
-          {pageImages.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {pageImages.map((src, i) => (
-                <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
-                  <button onClick={() => setZoom(src)} title="放大看">
-                    <img src={src} alt="" className="h-16 w-12 object-cover" />
-                  </button>
-                  <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
-                  <button onClick={() => setPageImages(p => p.filter((_, k) => k !== i))} title="删掉这一页"
-                    className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
-              pdfBusy ? 'opacity-60 pointer-events-none' : 'hover:bg-accent'}`}>
-              <FileText className="w-3.5 h-3.5 text-violet-500" />
-              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '选一个 PDF 文件（自动拆成每页一张图）'}
-              <input type="file" accept="application/pdf,.pdf" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.currentTarget.value = '' }} />
-            </label>
-            <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
-              <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '或者选图片文件（可多选）'}
-              <input type="file" accept="image/*" multiple className="hidden"
-                onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadPageImages(fs); e.currentTarget.value = '' }} />
-            </label>
-            {pageImages.length > 0 && <span className="text-xs text-muted-foreground">共 {pageImages.length} 页</span>}
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            有 PDF 就直接选它，会自动转成每页一张图；页码顺序就是试卷顺序。
-          </p>
+          <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+            <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '或者选图片文件（可多选）'}
+            <input type="file" accept="image/*" multiple className="hidden"
+              onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadPageImages(fs); e.currentTarget.value = '' }} />
+          </label>
         </div>
-      ) : (
-        <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={7}
-          placeholder={placeholder}
-          className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+      )}
+
+      {/* The page list belongs to both page modes, so it sits outside them. */}
+      {importMode !== 'text' && pageImages.length > 0 && (
+        <div className="mt-3">
+          <div className="text-xs text-muted-foreground mb-1.5">已加入 {pageImages.length} 页（点图放大，右下角可删）</div>
+          <div className="flex flex-wrap gap-2">
+            {pageImages.map((src, i) => (
+              <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
+                <button onClick={() => setZoom(src)} title="放大看">
+                  <img src={src} alt="" className="h-16 w-12 object-cover" />
+                </button>
+                <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
+                <button onClick={() => setPageImages(p => p.filter((_, k) => k !== i))} title="删掉这一页"
+                  className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </>
   )
 
-  const handleParseAny = () => (importMode === 'images' ? handleParseImages() : handleParse())
+  const handleParseAny = () => (importMode === 'text' ? handleParse() : handleParseImages())
 
   if (authLoading || !profile) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
