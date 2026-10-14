@@ -23,9 +23,9 @@ export const maxDuration = 60
  */
 function buildPrompt(opts: {
   courseName: string; lessonList: string; pageNo: number; totalPages: number; pageW: number; pageH: number
-  paperMode: 'choice' | 'short'; answerBlock: string
+  paperMode: 'choice' | 'short'; answerBlock: string; answerImageCount: number
 }): string {
-  const { courseName, lessonList, pageNo, totalPages, pageW, pageH, paperMode, answerBlock } = opts
+  const { courseName, lessonList, pageNo, totalPages, pageW, pageH, paperMode, answerBlock, answerImageCount } = opts
 
   const shape = paperMode === 'short'
     ? `{"number":1,"stem":"...","answerText":"...","explanation":"...","lessonRef":"5.1","groupRef":null,"hasFigure":false,"figureBox":null}`
@@ -37,7 +37,9 @@ function buildPrompt(opts: {
     : `- 选项 content 不要带 "(A) " 前缀
 - explanation 以 "Answer: X" 开头`
 
-  return `这是一份化学试卷第 ${pageNo} 页（共 ${totalPages} 页）的截图。可能还附带了下一页的截图，那只是让你看清在本页末尾被截断的题目。
+  return `这是一份化学试卷第 ${pageNo} 页（共 ${totalPages} 页）的截图。可能还附带了下一页的截图，那只是让你看清在本页末尾被截断的题目。${answerImageCount > 0 ? `
+
+最后 ${answerImageCount} 张【不是】本页的题目，而是老师提供的答案区截图 —— 只从里面读答案，不要把它们当成题目。` : ''}
 
 【最重要的一条】只输出【起始于第 ${pageNo} 页】的题目。下一页上开始的题目不要输出，那是下一轮的事。
 
@@ -123,7 +125,7 @@ export async function POST(request: Request) {
 
   const {
     courseId, images, pageIndex: rawPageIndex,
-    paperMode: rawPaperMode, answerText, answerPosition: rawAnswerPosition,
+    paperMode: rawPaperMode, answerText, answerPosition: rawAnswerPosition, answerImages,
   } = await request.json()
 
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
@@ -157,6 +159,13 @@ export async function POST(request: Request) {
     if (!img) continue
     loaded.push({ url: `data:${img.contentType};base64,${img.buf.toString('base64')}`, buf: img.buf, contentType: img.contentType })
   }
+  // The key may be a scanned page: send it after the page images, and say so in
+  // the prompt so the model does not read it as more questions.
+  const answerList: string[] = Array.isArray(answerImages) ? answerImages.filter((u: any) => typeof u === 'string') : []
+  for (const url of answerList) {
+    const img = await readStoredImage(url)
+    if (img) loaded.push({ url: `data:${img.contentType};base64,${img.buf.toString('base64')}`, buf: img.buf, contentType: img.contentType })
+  }
   if (loaded.length === 0) return NextResponse.json({ error: '页面图片读不出来（可能已被删除）' }, { status: 400 })
 
   // The box the model returns is in the page's own pixels, so it has to know them.
@@ -185,6 +194,7 @@ export async function POST(request: Request) {
     pageH,
     paperMode,
     answerBlock: answerBlockFor(paperMode, answerPosition, keyText, answerKey),
+    answerImageCount: answerList.length,
   })
 
   const result = await parsePage(client, prompt, loaded)

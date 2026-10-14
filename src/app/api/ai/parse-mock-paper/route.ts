@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
 import { normaliseMineruText } from '@/lib/mineru-text'
+import { readStoredImage } from '@/lib/storage'
 import OpenAI from 'openai'
 
 // Batching makes this slower than Vercel's default function timeout.
@@ -171,13 +172,15 @@ ${answerBlock}
 ${text}`
 }
 
-async function parseChunk(client: OpenAI, prompt: string): Promise<{ ok: boolean; questions: any[] }> {
+async function parseChunk(client: OpenAI, prompt: string, images: string[] = []): Promise<{ ok: boolean; questions: any[] }> {
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
       messages: [
         { role: 'system', content: '你是题目解析助手。只输出纯JSON，不要markdown代码块，不要任何多余文字。' },
-        { role: 'user', content: prompt },
+        { role: 'user', content: images.length
+          ? [{ type: 'text' as const, text: prompt }, ...images.map((u) => ({ type: 'image_url' as const, image_url: { url: u } }))]
+          : prompt },
       ],
       temperature: 0.2,
       max_tokens: 8192,
@@ -208,7 +211,7 @@ export async function POST(request: Request) {
 
   const {
     text, courseId, batchIndex: rawBatchIndex, answerText,
-    paperMode: rawPaperMode, answerPosition: rawAnswerPosition,
+    paperMode: rawPaperMode, answerPosition: rawAnswerPosition, answerImages,
   } = await request.json()
   if (!text?.trim()) return NextResponse.json({ error: '请粘贴试卷文本' }, { status: 400 })
   if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
@@ -273,13 +276,24 @@ export async function POST(request: Request) {
   const parsedKey = paperMode === 'choice' && keyLetters.trim() ? parseAnswerKey(keyLetters) : null
   const answerKey = parsedKey && parsedKey.size > 0 ? parsedKey : null
 
-  const prompt = paperMode === 'short'
+  let prompt = paperMode === 'short'
     ? buildShortPrompt(chunk, outline.courseName, outline.promptList, answerPosition, keyText)
     : buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
   // One attempt only: a second one could add 40s to a request that has 60s to
   // live. The route answers 200 with `failed` instead, and the client decides
   // whether to re-run.
-  const result = await parseChunk(client, prompt)
+  // The key may be a scanned page rather than typed text.
+  const answerUrls: string[] = []
+  const answerSrc: string[] = Array.isArray(answerImages) ? answerImages.filter((u: any) => typeof u === 'string') : []
+  for (const url of answerSrc) {
+    const img = await readStoredImage(url)
+    if (img) answerUrls.push(`data:${img.contentType};base64,${img.buf.toString('base64')}`)
+  }
+  if (answerUrls.length > 0) {
+    prompt += `\n\n【补充】后面附的 ${answerUrls.length} 张图是老师提供的答案区截图 —— 只从里面读答案，不要把它们当成题目。请按题号用官方答案标记。`
+  }
+
+  const result = await parseChunk(client, prompt, answerUrls)
   const raw: any[] = result.ok ? result.questions : []
   const failed: string[] = result.ok ? [] : [chunk.slice(0, 80)]
 

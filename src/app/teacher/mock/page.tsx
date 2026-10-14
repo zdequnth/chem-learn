@@ -112,6 +112,8 @@ function MockAdminContent() {
   // How the paper text gets in: typed/pasted as text, or read off page images.
   const [importMode, setImportMode] = useState<'text' | 'images' | 'pdf'>('text')
   const [pageImages, setPageImages] = useState<string[]>([])
+  // the answer key may be a scanned page rather than typed text
+  const [answerImages, setAnswerImages] = useState<string[]>([])
   // which question the 编辑 dialog is open for (null = closed)
   const [editQ, setEditQ] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -164,7 +166,7 @@ function MockAdminContent() {
   // course changed → reload papers + the bound course outline
   useEffect(() => {
     if (!courseId) return
-    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false); setPageImages([]); setImportMode('text'); setEditQ(null)
+    setOpen(false); setPaperId(null); setQuestions([]); setTitle(''); setImportText(''); setDirty(false); setPageImages([]); setAnswerImages([]); setImportMode('text'); setEditQ(null)
     loadPapers(courseId)
     fetch(`/api/mock/outline?courseId=${courseId}`).then(r => r.json()).then((j) => {
       setOutline(j.chapters || [])
@@ -208,14 +210,7 @@ function MockAdminContent() {
     setNewOpen(false)
     setOpen(true)
     setPaperId(null); setQuestions([]); setImportText(''); setDirty(false); setPublished(false)
-    setAnswerText(''); setPageImages([]); setImportMode('text'); setEditQ(null)
-  }
-  // The mode is fixed at creation: the student page, grading and review all
-  // branch on it, so switching later would strand the questions already written.
-  const switchMode = (m: 'choice' | 'short') => {
-    if (m === mode) return
-    if (questions.length > 0 && !confirm(`改成${m === 'short' ? '简答题' : '选择题'}卷会清空已经写好的 ${questions.length} 道题，确定？`)) return
-    setMode(m); setQuestions([]); setDirty(true)
+    setAnswerText(''); setPageImages([]); setAnswerImages([]); setImportMode('text'); setEditQ(null)
   }
 
   const togglePublish = async (id: string, next: boolean, paperMode?: 'choice' | 'short') => {
@@ -269,6 +264,22 @@ function MockAdminContent() {
     } finally { setPdfBusy(false); setPdfProgress('') }
   }
 
+  // The answer key can arrive as a scanned page too, so it gets its own list.
+  const uploadAnswerFiles = async (files: File[]) => {
+    const added: string[] = []
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue
+      const fd = new FormData(); fd.append('file', f)
+      try {
+        const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
+        const j = await r.json()
+        if (j.url) added.push(j.url)
+        else alert('答案图上传失败：' + (j.error || r.status))
+      } catch { alert('答案图上传失败（网络）') }
+    }
+    if (added.length) setAnswerImages(prev => [...prev, ...added])
+  }
+
   const handlePagePaste = (e: React.ClipboardEvent) => {
     const files = Array.from(e.clipboardData?.files || [])
     if (files.length === 0) return
@@ -304,7 +315,7 @@ function MockAdminContent() {
     const runBatch = async (i: number): Promise<number> => {
       const res = await fetch('/api/ai/parse-mock-paper', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText, paperMode: mode, answerPosition }),
+        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText, answerImages, paperMode: mode, answerPosition }),
       })
       const raw = await res.text()
       let j: any = {}
@@ -362,7 +373,7 @@ function MockAdminContent() {
     const runPage = async (i: number) => {
       const res = await fetch('/api/ai/parse-mock-paper-images', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, images: pageImages, pageIndex: i, paperMode: mode, answerText, answerPosition }),
+        body: JSON.stringify({ courseId, images: pageImages, answerImages, pageIndex: i, paperMode: mode, answerText, answerPosition }),
       })
       const raw = await res.text()
       let j: any = {}
@@ -803,22 +814,14 @@ function MockAdminContent() {
                       {lang === 'zh' ? '分钟' : 'min'}
                     </label>
 
-                    {/* Chosen once, at creation — the student page, grading and
-                        review all branch on it. */}
-                    {paperId ? (
-                      <span className={`text-sm px-3 py-2 rounded-lg border font-semibold ${PAPER_MODE[mode].box}`}>
-                        {PAPER_MODE[mode].emoji} {PAPER_MODE[mode].label}
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        {(['choice', 'short'] as const).map(m => (
-                          <button key={m} onClick={() => switchMode(m)}
-                            className={`text-sm px-3 py-2 rounded-lg border font-semibold transition-colors ${mode === m ? PAPER_MODE[m].solid : 'hover:bg-accent'}`}>
-                            {PAPER_MODE[m].emoji} {PAPER_MODE[m].label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {/* Decided in the 新建试卷 dialog, then frozen. The whole paper
+                        is built one way — student page, grading and review all
+                        branch on it — so switching later would strand or clear
+                        the questions already written. */}
+                    <span className={`text-sm px-3 py-2 rounded-lg border font-semibold ${PAPER_MODE[mode].box}`}
+                      title="卷子类型在新建时定好，之后不能改">
+                      {PAPER_MODE[mode].emoji} {PAPER_MODE[mode].label}
+                    </span>
 
                     <button onClick={handleSave} disabled={busy !== ''}
                       className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
@@ -918,18 +921,60 @@ function MockAdminContent() {
                   {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。' : 'Paste the whole paper…')}
 
                   {/* The key sits in its own box on purpose: inside the paper text its
-                      answer lines look exactly like question numbers. */}
-                  <div className="mt-2">
-                    <label className="block text-xs font-medium mb-1">
-                      {lang === 'zh' ? '试卷自带答案（可选）' : 'Answer key (optional)'}
-                    </label>
+                      answer lines look exactly like question numbers. It can be typed,
+                      or handed over as a picture — plenty of papers ship the key as a
+                      scanned page. */}
+                  <div className="mt-3">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <label className="text-xs font-medium">
+                        {lang === 'zh' ? '试卷自带答案（可选）' : 'Answer key (optional)'}
+                      </label>
+                      <label className="text-xs px-2 py-1 rounded-lg border cursor-pointer hover:bg-accent">
+                        🖼 选答案截图
+                        <input type="file" accept="image/*" multiple className="hidden"
+                          onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadAnswerFiles(fs); e.currentTarget.value = '' }} />
+                      </label>
+                      <label className={`text-xs px-2 py-1 rounded-lg border cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+                        📕 选答案 PDF
+                        <input type="file" accept="application/pdf,.pdf" className="hidden"
+                          onChange={e => {
+                            const f = e.target.files?.[0]
+                            if (f) pdfToPageFiles(f, { onProgress: (d, t) => setPdfProgress(`${d}/${t}`) })
+                              .then(uploadAnswerFiles)
+                              .catch(err => alert('PDF 转换失败：' + (err?.message || err)))
+                              .finally(() => setPdfProgress(''))
+                            e.currentTarget.value = ''
+                          }} />
+                      </label>
+                      {answerImages.length > 0 && (
+                        <span className="text-xs text-emerald-700">已加 {answerImages.length} 张，将按图片读答案</span>
+                      )}
+                    </div>
+
+                    {answerImages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {answerImages.map((src, i) => (
+                          <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
+                            <button onClick={() => setZoom(src)} title="放大看"><img src={src} alt="" className="h-16 w-24 object-cover" /></button>
+                            <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
+                            <button onClick={() => setAnswerImages(p => p.filter((_, k) => k !== i))} title="删掉"
+                              className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={2}
-                      placeholder={lang === 'zh' ? '如「1. B 2. C」或「1-5 BCDAB」。' : 'Paste the answer key, e.g. "1. B  2. C" or "1-5 BCDAB". Given one, AI uses it; otherwise it solves the paper itself.'}
+                      placeholder={answerImages.length > 0
+                        ? '（已经用图片了，这里可以不填）'
+                        : (lang === 'zh' ? '也可以直接把答案文字粘这里，如「1. B 2. C」或「1-5 BCDAB」。' : 'Or paste the key as text, e.g. "1. B  2. C".')}
                       className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {lang === 'zh'
-                        ? '别忘了从上面的文本里删掉答案区。'
-                        : 'Remove the key from the paper text above — left in, every "1. B" gets split out as its own question.'}
+                        ? '图纸/拍照的答案区就用上面的按钮；别忘了从试卷文本里删掉答案那一块。'
+                        : 'Use the buttons above for a scanned key; remove the key from the paper text.'}
                     </p>
                   </div>
 
