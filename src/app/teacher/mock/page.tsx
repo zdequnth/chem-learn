@@ -120,6 +120,10 @@ function MockAdminContent() {
   // pages the last run could not read, so they can be retried on their own
   const [failedPages, setFailedPages] = useState<number[]>([])
   const [pdfBusy, setPdfBusy] = useState(false)
+  // the answer-key PDF has its own progress — sharing the page one would show
+  // the wrong numbers when both are on screen
+  const [answerPdfBusy, setAnswerPdfBusy] = useState(false)
+  const [answerPdfProgress, setAnswerPdfProgress] = useState('')
   const [pdfProgress, setPdfProgress] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
   const focusedAnswer = useRef<HTMLTextAreaElement | null>(null)
@@ -264,6 +268,7 @@ function MockAdminContent() {
           onProgress: (done, total) => setPdfProgress(`${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`),
         })
         if (pages.length === 0) { alert(`「${file.name}」没有可读的页面`); continue }
+        setPdfProgress('上传中…')
         await uploadPageImages(pages)
       }
     } catch (e: any) {
@@ -285,6 +290,27 @@ function MockAdminContent() {
       } catch { alert('答案图上传失败（网络）') }
     }
     if (added.length) setAnswerImages(prev => [...prev, ...added])
+  }
+
+  /**
+   * Answer key as a PDF. Converting in the browser takes seconds on a long key
+   * and uploading the pages takes a few more, so both phases say so — with no
+   * feedback at all the button looked like it had done nothing.
+   */
+  const handleAnswerPdf = async (files: File[]) => {
+    setAnswerPdfBusy(true)
+    try {
+      for (const [k, file] of files.entries()) {
+        const pages = await pdfToPageFiles(file, {
+          onProgress: (done, total) => setAnswerPdfProgress(`转图片 ${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`),
+        })
+        if (pages.length === 0) { alert(`「${file.name}」没有可读的页面`); continue }
+        setAnswerPdfProgress('上传中…')
+        await uploadAnswerFiles(pages)
+      }
+    } catch (e: any) {
+      alert('PDF 转换失败：' + (e?.message || e) + '\n（也可以先把 PDF 转成图片再传）')
+    } finally { setAnswerPdfBusy(false); setAnswerPdfProgress('') }
   }
 
   // Paste straight into the key box: an image goes up as a key picture, text
@@ -963,22 +989,19 @@ function MockAdminContent() {
                       <label className="text-xs font-medium">
                         {lang === 'zh' ? '试卷自带答案（可选）' : 'Answer key (optional)'}
                       </label>
-                      <label className="text-xs px-2 py-1 rounded-lg border cursor-pointer hover:bg-accent">
-                        🖼 选答案截图
+                      <label className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                        uploadingIdx === -1 ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:bg-accent'}`}>
+                        {uploadingIdx === -1 ? '上传中…' : '🖼 选答案截图'}
                         <input type="file" accept="image/*" multiple className="hidden"
+                          disabled={uploadingIdx === -1}
                           onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadAnswerFiles(fs); e.currentTarget.value = '' }} />
                       </label>
-                      <label className={`text-xs px-2 py-1 rounded-lg border cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
-                        📕 选答案 PDF
-                        <input type="file" accept="application/pdf,.pdf" className="hidden"
-                          onChange={e => {
-                            const f = e.target.files?.[0]
-                            if (f) pdfToPageFiles(f, { onProgress: (d, t) => setPdfProgress(`${d}/${t}`) })
-                              .then(uploadAnswerFiles)
-                              .catch(err => alert('PDF 转换失败：' + (err?.message || err)))
-                              .finally(() => setPdfProgress(''))
-                            e.currentTarget.value = ''
-                          }} />
+                      <label className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                        answerPdfBusy ? 'opacity-70 cursor-wait border-violet-300 bg-violet-50' : 'cursor-pointer hover:bg-accent'}`}>
+                        {answerPdfBusy ? `正在转成图片… ${answerPdfProgress}` : '📕 选答案 PDF'}
+                        <input type="file" accept="application/pdf,.pdf" multiple className="hidden"
+                          disabled={answerPdfBusy}
+                          onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) handleAnswerPdf(fs); e.currentTarget.value = '' }} />
                       </label>
                       {answerImages.length > 0 && (
                         <span className="text-xs text-emerald-700">已加 {answerImages.length} 张，将按图片读答案</span>
