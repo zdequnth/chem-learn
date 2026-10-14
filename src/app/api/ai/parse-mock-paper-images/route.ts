@@ -50,7 +50,11 @@ function buildPrompt(opts: {
 1. ${paperMode === 'short' ? '简答题/计算题：大题可能带 (a)(b)(c) 小问，每个小问单独成为一道题，stem 里保留小问的标号。' : '选择题：题干后面跟 (A)(B)(C)(D) 选项。选项可能横排一行，也可能一行一个 —— 两种都要按顺序正确拆开。'}
 2. 共用的材料（一段文字、一个数据表、一段实验描述）：把材料【完整写进每道题的 stem 里】，不要写"见上题" —— 学生看到的每一道题都是独立的，重复没关系。同时把这些题的 groupRef 都填上那一道大题的题号（字符串，如 "1"）；独立成题的填 null。
 3. 题号不要写进 stem；另外用 number 字段给出它在卷面上的题号（整数）。
-4. 题干里若带插图（结构式、装置图、曲线图）：hasFigure 填 true，并给出它在第 ${pageNo} 页图片上的【像素】外接矩形 figureBox = [左上x, 左上y, 右下x, 右下y]。只框插图本身（含坐标轴、轴标签、图例），不要把题干文字或选项框进来；框得稍紧一点没关系，系统会自动留边。没有插图就 hasFigure=false、figureBox=null。表格不要当插图 —— 表格要连内容一起写进 stem。
+4. 题干里若带插图（结构式、装置图、曲线图）：hasFigure 填 true，并给出它在第 ${pageNo} 页图片上的【像素】外接矩形 figureBox = [左上x, 左上y, 右下x, 右下y]。
+   框的准则是：**左右宁可略宽**（坐标轴标签、图例、单位常常在图的左右外侧，切掉就废了）；
+   **上下要贴紧**（图的上面和下面通常是题干文字或选项，框进去就成了多余内容）。
+   只框这张图，不要把题干或选项框进来。没有插图就 hasFigure=false、figureBox=null。
+   表格不要当插图 —— 表格要连内容一起写进 stem。
 5. 看不清的地方不要猜，宁可留空。
 
 【逐题判断所属课时】
@@ -270,11 +274,16 @@ export async function POST(request: Request) {
  */
 async function cropFigure(page: Buffer, box: number[], pageW: number, pageH: number): Promise<string | null> {
   try {
-    const pad = Math.round(Math.max(pageW, pageH) * 0.012)
-    const left = Math.max(0, Math.min(pageW - 40, Math.round(box[0]) - pad))
-    const top = Math.max(0, Math.min(pageH - 40, Math.round(box[1]) - pad))
-    const right = Math.max(left + 40, Math.min(pageW, Math.round(box[2]) + pad))
-    const bottom = Math.max(top + 40, Math.min(pageH, Math.round(box[3]) + pad))
+    // Pad sideways more than vertically, because that is how these boxes go
+    // wrong: axis labels and legends sit OUTSIDE the plot on the left/right and
+    // a tight box clips them, while above and below sits unrelated question
+    // text that a loose box drags in.
+    const padX = Math.round(pageW * 0.03)
+    const padY = Math.round(pageH * 0.008)
+    const left = Math.max(0, Math.min(pageW - 40, Math.round(box[0]) - padX))
+    const top = Math.max(0, Math.min(pageH - 40, Math.round(box[1]) - padY))
+    const right = Math.max(left + 40, Math.min(pageW, Math.round(box[2]) + padX))
+    const bottom = Math.max(top + 40, Math.min(pageH, Math.round(box[3]) + padY))
     const buf = await sharp(page)
       .extract({ left, top, width: right - left, height: bottom - top })
       .png()

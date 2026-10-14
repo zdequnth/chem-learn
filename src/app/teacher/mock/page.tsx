@@ -251,14 +251,19 @@ function MockAdminContent() {
    * path as a screenshot — so a teacher needs no command line and nothing
    * installed. See src/lib/pdf-to-images.ts for why it is done client-side.
    */
-  const handlePdfFile = async (file: File) => {
+  // Accepts several files at once, in the order picked. Picking six PDFs used to
+  // convert only the first one — the rest vanished with no warning, which reads
+  // as "the AI only found a few questions".
+  const handlePdfFiles = async (files: File[]) => {
     setPdfBusy(true)
     try {
-      const pages = await pdfToPageFiles(file, {
-        onProgress: (done, total) => setPdfProgress(`${done}/${total}`),
-      })
-      if (pages.length === 0) { alert('这个 PDF 没有可读的页面'); return }
-      await uploadPageImages(pages)
+      for (const [k, file] of files.entries()) {
+        const pages = await pdfToPageFiles(file, {
+          onProgress: (done, total) => setPdfProgress(`${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`),
+        })
+        if (pages.length === 0) { alert(`「${file.name}」没有可读的页面`); continue }
+        await uploadPageImages(pages)
+      }
     } catch (e: any) {
       alert('PDF 转换失败：' + (e?.message || e) + '\n（也可以先把 PDF 转成图片再传）')
     } finally { setPdfBusy(false); setPdfProgress('') }
@@ -635,11 +640,11 @@ function MockAdminContent() {
           <label className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer hover:border-violet-400 transition-colors">
             <FileText className="w-7 h-7 text-violet-500" />
             <span className="text-sm font-medium">
-              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '点这里选一个 PDF 文件'}
+              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '点这里选 PDF 文件（可多选）'}
             </span>
             <span className="text-xs text-muted-foreground">会自动拆成每页一张图，顺序就是试卷顺序</span>
-            <input type="file" accept="application/pdf,.pdf" className="hidden"
-              onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.currentTarget.value = '' }} />
+            <input type="file" accept="application/pdf,.pdf" multiple className="hidden"
+              onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) handlePdfFiles(fs); e.currentTarget.value = '' }} />
           </label>
         </div>
       )}
