@@ -9,7 +9,7 @@ async function generateBatch(client: OpenAI, prompt: string): Promise<any[]> {
       { role: 'system', content: '你是国际学校教师。输出纯JSON，不要markdown代码块。' },
       { role: 'user', content: prompt },
     ],
-    temperature: 0.8, max_tokens: 4096,
+    temperature: 0.8, max_tokens: 8192,
     response_format: { type: 'json_object' },
   })
   let raw = completion.choices[0]?.message?.content || ''

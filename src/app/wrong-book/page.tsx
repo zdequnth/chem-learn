@@ -132,7 +132,7 @@ export default function WrongBookPage() {
     try {
       const json = await (await fetch(`/api/student/similar-question?questionId=${questionId}`)).json()
       if (json.error) { alert(json.error); setPractice(null); return }
-      if (!json.question) { alert('题库里暂时没有同类型的题目可以练。'); setPractice(null); return }
+      if (!json.question) { alert('这次没能生成同类题，稍后再试试。'); setPractice(null); return }
       setPractice(json.question)
     } catch {
       setPractice(null)
@@ -318,7 +318,8 @@ export default function WrongBookPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">🔁 同类型题目训练</h3>
+              <h3 className="text-lg font-semibold flex items-center gap-2">🔁 同类型题目训练
+                {practice.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">AI 现场出的</span>}</h3>
               <button onClick={() => setPractice(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
             {practice.loading ? (

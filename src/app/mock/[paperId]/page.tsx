@@ -645,7 +645,8 @@ function MockExamContent() {
           <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
             <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> 同类型题目</h3>
+                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> 同类型题目
+                  {practice?.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">AI 现场出的</span>}</h3>
                 <button onClick={() => { setPractice(null); setPracticeChoice(null) }} title="关闭"
                   className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
               </div>

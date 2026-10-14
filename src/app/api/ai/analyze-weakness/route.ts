@@ -42,7 +42,7 @@ ${body}
         { role: 'system', content: '你是经验丰富的化学老师，用 Markdown 输出，公式用 LaTeX。' },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.4, max_tokens: 3000,
+      temperature: 0.4, max_tokens: 8192,
     })
     return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
   } catch (e: any) {

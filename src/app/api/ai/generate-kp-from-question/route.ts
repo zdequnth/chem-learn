@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         { role: 'system', content: '你是经验丰富的化学教师，用 Markdown 输出，公式用 LaTeX。' },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.5, max_tokens: 2500,
+      temperature: 0.5, max_tokens: 8192,
     })
 
     return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
