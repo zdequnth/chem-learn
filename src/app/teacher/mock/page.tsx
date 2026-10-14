@@ -11,7 +11,7 @@ import { groupsForPaper, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { pdfToPageFiles } from '@/lib/pdf-to-images'
-import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye, Edit3 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye, Edit3, CloudUpload } from 'lucide-react'
 import { useLang } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -125,6 +125,9 @@ function MockAdminContent() {
   const [answerPdfBusy, setAnswerPdfBusy] = useState(false)
   const [answerPdfProgress, setAnswerPdfProgress] = useState('')
   const [pdfProgress, setPdfProgress] = useState('')
+  // MinerU cloud parse: async (submit, then poll), so it narrates its stage.
+  const [mineruBusy, setMineruBusy] = useState(false)
+  const [mineruStage, setMineruStage] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
   const focusedAnswer = useRef<HTMLTextAreaElement | null>(null)
   const [busy, setBusy] = useState<'' | 'parse' | 'save' | 'load'>('')
@@ -346,8 +349,11 @@ function MockAdminContent() {
     disputed: !!q.disputed,
   })
 
-  const handleParse = async () => {
-    if (!importText.trim()) return alert('先粘贴试卷文本')
+  // `textOverride` lets a caller parse text that isn't in the box yet — the
+  // MinerU path hands over its markdown straight from the fetch.
+  const handleParse = async (textOverride?: string) => {
+    const src = textOverride ?? importText
+    if (!src.trim()) return alert('先粘贴试卷文本')
     if (!courseId) return
     setBusy('parse'); setProgress(null)
     let total = 1
@@ -358,7 +364,7 @@ function MockAdminContent() {
     const runBatch = async (i: number): Promise<number> => {
       const res = await fetch('/api/ai/parse-mock-paper', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: importText, courseId, batchIndex: i, answerText, answerImages, paperMode: mode, answerPosition }),
+        body: JSON.stringify({ text: src, courseId, batchIndex: i, answerText, answerImages, paperMode: mode, answerPosition }),
       })
       const raw = await res.text()
       let j: any = {}
@@ -455,8 +461,61 @@ function MockAdminContent() {
   }
 
   /**
-   * Read the paper off page screenshots. One page per request, each carrying the
-   * next page too so a question split by the page break is read whole.
+   * Upload the PDF to MinerU and parse it in the cloud, then run the SAME text
+   * parse as a pasted paper: MinerU hands back full.md, which is the text the
+   * teacher would otherwise have copied off mineru.net by hand.
+   *
+   * The file goes browser → Supabase directly (the signed URL), because a
+   * scanned paper is well over Vercel's 4.5 MB function-body limit. We only
+   * pass MinerU a link to it; the parse itself is async, so we poll.
+   */
+  const handleMineruPdf = async (file: File) => {
+    if (!courseId) return
+    setMineruBusy(true)
+    setMineruStage('准备上传…')
+    try {
+      const uRes = await fetch('/api/mineru/upload-url', { method: 'POST' })
+      const uj = await uRes.json().catch(() => ({}))
+      if (!uRes.ok || !uj.uploadUrl) throw new Error(uj.error || `HTTP ${uRes.status}`)
+
+      setMineruStage('上传 PDF…')
+      const put = await fetch(uj.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: file })
+      if (!put.ok) throw new Error('上传到存储失败（HTTP ' + put.status + '）')
+
+      setMineruStage('提交给 MinerU…')
+      const sRes = await fetch('/api/mineru/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, path: uj.path }),
+      })
+      const sj = await sRes.json().catch(() => ({}))
+      if (!sRes.ok || !sj.taskId) throw new Error(sj.error || `HTTP ${sRes.status}`)
+
+      // A paper takes tens of seconds to a few minutes. Poll, don't block.
+      const t0 = Date.now()
+      let md = ''
+      while (Date.now() - t0 < 6 * 60 * 1000) {
+        await new Promise((r) => setTimeout(r, 4000))
+        setMineruStage(`MinerU 正在解析… ${Math.round((Date.now() - t0) / 1000)}s`)
+        const rRes = await fetch(`/api/mineru/result?taskId=${encodeURIComponent(sj.taskId)}&path=${encodeURIComponent(uj.path)}`)
+        const rj = await rRes.json().catch(() => ({}))
+        if (!rRes.ok || (rj.error && rj.state !== 'failed')) throw new Error(rj.error || `HTTP ${rRes.status}`)
+        if (rj.state === 'failed') throw new Error(rj.error || 'MinerU 解析失败')
+        if (rj.state === 'done') { md = rj.markdown || ''; break }
+      }
+      if (!md) throw new Error('MinerU 解析超时（6 分钟）')
+
+      setImportText(md)
+      setMineruStage('文本已就绪，正在拆题…')
+      await handleParse(md)
+    } catch (e: any) {
+      alert('MinerU 解析失败：' + (e?.message || e) + '\n\n可以改用下面的「本地转成图片」备用方式。')
+    } finally {
+      setMineruBusy(false); setMineruStage('')
+    }
+  }
+
+  /**
+   * Read the paper off page screenshots, one page per request.
    */
   const handleParseImages = async () => {
     if (pageImages.length === 0) return alert('先选一个 PDF，或粘贴/选择试卷页面图片')
@@ -670,7 +729,7 @@ function MockAdminContent() {
           </button>
         ))}
         <span className="text-xs text-muted-foreground ml-1">
-          {importMode === 'text' ? '' : 'AI 直接看图，版面不会错位'}
+          {importMode === 'text' ? '' : importMode === 'pdf' ? 'MinerU 读真实文字层，配图自动提取' : 'AI 直接看图，版面不会错位'}
         </span>
       </div>
 
@@ -682,12 +741,18 @@ function MockAdminContent() {
 
       {importMode === 'pdf' && (
         <div className="space-y-2">
-          <label className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer hover:border-violet-400 transition-colors">
-            <FileText className="w-7 h-7 text-violet-500" />
+          <label className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-6 transition-colors ${mineruBusy ? 'border-violet-400 bg-violet-50/40 opacity-70 cursor-default' : 'border-violet-400 bg-violet-50/40 cursor-pointer hover:border-violet-500'}`}>
+            <CloudUpload className="w-7 h-7 text-violet-500" />
             <span className="text-sm font-medium">
-              {pdfBusy ? `正在转成图片… ${pdfProgress}` : '点这里选 PDF 文件（可多选）'}
+              {mineruBusy ? (mineruStage || '处理中…') : '上传 PDF 到 MinerU 解析（更准）'}
             </span>
-            <span className="text-xs text-muted-foreground">会自动拆成每页一张图，顺序就是试卷顺序</span>
+            <span className="text-xs text-muted-foreground">读 PDF 的真实文字层和配图 —— 扫描版、手写版也能认</span>
+            <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={mineruBusy}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleMineruPdf(f); e.currentTarget.value = '' }} />
+          </label>
+          <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy || mineruBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+            <FileText className="w-3.5 h-3.5" />
+            {pdfBusy ? `正在本地转成图片… ${pdfProgress}` : '或：本地转成图片（备用，走截图识别）'}
             <input type="file" accept="application/pdf,.pdf" multiple className="hidden"
               onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) handlePdfFiles(fs); e.currentTarget.value = '' }} />
           </label>

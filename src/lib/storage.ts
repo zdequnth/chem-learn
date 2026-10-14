@@ -106,3 +106,50 @@ export async function readStoredImage(url: string): Promise<{ buf: Buffer; conte
 export function isLocalImage(url: string | null | undefined): boolean {
   return !!url && url.startsWith('/api/img/')
 }
+
+/**
+ * A one-shot URL the BROWSER can PUT a file to directly. The file has to bypass
+ * this server: Vercel caps a function's request body at 4.5 MB and a scanned
+ * paper is easily bigger, so the bytes go straight from the browser to storage
+ * and only the URL is ours to hand around.
+ */
+export async function createSignedUploadUrl(path: string): Promise<{ url?: string; error?: string }> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  if (!res.ok) return { error: '签名上传失败：' + (await res.text()).slice(0, 200) }
+  const data = (await res.json().catch(() => null)) as { url?: string } | null
+  if (!data?.url) return { error: '签名上传失败：返回里没有地址' }
+  return { url: `${SUPABASE_URL}/storage/v1${data.url}` }
+}
+
+/**
+ * A time-limited URL a THIRD PARTY can fetch the file from. MinerU is given one
+ * of these instead of the file itself: the bucket is private, and the link dies
+ * when the parse is long over.
+ */
+export async function createSignedDownloadUrl(path: string, expiresIn: number): Promise<{ url?: string; error?: string }> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn }),
+  })
+  if (!res.ok) return { error: '签名下载失败：' + (await res.text()).slice(0, 200) }
+  const data = (await res.json().catch(() => null)) as { signedURL?: string } | null
+  if (!data?.signedURL) return { error: '签名下载失败：返回里没有地址' }
+  return { url: `${SUPABASE_URL}/storage/v1${data.signedURL}` }
+}
+
+/** Cleanup of a temporary object (e.g. the PDF handed to MinerU). Best-effort. */
+export async function deleteStoredObject(path: string): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
+    })
+  } catch {
+    // Leftover temp files are harmless; failing a parse because cleanup failed is not.
+  }
+}
