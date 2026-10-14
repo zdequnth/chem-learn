@@ -117,6 +117,8 @@ function MockAdminContent() {
   // which question the 编辑 dialog is open for (null = closed)
   const [editQ, setEditQ] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
+  // pages the last run could not read, so they can be retried on their own
+  const [failedPages, setFailedPages] = useState<number[]>([])
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfProgress, setPdfProgress] = useState('')
   // The symbol toolbar inserts into whichever answer field was last focused.
@@ -375,48 +377,65 @@ function MockAdminContent() {
     } finally { setBusy(''); setProgress(null) }
   }
 
+  /** One page → one request. Throws with something readable to show the teacher. */
+  const runPage = async (i: number) => {
+    const res = await fetch('/api/ai/parse-mock-paper-images', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, images: pageImages, answerImages, pageIndex: i, paperMode: mode, answerText, answerPosition }),
+    })
+    const raw = await res.text()
+    let j: any = {}
+    try { j = raw ? JSON.parse(raw) : {} }
+    catch {
+      // A 502/504 means the platform killed the function and answered with HTML.
+      throw new Error(res.status === 504 ? '这一页处理超时（页面太复杂或图太多）' : `没有正常返回（HTTP ${res.status}）`)
+    }
+    if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+    // The route answers 200 even when the model call itself failed, so this is
+    // the only way to tell "the model found nothing" from "it never ran".
+    if (Array.isArray(j.failed) && j.failed.length > 0) throw new Error('AI 这一页没返回结果（多半是模型调用超时或失败）')
+    const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
+    if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
+  }
+
+  /** Read the given pages, each with one retry; remember what still failed. */
+  const runPages = async (targets: number[]) => {
+    if (targets.length === 0) return
+    setBusy('parse'); setProgress(null); setFailedPages([])
+    const queue = [...targets]
+    const tries = new Map<number, number>()
+    const ok = new Set<number>()
+    const errs = new Map<number, string>()
+    let guard = 0
+    while (queue.length > 0 && guard++ < 4 * targets.length + 20) {
+      const i = queue.shift()!
+      const n = (tries.get(i) || 0) + 1
+      tries.set(i, n)
+      try { await runPage(i); ok.add(i); errs.delete(i) }
+      catch (e: any) { errs.set(i, e?.message || String(e)); if (n < 2) queue.push(i) }
+      setProgress({ done: ok.size, total: targets.length })
+    }
+    setBusy(''); setProgress(null)
+
+    const failed = targets.filter((i) => !ok.has(i))
+    setFailedPages(failed)
+    if (failed.length > 0) {
+      alert(
+        `有 ${failed.length} 页没成功，这几页的题目没进来：\n\n`
+        + failed.map((i) => `第 ${i + 1} 页 — ${errs.get(i) || '未知原因'}`).join('\n')
+        + `\n\n下面会出现「重跑这几页」的按钮，不用把整份重来。`,
+      )
+    }
+  }
+
   /**
    * Read the paper off page screenshots. One page per request, each carrying the
-   * next page too so a question split by the page break is read whole — the same
-   * loop-with-retry shape as the text path, but the page count is known upfront.
+   * next page too so a question split by the page break is read whole.
    */
   const handleParseImages = async () => {
     if (pageImages.length === 0) return alert('先选一个 PDF，或粘贴/选择试卷页面图片')
     if (!courseId) return
-    setBusy('parse'); setProgress(null)
-
-    const runPage = async (i: number) => {
-      const res = await fetch('/api/ai/parse-mock-paper-images', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, images: pageImages, answerImages, pageIndex: i, paperMode: mode, answerText, answerPosition }),
-      })
-      const raw = await res.text()
-      let j: any = {}
-      try { j = raw ? JSON.parse(raw) : {} }
-      catch { throw new Error(`第 ${i + 1} 页没有正常返回（HTTP ${res.status}）`) }
-      if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
-      const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
-      if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
-    }
-
-    try {
-      const queue = pageImages.map((_, i) => i)
-      const tries = new Map<number, number>()
-      const succeeded = new Set<number>()
-      let guard = 0
-      while (queue.length > 0 && guard++ < 4 * pageImages.length + 20) {
-        const i = queue.shift()!
-        const n = (tries.get(i) || 0) + 1
-        tries.set(i, n)
-        try { await runPage(i); succeeded.add(i) }
-        catch { if (n < 2) queue.push(i) }
-        setProgress({ done: succeeded.size, total: pageImages.length })
-      }
-      const lost = pageImages.length - succeeded.size
-      if (lost > 0) alert(`解析完成，但有 ${lost} 页没成功，题目没全。再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
-    } catch (e: any) {
-      alert('解析出错：' + (e?.message || e))
-    } finally { setBusy(''); setProgress(null) }
+    await runPages(pageImages.map((_, i) => i))
   }
 
   const patchQ = (i: number, patch: Partial<DraftQuestion>) => {
@@ -1027,6 +1046,21 @@ function MockAdminContent() {
                       className="mt-1 font-semibold underline underline-offset-2 hover:text-amber-950">
                       {reviewOnly ? `显示全部 ${questions.length} 题` : `只看这 ${flaggedCount} 道有问题的题 →`}
                     </button>
+                  </div>
+                )}
+
+                {/* Pages the last run could not read. Retry just those instead of
+                    re-running the whole paper and de-duplicating by hand. */}
+                {failedPages.length > 0 && (
+                  <div className="px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-900 flex flex-wrap items-center gap-2">
+                    <span>
+                      ⚠️ 第 <b>{failedPages.map(i => i + 1).join('、')}</b> 页没解析出来，这几页的题目不在下面。
+                    </span>
+                    <button onClick={() => runPages(failedPages)} disabled={busy !== ''}
+                      className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium disabled:opacity-50">
+                      重跑这几页
+                    </button>
+                    <button onClick={() => setFailedPages([])} className="text-rose-700 hover:underline">忽略</button>
                   </div>
                 )}
 

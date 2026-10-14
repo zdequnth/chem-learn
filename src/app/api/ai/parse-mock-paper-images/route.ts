@@ -214,18 +214,23 @@ export async function POST(request: Request) {
 
   const result = await parsePage(client, prompt, loaded)
 
+  const raw: any[] = result.ok ? result.questions : []
+
+  // Work out each question's figure box first, then cut them all at once. Cutting
+  // and uploading them one after another was adding real time to the request,
+  // and this route is already close to the function timeout on a busy page.
+  const boxes = raw.map((q) => {
+    const box = Array.isArray(q.figureBox) ? q.figureBox.map((n: any) => Number(n)) : null
+    return q.hasFigure === true && box && box.length === 4 && box.every((n: number) => Number.isFinite(n)) ? box : null
+  })
+  const crops = await Promise.all(
+    boxes.map((box) => (box ? cropFigure(loaded[0].buf, box, pageW, pageH) : Promise.resolve(null))),
+  )
+
   const questions: any[] = []
-  for (const q of (result.ok ? result.questions : [])) {
+  for (const [k, q] of raw.entries()) {
     const ref = typeof q.lessonRef === 'string' ? q.lessonRef.trim() : null
     const hit = ref ? outline.byRef.get(ref) : undefined
-    // The figure is part of the page image, so cut it out of the page and store
-    // it as this question's own picture. A wrong box would be worse than none,
-    // so the result is shown for review like everything else.
-    const box = Array.isArray(q.figureBox) ? q.figureBox.map((n: any) => Number(n)) : null
-    const cropped = q.hasFigure === true && box && box.length === 4 && box.every((n: number) => Number.isFinite(n))
-      ? await cropFigure(loaded[0].buf, box, pageW, pageH)
-      : null
-
     const common = {
       // A choice paper may lay its options out as a table; the model copies that
       // table into the stem as well as emitting the options. Drop the duplicate.
@@ -242,7 +247,7 @@ export async function POST(request: Request) {
       // needsFigure stays true either way: a cropped one still has to be checked
       // (is the box right?), and an uncropped one has to be pasted by hand.
       needsFigure: q.hasFigure === true,
-      images: cropped ? [cropped] : [],
+      images: crops[k] ? [crops[k]] : [],
       num: Number.isInteger(q.number) ? q.number : null,
     }
     if (paperMode === 'short') {
