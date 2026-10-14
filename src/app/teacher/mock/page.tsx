@@ -373,6 +373,10 @@ function MockAdminContent() {
       if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
 
       total = Math.max(total, j.totalBatches || 1)
+      // -1 means the call itself failed. Zero questions with a good call is NOT
+      // a failure: cover pages, instructions and answer keys have no questions
+      // in them, and counting those as "lost" raised a false alarm.
+      if (Array.isArray(j.failed) && j.failed.length > 0) return -1
       const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
       if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
       return batch.length
@@ -394,9 +398,9 @@ function MockAdminContent() {
         const i = queue.shift()!
         const n = (tries.get(i) || 0) + 1
         tries.set(i, n)
-        let got = 0
-        try { got = await runBatch(i) } catch { got = 0 }
-        if (got > 0) succeeded.add(i)
+        let got = -1
+        try { got = await runBatch(i) } catch { got = -1 }
+        if (got >= 0) succeeded.add(i)
         else if (n < 2) queue.push(i)
         // Newly discovered batches join the queue.
         for (let k = 0; k < total; k++) if (!tries.has(k) && !queue.includes(k)) queue.push(k)

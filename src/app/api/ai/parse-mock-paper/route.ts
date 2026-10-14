@@ -41,10 +41,27 @@ function splitIntoBatches(text: string): string[] {
   if (cur.length > 0) units.push(cur.join('\n\n'))
 
   const packables = sawStart ? units : paragraphs
+
+  // A unit can be bigger than the cap on its own — one question carrying a big
+  // data table ran to ~5k chars, and the packer emitted it whole anyway. That
+  // reply then had ~20 questions' worth of JSON to fit in one response and could
+  // run out of output tokens and come back empty. Break such a unit at line
+  // boundaries first, so every batch stays near the cap.
+  const capped: string[] = []
+  for (const unit of packables) {
+    if (unit.length <= MAX_CHARS_PER_BATCH) { capped.push(unit); continue }
+    let buf = ''
+    for (const line of unit.split('\n')) {
+      if (buf && buf.length + line.length + 1 > MAX_CHARS_PER_BATCH) { capped.push(buf); buf = '' }
+      buf = buf ? buf + '\n' + line : line
+    }
+    if (buf) capped.push(buf)
+  }
+
   const batches: string[] = []
   let current: string[] = []
   let currentLen = 0
-  for (const unit of packables) {
+  for (const unit of capped) {
     if (current.length > 0 && currentLen + unit.length + 2 > MAX_CHARS_PER_BATCH) {
       batches.push(current.join('\n\n'))
       current = []
@@ -197,6 +214,10 @@ async function parseChunk(client: OpenAI, prompt: string, images: string[] = [])
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
+      // 必须关掉推理：推理 token 也算在 max_tokens 里，密排的批次会把 8192 全烧在
+      // 推理上、正文返回 0 字符（finish_reason=length），整批题目就没了 ——
+      // 一份真实试卷实测 13 批里 8 批是这么死的。这里只是照确定性文本拆题，推理帮不上。
+      reasoning_effort: 'none',
       messages: [
         { role: 'system', content: '你是题目解析助手。只输出纯JSON，不要markdown代码块，不要任何多余文字。' },
         { role: 'user', content: images.length
