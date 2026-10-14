@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
+import { stripOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
 import { readStoredImage } from '@/lib/storage'
 import OpenAI from 'openai'
@@ -87,6 +88,17 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 ` : `【求解答案】
 这份试卷没有答案。请你自己解题，标出正确选项并写解析——这是给老师核对的草稿。
 `}
+
+【排版：尽量还原原文，别拍平】
+- 化学式、下标、上标、幂、单位一律用 LaTeX，不要写成平铺的纯文本：
+  对：$C_2H_4$、$1.8 \times 10^{-5}$、$\mathrm{kPa^{-1}}$
+  错：C2H4、10^-5、kPa^-1
+- 题干里的**数据表**写成 markdown 表格原样放进 stem，不要拍平成一行一行文字：
+  | reactant | partial pressure / kPa |
+  | --- | --- |
+  | ethene | $4.8 \times 10^3$ |
+- 如果**选项本身就是一张表**（A/B/C/D 各占一行）：stem 里【不要】出现这张表，只在 options 数组里逐行给出。
+
 【输出字段】每题一个对象：
 {"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"groupRef":null}
 - stem/options/explanation 保持原语言（英文），不要翻译
@@ -155,6 +167,15 @@ ${lessonList}
 lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
 
 ${answerBlock}
+
+【排版：尽量还原原文，别拍平】
+- 化学式、下标、上标、幂、单位一律用 LaTeX，不要写成平铺的纯文本：
+  对：$C_2H_4$、$1.8 \times 10^{-5}$、$\mathrm{kPa^{-1}}$
+  错：C2H4、10^-5、kPa^-1
+- 题目里的**表格**（数据表不论大小）写成 markdown 表格原样放进 stem，不要拍平成一行一行文字：
+  | reactant | partial pressure / kPa |
+  | --- | --- |
+  | ethene | $4.8 \times 10^3$ |
 
 【输出字段】每题一个对象：
 {"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"num":null,"groupRef":null}
@@ -303,7 +324,11 @@ export async function POST(request: Request) {
     const ref = typeof q.lessonRef === 'string' ? q.lessonRef.trim() : null
     const hit = ref ? outline.byRef.get(ref) : undefined
     const common = {
-      stem: String(q.stem ?? '').trim(),
+      // A choice paper may lay its options out as a table; the model copies that
+      // table into the stem as well as emitting the options. Drop the duplicate.
+      stem: paperMode === 'short'
+        ? String(q.stem ?? '').trim()
+        : stripOptionTable(String(q.stem ?? '').trim()),
       groupRef: String(q.groupRef ?? '').trim() || null,
       explanation: String(q.explanation ?? '').trim(),
       difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
