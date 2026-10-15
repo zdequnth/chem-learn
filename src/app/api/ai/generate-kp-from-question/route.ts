@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
 export async function POST(request: Request) {
+  // Without this the endpoint answers anyone on the internet, and every call
+  // spends our DeepSeek key — an open door for strangers to burn the quota.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { stem, explanation } = await request.json()
   if (!stem) return NextResponse.json({ error: '缺少题目内容' }, { status: 400 })
 
