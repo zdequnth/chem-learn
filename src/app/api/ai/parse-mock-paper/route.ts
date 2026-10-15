@@ -42,26 +42,15 @@ function splitIntoBatches(text: string): string[] {
 
   const packables = sawStart ? units : paragraphs
 
-  // A unit can be bigger than the cap on its own — one question carrying a big
-  // data table ran to ~5k chars, and the packer emitted it whole anyway. That
-  // reply then had ~20 questions' worth of JSON to fit in one response and could
-  // run out of output tokens and come back empty. Break such a unit at line
-  // boundaries first, so every batch stays near the cap.
-  const capped: string[] = []
-  for (const unit of packables) {
-    if (unit.length <= MAX_CHARS_PER_BATCH) { capped.push(unit); continue }
-    let buf = ''
-    for (const line of unit.split('\n')) {
-      if (buf && buf.length + line.length + 1 > MAX_CHARS_PER_BATCH) { capped.push(buf); buf = '' }
-      buf = buf ? buf + '\n' + line : line
-    }
-    if (buf) capped.push(buf)
-  }
-
+  // Never split a question across batches. A unit (one question, plus the shared
+  // material above it) goes out whole even when it alone exceeds the cap: cutting
+  // it at a line boundary makes the next batch start mid-question, and that
+  // question is then lost. A long batch is the lesser evil — with reasoning off
+  // the model has the whole output budget, so it rarely runs out.
   const batches: string[] = []
   let current: string[] = []
   let currentLen = 0
-  for (const unit of capped) {
+  for (const unit of packables) {
     if (current.length > 0 && currentLen + unit.length + 2 > MAX_CHARS_PER_BATCH) {
       batches.push(current.join('\n\n'))
       current = []
@@ -210,7 +199,7 @@ ${answerBlock}
 ${text}`
 }
 
-async function parseChunk(client: OpenAI, prompt: string, images: string[] = []): Promise<{ ok: boolean; questions: any[] }> {
+async function parseChunk(client: OpenAI, prompt: string, images: string[] = []): Promise<{ ok: boolean; questions: any[]; error?: string }> {
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-flash',
@@ -241,8 +230,10 @@ async function parseChunk(client: OpenAI, prompt: string, images: string[] = [])
       parsed = JSON.parse(match[0])
     }
     return { ok: true, questions: Array.isArray(parsed?.questions) ? parsed.questions : [] }
-  } catch {
-    return { ok: false, questions: [] }
+  } catch (err: any) {
+    // Carry the reason back: "Service is too busy" and "the model returned no
+    // questions" need completely different responses from the teacher.
+    return { ok: false, questions: [], error: err?.message ? String(err.message).slice(0, 120) : String(err).slice(0, 120) }
   }
 }
 
@@ -337,7 +328,7 @@ export async function POST(request: Request) {
 
   const result = await parseChunk(client, prompt, answerUrls)
   const raw: any[] = result.ok ? result.questions : []
-  const failed: string[] = result.ok ? [] : [chunk.slice(0, 80)]
+  const failed: string[] = result.ok ? [] : [result.error || chunk.slice(0, 80)]
 
   // Validate every lessonRef against the outline. The model can only ever name a
   // lesson that exists; anything else becomes null and the teacher picks.

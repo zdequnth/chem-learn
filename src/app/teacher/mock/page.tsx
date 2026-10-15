@@ -357,10 +357,11 @@ function MockAdminContent() {
     if (!courseId) return
     setBusy('parse'); setProgress(null)
     let total = 1
+    const reasons = new Map<number, string>()
 
-    // Returns how many questions came out. Throws only if the request itself
-    // never produced JSON (a 502/504 means the platform killed the function and
-    // answered with an HTML error page).
+    // Returns how many questions came out, or -1 when the CALL failed. Throws
+    // only if the request never produced JSON (a 502/504 means the platform
+    // killed the function and answered with an HTML error page).
     const runBatch = async (i: number): Promise<number> => {
       const res = await fetch('/api/ai/parse-mock-paper', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -376,7 +377,8 @@ function MockAdminContent() {
       // -1 means the call itself failed. Zero questions with a good call is NOT
       // a failure: cover pages, instructions and answer keys have no questions
       // in them, and counting those as "lost" raised a false alarm.
-      if (Array.isArray(j.failed) && j.failed.length > 0) return -1
+      if (Array.isArray(j.failed) && j.failed.length > 0) { reasons.set(i, String(j.failed[0])); return -1 }
+      reasons.delete(i)
       const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
       if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
       return batch.length
@@ -388,26 +390,31 @@ function MockAdminContent() {
       //
       // A work queue rather than a plain for-loop, for two reasons: the batch
       // count is only known once the first response lands, and a batch that came
-      // back empty (504, or the model returned nothing) gets one more go instead
-      // of leaving a hole in the paper.
+      // back empty gets another go instead of leaving a hole in the paper. The
+      // provider does throw transient "service is too busy" errors, so give each
+      // batch a few tries with a growing pause, not just one.
+      const MAX_TRIES = 4
       const tries = new Map<number, number>()
       const succeeded = new Set<number>()
       const queue = [0]
       let guard = 0
-      while (queue.length > 0 && guard++ < 4 * total + 20) {
+      while (queue.length > 0 && guard++ < 8 * total + 30) {
         const i = queue.shift()!
         const n = (tries.get(i) || 0) + 1
         tries.set(i, n)
         let got = -1
-        try { got = await runBatch(i) } catch { got = -1 }
+        try { got = await runBatch(i) } catch (e: any) { reasons.set(i, e?.message || String(e)); got = -1 }
         if (got >= 0) succeeded.add(i)
-        else if (n < 2) queue.push(i)
+        else if (n < MAX_TRIES) { queue.push(i); await new Promise((r) => setTimeout(r, 1200 * n)) }
         // Newly discovered batches join the queue.
         for (let k = 0; k < total; k++) if (!tries.has(k) && !queue.includes(k)) queue.push(k)
         setProgress({ done: succeeded.size, total })
       }
       const lost = total - succeeded.size
-      if (lost > 0) alert(`解析完成，但有 ${lost} 批没成功，题目没全。再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
+      if (lost > 0) {
+        const why = [...reasons.entries()].slice(0, 4).map(([i, r]) => `· 第 ${i + 1} 批：${r}`).join('\n')
+        alert(`解析完成，但有 ${lost} 批没成功，题目没全。\n\n${why}\n\n再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
+      }
     } catch (e: any) {
       alert('解析出错：' + (e?.message || e))
     } finally { setBusy(''); setProgress(null) }
