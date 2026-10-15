@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
-import { stripOptionTable } from '@/lib/question-text'
+import { stripOptionTable, collapseOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
 import { readStoredImage, uploadImageBuffer } from '@/lib/storage'
 import sharp from 'sharp'
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
       answerType: 'choice',
       answerText: '',
       options: (Array.isArray(q.options) ? q.options : [])
-        .map((o: any) => ({ content: String(o?.content ?? '').trim(), isCorrect: o?.isCorrect === true }))
+        .map((o: any) => ({ content: collapseOptionTable(String(o?.content ?? '').trim()), isCorrect: o?.isCorrect === true }))
         .filter((o: any) => o.content),
     })
   }

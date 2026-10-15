@@ -64,7 +64,14 @@ export async function GET(request: Request) {
   })
 
   return NextResponse.json({
-    paper: { id: paper!.id, title: paper!.title, durationMinutes: paper!.duration_minutes, isPublished: !!paper!.is_published },
+    paper: {
+      id: paper!.id,
+      title: paper!.title,
+      durationMinutes: paper!.duration_minutes,
+      isPublished: !!paper!.is_published,
+      // The preview links back into the editor at the question being looked at.
+      courseId: paper!.mock_course_id,
+    },
     courseName: course?.name ?? '',
     sourceCourseName: outline?.courseName ?? null,
     questions,

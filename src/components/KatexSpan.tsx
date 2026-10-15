@@ -4,6 +4,7 @@ import katex from 'katex'
 import 'katex/dist/contrib/mhchem.mjs'
 import { useMemo } from 'react'
 import { QUESTION_IMAGE_CLASS } from '@/components/QuestionImage'
+import { collapseOptionTable } from '@/lib/question-text'
 
 function tryRender(formula: string, displayMode: boolean): string {
   try {
@@ -200,7 +201,9 @@ export function stripPdfTag(text: string): string {
 }
 
 export function cleanOption(text: string): string {
-  return text.replace(/^[A-D]\.\s*/, '')
+  // An option that is one row of a shared table ("| C | 3 | 1 | 5 |" under a
+  // header) becomes a single line here, so it does not draw as its own table.
+  return collapseOptionTable(String(text ?? '')).replace(/^[A-D]\.\s*/, '')
 }
 
 /**

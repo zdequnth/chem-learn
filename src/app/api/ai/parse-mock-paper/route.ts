@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { parseAnswerKey } from '@/lib/answer-key'
-import { stripOptionTable } from '@/lib/question-text'
+import { stripOptionTable, collapseOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
 import { splitIntoBatches, numberIssues } from '@/lib/paper-batching'
 import { readStoredImage } from '@/lib/storage'
@@ -374,7 +374,7 @@ export async function POST(request: Request) {
       independentAnswer: own || null,
       disputed,
       options: (Array.isArray(q.options) ? q.options : [])
-        .map((o: any) => ({ content: String(o?.content ?? '').trim(), isCorrect: o?.isCorrect === true }))
+        .map((o: any) => ({ content: collapseOptionTable(String(o?.content ?? '').trim()), isCorrect: o?.isCorrect === true }))
         .filter((o: any) => o.content),
     }
   }).filter((q) => q.stem)

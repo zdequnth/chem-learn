@@ -9,7 +9,7 @@ import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { kindTheme } from '@/lib/course-kind'
 import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
-import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle, Edit3 } from 'lucide-react'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const theme = kindTheme('mock')
@@ -97,42 +97,6 @@ function PreviewContent() {
               </div>
             )}
 
-            {/* Number palette — the same jumping-off point students get.
-                A choice paper numbers straight through in one flowing row; only
-                a free-response paper groups its parts onto one row per big
-                question. */}
-            {isShortPaper ? (
-              <div className="space-y-1 mb-4">
-                {groups.map((g, gi) => (
-                  <div key={gi} className="flex flex-wrap items-center gap-1.5">
-                    <span className="w-14 shrink-0 text-xs text-muted-foreground">第 {gi + 1} 题</span>
-                    {g.items.map((q, si) => {
-                      const i = g.start + si
-                      return (
-                        <button key={q.questionId} onClick={() => setIdx(i)}
-                          className={`h-8 min-w-8 px-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                            i === idx ? 'ring-2 ring-violet-400 ' : ''
-                          }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                          {partLabel(gi, si, g.items.length)}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {questions.map((q, i) => (
-                  <button key={q.questionId} onClick={() => setIdx(i)}
-                    className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
-                      i === idx ? 'ring-2 ring-violet-400 ' : ''
-                    }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {cur && (
               <div className="bg-card border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3 flex-wrap text-xs text-muted-foreground">
@@ -143,6 +107,12 @@ function PreviewContent() {
                       {cur.chapterTitle}{cur.lessonRef ? ` › ${cur.lessonRef}` : ''} {cur.lessonTitle}
                     </span>
                   )}
+                  {/* Fixing what you spot while reading beats going back to the
+                      editor and hunting for the same question again. */}
+                  <Link href={`/teacher/mock?course=${data.paper.courseId}&paper=${data.paper.id}&q=${idx}`}
+                    className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-accent transition-colors">
+                    <Edit3 className="w-3.5 h-3.5" /> 编辑这道题
+                  </Link>
                 </div>
 
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
@@ -188,12 +158,48 @@ function PreviewContent() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 mt-5">
+                <div className="flex items-center justify-center gap-3 mt-6">
                   <button onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}
-                    className="px-4 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
+                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
                   <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}
-                    className="px-4 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
+                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
                 </div>
+              </div>
+            )}
+
+            {/* Number palette — after the question, exactly as students get it:
+                it is for jumping around, not for reading. A choice paper numbers
+                straight through; only a free-response paper groups its parts,
+                one row per big question. */}
+            {isShortPaper ? (
+              <div className="space-y-1 mt-4">
+                {groups.map((g, gi) => (
+                  <div key={gi} className="flex flex-wrap items-center gap-1.5">
+                    <span className="w-14 shrink-0 text-xs text-muted-foreground">第 {gi + 1} 题</span>
+                    {g.items.map((q, si) => {
+                      const i = g.start + si
+                      return (
+                        <button key={q.questionId} onClick={() => setIdx(i)}
+                          className={`h-8 min-w-8 px-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            i === idx ? 'ring-2 ring-violet-400 ' : ''
+                          }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                          {partLabel(gi, si, g.items.length)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 mt-4">
+                {questions.map((q, i) => (
+                  <button key={q.questionId} onClick={() => setIdx(i)}
+                    className={`w-9 h-9 rounded-lg text-xs font-medium border transition-colors ${
+                      i === idx ? 'ring-2 ring-violet-400 ' : ''
+                    }${showAnswers && q.noAnswer ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-card hover:bg-accent text-muted-foreground'}`}>
+                    {i + 1}
+                  </button>
+                ))}
               </div>
             )}
 

@@ -212,6 +212,29 @@ function MockAdminContent() {
     } finally { setBusy('') }
   }
 
+  // Preview → editor jump. The preview page links here with ?paper=…&q=… when the
+  // teacher spots something to fix, so they land in the editor with that paper
+  // open and that question's dialog already showing.
+  const autoOpened = useRef(false)
+  const jumpedToQuestion = useRef(false)
+  useEffect(() => {
+    if (autoOpened.current) return
+    const want = sp.get('paper')
+    if (!want || papers.length === 0) return
+    const p = papers.find((x) => x.id === want)
+    if (!p) return
+    autoOpened.current = true
+    openPaper(p.id, p.title, p.durationMinutes)
+  }, [papers])
+
+  useEffect(() => {
+    const qs = sp.get('q')
+    if (jumpedToQuestion.current || qs === null || questions.length === 0) return
+    jumpedToQuestion.current = true
+    const q = Number(qs)
+    if (Number.isInteger(q) && q >= 0 && q < questions.length) setEditQ(q)
+  }, [questions.length])
+
   // 新建试卷 asks for the three things that are awkward to change later — title,
   // length and kind — before opening the editor. Kind in particular decides how
   // the whole paper is built and read.
