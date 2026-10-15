@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import { Loader2, Search, Edit3, CheckCircle, XCircle, X } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -358,7 +359,7 @@ function QuestionsContent() {
                       </button>
                     </div>
                   </div>
-                  {q.image_url && <img src={q.image_url} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                  {q.image_url && <QuestionImage src={q.image_url} className="mb-2" />}
                   <p className="text-sm mb-2"><KatexHtml text={q.stem} /></p>
                   <div className="grid grid-cols-2 gap-1">
                     {(q.options || []).map((opt: any, j: number) => (
@@ -406,7 +407,7 @@ function QuestionsContent() {
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {manualForm.imageUrl && (
                 <div className="mt-2 relative inline-block">
-                  <img src={manualForm.imageUrl} alt="题目图片" className="max-h-40 rounded-lg border" />
+                  <QuestionImage src={manualForm.imageUrl} alt="题目图片" />
                   <button onClick={() => setManualForm({ ...manualForm, imageUrl: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
@@ -436,7 +437,7 @@ function QuestionsContent() {
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {manualForm.explanationImage && (
                 <div className="mt-2 relative inline-block">
-                  <img src={manualForm.explanationImage} alt="解析图片" className="max-h-40 rounded-lg border" />
+                  <QuestionImage src={manualForm.explanationImage} alt="解析图片" />
                   <button onClick={() => setManualForm({ ...manualForm, explanationImage: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>

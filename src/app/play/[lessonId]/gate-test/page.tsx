@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import AnswerFx from '@/components/AnswerFx'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import { ArrowLeft, CheckCircle, XCircle, Clock, Loader2, Star, AlertTriangle } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -399,7 +400,7 @@ export default function GateTestPage() {
           <div className="text-xs text-muted-foreground mb-2">第 {questionNumber} 题</div>
           <h2 className="text-lg font-medium mb-4"><KatexHtml text={question.stem} /></h2>
           {question.imageUrl && (
-            <img src={question.imageUrl} alt="" className="mb-4 rounded-lg max-h-64" />
+            <QuestionImage src={question.imageUrl} className="mb-4" />
           )}
           <div className="space-y-2">
             {question.options.map((opt, i) => {

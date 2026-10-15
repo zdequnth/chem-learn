@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import { kindTheme } from '@/lib/course-kind'
 import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
@@ -145,7 +146,7 @@ function PreviewContent() {
                 </div>
 
                 <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
-                {(cur.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />)}
+                {(cur.images ?? []).map((src, k) => <QuestionImage key={k} src={src} className="mb-3" />)}
 
                 {cur.answerType === 'short' ? (
                   showAnswers ? (

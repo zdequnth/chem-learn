@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import ChemToolbar from '@/components/ChemToolbar'
 import { groupsForPaper, partLabel } from '@/lib/mock-groups'
 import type { Course } from '@/lib/types'
@@ -1268,7 +1269,7 @@ function MockAdminContent() {
 
                             {q.images.map((src, k) => (
                               <button key={k} onClick={() => setZoom(src)} className="block">
-                                <img src={src} alt="" className="max-h-48 rounded-lg border bg-white" />
+                                <QuestionImage src={src} />
                               </button>
                             ))}
 

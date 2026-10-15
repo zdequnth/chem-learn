@@ -7,6 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import ChemToolbar from '@/components/ChemToolbar'
 import { KatexHtml, cleanOption, wrapBareLatex } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
@@ -562,7 +563,7 @@ function MockExamContent() {
                 </div>
 
                 <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
-                {(q.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />)}
+                {(q.images ?? []).map((src, k) => <QuestionImage key={k} src={src} className="mb-2" />)}
 
                 <div className="space-y-1">
                   {q.answerType === 'short' ? (
@@ -655,7 +656,7 @@ function MockExamContent() {
               ) : (
                 <>
                   <div className="text-sm mb-2"><KatexHtml text={practice.stem} /></div>
-                  {practice.imageUrl && <img src={practice.imageUrl} alt="" className="mb-2 max-h-56 rounded-lg border bg-white" />}
+                  {practice.imageUrl && <QuestionImage src={practice.imageUrl} className="mb-2" />}
                   <div className="space-y-1">
                     {(practice.options || []).map((o: any, oi: number) => {
                       const chosen = practiceChoice === o.id
@@ -728,7 +729,7 @@ function MockExamContent() {
               </button>
             </div>
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
-            {(cur.images ?? []).map((src, k) => <img key={k} src={src} alt="" className="mb-3 max-h-72 rounded-lg border bg-white" />)}
+            {(cur.images ?? []).map((src, k) => <QuestionImage key={k} src={src} className="mb-3" />)}
             <div className="space-y-2">
               {cur.answerType === 'short' ? (
                 <>

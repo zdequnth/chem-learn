@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import { Loader2, BookOpen, ChevronRight, Printer } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -255,7 +256,7 @@ export default function WrongBookPage() {
                         <div key={r.id} className={`bg-card rounded-xl border p-4 ${r.is_resolved ? 'opacity-60' : ''}`}>
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex-1">
-                              {r.question_image && <img src={r.question_image} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                              {r.question_image && <QuestionImage src={r.question_image} className="mb-2" />}
                               <p className="text-sm font-medium"><KatexHtml text={r.question_stem} /></p>
                               <div className="mt-2 grid grid-cols-2 gap-1">
                                 {r.all_options.map((opt, j) => (
@@ -326,7 +327,7 @@ export default function WrongBookPage() {
               <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>
             ) : (
               <>
-                {practice.imageUrl && <img src={practice.imageUrl} alt="" className="mb-3 rounded-lg max-h-48 border" />}
+                {practice.imageUrl && <QuestionImage src={practice.imageUrl} className="mb-3" />}
                 <div className="text-sm mb-3"><KatexHtml text={practice.stem} /></div>
                 <div className="space-y-2">
                   {(practice.options || []).map((opt: any, i: number) => {

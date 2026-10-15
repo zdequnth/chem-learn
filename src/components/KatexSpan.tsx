@@ -3,6 +3,7 @@
 import katex from 'katex'
 import 'katex/dist/contrib/mhchem.mjs'
 import { useMemo } from 'react'
+import { QUESTION_IMAGE_CLASS } from '@/components/QuestionImage'
 
 function tryRender(formula: string, displayMode: boolean): string {
   try {
@@ -167,7 +168,7 @@ export function KatexHtml({ text }: { text: string }) {
 
     // Pre-process markdown images: ![alt](url) → <img>
     content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-      '<img src="$2" alt="$1" class="my-2 rounded-lg max-w-full max-h-64" />')
+      `<img src="$2" alt="$1" class="my-2 ${QUESTION_IMAGE_CLASS}" />`)
 
     let result = renderLatex(content)
 

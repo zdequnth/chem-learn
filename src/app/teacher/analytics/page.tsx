@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import { Loader2, ArrowLeft, ChevronDown, ChevronRight, Printer } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -120,7 +121,7 @@ function AnalyticsContent() {
         </span>
         <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
       </div>
-      {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+      {q.imageUrl && <QuestionImage src={q.imageUrl} className="mb-2" />}
       <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
         {q.options.map((opt, j) => (
@@ -404,7 +405,7 @@ function AnalyticsContent() {
                           <div key={q.id} className="border rounded-xl p-3">
                             <div className="flex items-start gap-3">
                               <div className="flex-1 min-w-0">
-                                {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                                {q.imageUrl && <QuestionImage src={q.imageUrl} className="mb-2" />}
                                 <div className="text-sm"><KatexHtml text={q.stem} /></div>
                                 <div className="text-xs text-muted-foreground mt-1">{q.lessonTitle}</div>
                               </div>
@@ -599,7 +600,7 @@ function AnalyticsContent() {
                     </span>
                     <span className="text-xs text-muted-foreground">#{i + 1}</span>
                   </div>
-                  {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                  {q.imageUrl && <QuestionImage src={q.imageUrl} className="mb-2" />}
                   <div className="text-sm mb-2"><KatexHtml text={q.stem} /></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     {q.options.map((opt, j) => (

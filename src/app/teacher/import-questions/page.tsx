@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
+import QuestionImage from '@/components/QuestionImage'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { ArrowLeft, Loader2, CheckCircle, Save, X, Sparkles, Edit3 } from 'lucide-react'
 
@@ -335,7 +336,7 @@ function ImportForm() {
                     <span className="text-xs font-medium text-muted-foreground">#{i + 1}</span>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">难度 {q.difficulty}</span>
                   </div>
-                  {q.imageUrl && <img src={q.imageUrl} alt="" className="mb-2 rounded-lg max-h-40 border" />}
+                  {q.imageUrl && <QuestionImage src={q.imageUrl} className="mb-2" />}
                   <p className="text-sm mb-2"><KatexHtml text={q.stem} /></p>
                   <div className="grid grid-cols-2 gap-1">
                     {q.options.map((opt, j) => (
@@ -345,7 +346,7 @@ function ImportForm() {
                     ))}
                   </div>
                   {q.explanation && <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded-lg"><KatexHtml text={q.explanation} /></p>}
-                  {q.explanationImage && <img src={q.explanationImage} alt="" className="mt-2 rounded-lg max-h-40 border" />}
+                  {q.explanationImage && <QuestionImage src={q.explanationImage} className="mt-2" />}
                 </div>
               ))}
             </div>
@@ -373,7 +374,7 @@ function ImportForm() {
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {editForm.imageUrl && (
                 <div className="relative inline-block">
-                  <img src={editForm.imageUrl} alt="题目图片" className="max-h-40 rounded-lg border" />
+                  <QuestionImage src={editForm.imageUrl} alt="题目图片" />
                   <button onClick={() => setEditForm({ ...editForm, imageUrl: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
@@ -399,7 +400,7 @@ function ImportForm() {
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {editForm.explanationImage && (
                 <div className="relative inline-block">
-                  <img src={editForm.explanationImage} alt="解析图片" className="max-h-40 rounded-lg border" />
+                  <QuestionImage src={editForm.explanationImage} alt="解析图片" />
                   <button onClick={() => setEditForm({ ...editForm, explanationImage: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
