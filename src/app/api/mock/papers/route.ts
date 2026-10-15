@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { loadMockCourse, isAdminUser } from '@/lib/mock-source'
-import { normaliseMineruText } from '@/lib/mineru-text'
-import { importRemoteImage, isLocalImage } from '@/lib/storage'
+import { loadValidLessonIds, validatePaperQuestions, createPaperQuestions } from '@/lib/mock-paper-write'
 import { NextResponse } from 'next/server'
 
 // Papers of one mock course.
@@ -78,33 +77,9 @@ export async function POST(request: Request) {
 
   // Every question must name a lesson OF THE BOUND GATE COURSE — that mapping is
   // the whole point, so it is validated rather than trusted.
-  const { data: chapters } = await supabaseAdmin('chapters', {
-    query: `?course_id=eq.${course!.mock_source_course_id}&select=id`,
-  })
-  const chIds = (chapters || []).map((c: any) => c.id)
-  const { data: lessons } = chIds.length
-    ? await supabaseAdmin('lessons', { query: `?chapter_id=in.(${chIds.join(',')})&select=id` })
-    : { data: [] as any[] }
-  const validLesson = new Set((lessons || []).map((l: any) => l.id))
-
-  const bad = list.findIndex((q) => !q?.lessonId || !validLesson.has(q.lessonId))
-  if (bad >= 0) {
-    return NextResponse.json({ error: `第 ${bad + 1} 题没有指定所属章节/课时（或指定的课时不属于这门课的绑定课程）` }, { status: 400 })
-  }
-
-  // The paper's mode wins over each question's own answerType — a short paper
-  // must not smuggle in a choice question, or the student page renders neither.
-  const mismatched = list.findIndex((q) => (q?.answerType === 'short' ? 'short' : 'choice') !== mode)
-  if (mismatched >= 0) {
-    return NextResponse.json({
-      error: `第 ${mismatched + 1} 题的题型和这份试卷不一致（这份是${mode === 'short' ? '简答题' : '选择题'}卷）`,
-    }, { status: 400 })
-  }
-  // A short answer with no reference answer cannot be graded.
-  if (mode === 'short') {
-    const noRef = list.findIndex((q) => !String(q?.answerText ?? '').trim())
-    if (noRef >= 0) return NextResponse.json({ error: `第 ${noRef + 1} 题是简答题但没填参考答案，AI 无法判分` }, { status: 400 })
-  }
+  const validLesson = await loadValidLessonIds(course!.mock_source_course_id)
+  const problem = validatePaperQuestions(list, mode, validLesson)
+  if (problem) return NextResponse.json({ error: problem }, { status: 400 })
 
   const { data: paperRows, error: pErr } = await supabaseAdmin('mock_papers', {
     method: 'POST',
@@ -120,68 +95,6 @@ export async function POST(request: Request) {
   if (pErr || !paperRows?.[0]) return NextResponse.json({ error: pErr?.message || '创建试卷失败' }, { status: 500 })
   const paperId = paperRows[0].id
 
-  const imageWarnings: string[] = []
-  let saved = 0
-  for (let i = 0; i < list.length; i++) {
-    const q = list[i]
-
-    // Pull any third-party image (e.g. a PDF parser's CDN link) into our own
-    // storage, otherwise it shows for the teacher but breaks for students.
-    // A question may carry several figures.
-    const images: string[] = []
-    for (const raw of (Array.isArray(q.images) ? q.images : [])) {
-      const url = String(raw ?? '').trim()
-      if (!url) continue
-      if (isLocalImage(url)) { images.push(url); continue }
-      const got = await importRemoteImage(url)
-      if (got.url) images.push(got.url)
-      else imageWarnings.push(`第 ${i + 1} 题配图未能入库（${got.error}）`)
-    }
-
-    const isShort = mode === 'short'
-    const { data: qRows, error: qErr } = await supabaseAdmin('questions', {
-      method: 'POST',
-      body: {
-        lesson_id: q.lessonId,
-        question_type: 'mock',
-        answer_type: isShort ? 'short' : 'choice',
-        answer_text: isShort ? (normaliseMineruText(q.answerText) || null) : null,
-        // The shared stem of a multi-part question. Consecutive questions with
-        // the same one render as a group (1a, 1b, …).
-        group_ref: String(q.groupRef ?? '').trim() ? String(q.groupRef ?? "").trim() || null : null,
-        difficulty: Math.min(5, Math.max(1, Number(q.difficulty) || 3)),
-        // Stored normalised, so MinerU's <eq>/<table> markup never reaches the
-        // database, the grading prompt or the renderer.
-        stem: normaliseMineruText(q.stem),
-        explanation: normaliseMineruText(q.explanation),
-        image_urls: images.length ? images : null,
-        is_approved: true,
-        is_ai_generated: q.isAiGenerated !== false,
-        created_by: user.id,
-      },
-      query: '?select=id',
-    })
-    const questionId = qRows?.[0]?.id
-    if (qErr || !questionId) continue
-
-    const opts = (Array.isArray(q.options) ? q.options : []).filter((o: any) => String(o?.content ?? '').trim())
-    for (let k = 0; k < opts.length; k++) {
-      await supabaseAdmin('question_options', {
-        method: 'POST',
-        body: {
-          question_id: questionId,
-          content: String(opts[k].content).trim(),
-          is_correct: opts[k].isCorrect === true,
-          display_order: k,
-        },
-      })
-    }
-    await supabaseAdmin('mock_paper_questions', {
-      method: 'POST',
-      body: { paper_id: paperId, question_id: questionId, sort_order: i },
-    })
-    saved++
-  }
-
+  const { saved, imageWarnings } = await createPaperQuestions(paperId, list, mode, user.id)
   return NextResponse.json({ paperId, saved, imageWarnings })
 }

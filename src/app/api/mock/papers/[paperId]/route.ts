@@ -3,6 +3,10 @@ import { supabaseAdmin } from '@/lib/admin'
 import { loadPaperForTeacher, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
 import { importRemoteImage, isLocalImage } from '@/lib/storage'
 import { normaliseMineruText } from '@/lib/mineru-text'
+import {
+  loadValidLessonIds, validatePaperQuestions, createPaperQuestions,
+  clearPaperQuestions, countPaperSessions,
+} from '@/lib/mock-paper-write'
 import { NextResponse } from 'next/server'
 
 // One paper, with its questions in paper order and their chapter/lesson resolved
@@ -64,14 +68,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   })
 }
 
-// PATCH { title?, durationMinutes? }
+// PATCH { title?, durationMinutes?, isPublished?, mode?, questions? }
+//   With `questions`, the whole question set is replaced IN PLACE — that is what
+//   "save back over this paper" means. Allowed only while nobody has taken the
+//   paper: a session's answers point at question ids that would vanish with it,
+//   and a finished exam would no longer line up with the questions it showed.
+//   For a paper that HAS been taken the answer is 409, and the page falls back
+//   to saving a new paper.
 export async function PATCH(request: Request, { params }: { params: Promise<{ paperId: string }> }) {
   const { paperId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
+  const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
   if (error) return NextResponse.json({ error }, { status: status || 400 })
 
   const body = await request.json()
@@ -82,9 +92,48 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
   // have been reviewed. Students only ever see published papers.
   if (typeof body.isPublished === 'boolean') patch.is_published = body.isPublished
 
+  const mode: 'choice' | 'short' = body.mode === 'short' || body.mode === 'choice'
+    ? body.mode
+    : (paper!.mode === 'short' ? 'short' : 'choice')
+
+  let saved: number | undefined
+  let imageWarnings: string[] = []
+  const replacing = Array.isArray(body.questions)
+  const list: any[] = replacing ? body.questions : []
+
+  // Check everything BEFORE touching the row: a refused replacement must leave
+  // the paper exactly as it was, title included.
+  if (replacing) {
+    patch.mode = mode
+    if (list.length === 0) return NextResponse.json({ error: '试卷里至少要有一道题' }, { status: 400 })
+
+    const sessions = await countPaperSessions(paperId)
+    if (sessions > 0) {
+      return NextResponse.json({
+        error: `这张卷子已经有 ${sessions} 场考试记录。直接改题会让旧成绩和题目对不上。`,
+        hasSessions: true,
+        sessions,
+      }, { status: 409 })
+    }
+    if (!course?.mock_source_course_id) {
+      return NextResponse.json({ error: '这门模拟考课程还没有绑定通关课程' }, { status: 400 })
+    }
+    const validLesson = await loadValidLessonIds(course.mock_source_course_id)
+    const problem = validatePaperQuestions(list, mode, validLesson)
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+  }
+
   const { error: e } = await supabaseAdmin('mock_papers', { method: 'PATCH', body: patch, query: `?id=eq.${paperId}` })
   if (e) return NextResponse.json({ error: e.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+
+  if (replacing) {
+    await clearPaperQuestions(paperId)
+    const r = await createPaperQuestions(paperId, list, mode, user.id)
+    saved = r.saved
+    imageWarnings = r.imageWarnings
+  }
+
+  return NextResponse.json({ success: true, saved, imageWarnings })
 }
 
 // POST { add?: Question[], remove?: string[], order?: [{questionId, sortOrder}] }

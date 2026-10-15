@@ -663,33 +663,77 @@ function MockAdminContent() {
     if (file) await uploadImage(i, file)
   }
 
-  const handleSave = async () => {
-    if (!courseId) return
-    if (!title.trim()) return alert('请填试卷标题')
-    if (questions.length === 0) return alert('还没有题目')
+  // Both save paths need the questions settled first.
+  const buildSavePayload = () => {
+    if (!courseId) return null
+    if (!title.trim()) { alert('请填试卷标题'); return null }
+    if (questions.length === 0) { alert('还没有题目'); return null }
     const noLesson = questions.findIndex(q => !q.lessonId)
-    if (noLesson >= 0) return alert(`第 ${noLesson + 1} 题还没有选所属章节课时`)
+    if (noLesson >= 0) { alert(`第 ${noLesson + 1} 题还没有选所属章节课时`); return null }
+    return questions.map(q => ({
+      stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
+      images: q.images, lessonId: q.lessonId,
+      answerType: q.answerType, answerText: q.answerText, groupRef: q.groupRef || null,
+      options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
+    }))
+  }
+
+  const saveAsNewPaper = async (payload: any[]) => {
+    const res = await fetch('/api/mock/papers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, title, mode, durationMinutes: duration, questions: payload }),
+    })
+    const j = await res.json()
+    if (!res.ok || j.error) { alert('保存失败：' + (j.error || res.status)); return }
+    alert(`已另存为新试卷：${j.saved} 道题` + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
+    setDirty(false)
+    await loadPapers(courseId)
+    await openPaper(j.paperId, title, duration)
+  }
+
+  /**
+   * Save. On a paper that is already open this writes back over the SAME paper,
+   * so fixing a typo does not leave a trail of near-identical papers behind.
+   *
+   * The exception is a paper that has been taken: its sessions' answers point at
+   * question ids that replacing the set would delete. The server refuses (409)
+   * and the teacher is offered a new paper instead.
+   */
+  const handleSave = async () => {
+    const payload = buildSavePayload()
+    if (!payload) return
     setBusy('save')
     try {
-      const payload = questions.map(q => ({
-        stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
-        images: q.images, lessonId: q.lessonId,
-        answerType: q.answerType, answerText: q.answerText, groupRef: q.groupRef || null,
-        options: q.answerType === 'short' ? [] : q.options.filter(o => o.content.trim()),
-      }))
-      const res = await fetch('/api/mock/papers', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, title, mode, durationMinutes: duration, questions: payload }),
+      if (!paperId) { await saveAsNewPaper(payload); return }
+      const res = await fetch(`/api/mock/papers/${paperId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, mode, durationMinutes: duration, questions: payload }),
       })
-      const j = await res.json()
+      const j = await res.json().catch(() => ({}))
+      if (res.status === 409 && j.hasSessions) {
+        if (confirm(`${j.error}\n\n改成「另存为新试卷」吗？原来那张保持不动，学生的成绩也不受影响。`)) {
+          await saveAsNewPaper(payload)
+        }
+        return
+      }
       if (!res.ok || j.error) { alert('保存失败：' + (j.error || res.status)); return }
-      alert(`已保存：${j.saved} 道题` + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
+      alert(`已保存到本试卷：${j.saved} 道题` + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
       setDirty(false)
       await loadPapers(courseId)
-      await openPaper(j.paperId, title, duration)
+      await openPaper(paperId, title, duration)
     } catch (e: any) {
       alert('保存出错：' + (e?.message || e))
     } finally { setBusy('') }
+  }
+
+  /** The explicit "save a copy" button (and the fallback for a taken paper). */
+  const handleSaveAsNew = async () => {
+    const payload = buildSavePayload()
+    if (!payload) return
+    setBusy('save')
+    try { await saveAsNewPaper(payload) }
+    catch (e: any) { alert('保存出错：' + (e?.message || e)) }
+    finally { setBusy('') }
   }
 
   const deletePaper = async (id: string, t: string) => {
@@ -1007,8 +1051,14 @@ function MockAdminContent() {
                     <button onClick={handleSave} disabled={busy !== ''}
                       className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
                       {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      {paperId ? (lang === 'zh' ? '另存为新试卷' : 'Save as new') : (lang === 'zh' ? '保存试卷' : 'Save paper')}
+                      {paperId ? (lang === 'zh' ? '保存（更新本卷）' : 'Save') : (lang === 'zh' ? '保存试卷' : 'Save paper')}
                     </button>
+                    {paperId && (
+                      <button onClick={handleSaveAsNew} disabled={busy !== ''}
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border hover:bg-accent disabled:opacity-50 transition-colors">
+                        {lang === 'zh' ? '另存为新试卷' : 'Save as new'}
+                      </button>
+                    )}
                     <button onClick={() => { if (!dirty || confirm('有未保存的改动，确定关闭？')) setOpen(false) }}
                       className="px-3 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
                       {lang === 'zh' ? '关闭' : 'Close'}
