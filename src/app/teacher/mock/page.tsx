@@ -51,6 +51,7 @@ interface DraftQuestion {
   answerText: string               // reference answer, AI grades against this
   groupRef: string                 // the big question's number, e.g. "1" ('' = stands alone)
   needsFigure?: boolean            // read off a page image: has a figure the teacher must paste
+  num?: number | null              // the printed question number on the paper
   officialAnswer?: string | null   // from the pasted key, when there is one
   independentAnswer?: string | null
   disputed?: boolean               // AI's own answer differs from the official one
@@ -119,6 +120,9 @@ function MockAdminContent() {
   const [newOpen, setNewOpen] = useState(false)
   // pages the last run could not read, so they can be retried on their own
   const [failedPages, setFailedPages] = useState<number[]>([])
+  // Whether the questions that came back match the question numbers printed on
+  // the paper (only when the paper actually has numbers).
+  const [parseCheck, setParseCheck] = useState<{ expected: number; parsed: number; issues: string[] } | null>(null)
   const [pdfBusy, setPdfBusy] = useState(false)
   // the answer-key PDF has its own progress — sharing the page one would show
   // the wrong numbers when both are on screen
@@ -344,6 +348,7 @@ function MockAdminContent() {
     answerText: q.answerText || '',
     groupRef: q.groupRef || '',
     needsFigure: !!q.needsFigure,
+    num: Number.isInteger(q.num) ? q.num : null,
     officialAnswer: q.officialAnswer ?? null,
     independentAnswer: q.independentAnswer ?? null,
     disputed: !!q.disputed,
@@ -355,9 +360,13 @@ function MockAdminContent() {
     const src = textOverride ?? importText
     if (!src.trim()) return alert('先粘贴试卷文本')
     if (!courseId) return
-    setBusy('parse'); setProgress(null)
+    setBusy('parse'); setProgress(null); setParseCheck(null)
     let total = 1
     const reasons = new Map<number, string>()
+    // Question numbers the paper printed, and where the parse disagreed with them.
+    const expectedAll = new Set<number>()
+    const issuesByBatch = new Map<number, string[]>()
+    let parsedCount = 0
 
     // Returns how many questions came out, or -1 when the CALL failed. Throws
     // only if the request never produced JSON (a 502/504 means the platform
@@ -379,6 +388,9 @@ function MockAdminContent() {
       // in them, and counting those as "lost" raised a false alarm.
       if (Array.isArray(j.failed) && j.failed.length > 0) { reasons.set(i, String(j.failed[0])); return -1 }
       reasons.delete(i)
+      if (Array.isArray(j.expectedNums)) for (const n of j.expectedNums) if (typeof n === 'number') expectedAll.add(n)
+      if (Array.isArray(j.numIssues) && j.numIssues.length > 0) issuesByBatch.set(i, j.numIssues.map(String))
+      else issuesByBatch.delete(i)
       const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
       if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
       return batch.length
@@ -404,11 +416,20 @@ function MockAdminContent() {
         tries.set(i, n)
         let got = -1
         try { got = await runBatch(i) } catch (e: any) { reasons.set(i, e?.message || String(e)); got = -1 }
-        if (got >= 0) succeeded.add(i)
+        if (got >= 0) { succeeded.add(i); parsedCount += got }
         else if (n < MAX_TRIES) { queue.push(i); await new Promise((r) => setTimeout(r, 1200 * n)) }
         // Newly discovered batches join the queue.
         for (let k = 0; k < total; k++) if (!tries.has(k) && !queue.includes(k)) queue.push(k)
         setProgress({ done: succeeded.size, total })
+      }
+      // Only meaningful when the paper actually printed question numbers.
+      if (expectedAll.size > 0) {
+        const issues = [...issuesByBatch.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .flatMap(([i, arr]) => arr.map((s) => `第 ${i + 1} 批：${s}`))
+        setParseCheck({ expected: expectedAll.size, parsed: parsedCount, issues })
+      } else {
+        setParseCheck(null)
       }
       const lost = total - succeeded.size
       if (lost > 0) {
@@ -1163,6 +1184,22 @@ function MockAdminContent() {
                   </div>
                 )}
 
+                {/* Did what came back match the question numbers printed on the
+                    paper? One question read as two lands here (a number missing,
+                    or one that was never on the paper). */}
+                {parseCheck && (
+                  <div className={`px-3 py-2 rounded-lg border text-xs ${parseCheck.issues.length ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                    {parseCheck.issues.length === 0 ? (
+                      <span>✅ 卷面共 <b>{parseCheck.expected}</b> 个题号，解析出 <b>{parseCheck.parsed}</b> 道题，题号对得上。</span>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <div>⚠️ 卷面共 <b>{parseCheck.expected}</b> 个题号，解析出 <b>{parseCheck.parsed}</b> 道题 —— 下面几处对不上，请对照原卷核对：</div>
+                        {parseCheck.issues.map((s, k) => <div key={k} className="pl-3">· {s}</div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* question review */}
                 {(
                   <div className="space-y-3">
@@ -1205,6 +1242,9 @@ function MockAdminContent() {
                               {draftLabel.get(i) ?? i + 1}
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${ref.cls}`}>{ref.text}</span>
+                            {q.num != null && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">卷面第 {q.num} 题</span>
+                            )}
                             {reasons.length > 0 && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">需人工审核</span>
                             )}

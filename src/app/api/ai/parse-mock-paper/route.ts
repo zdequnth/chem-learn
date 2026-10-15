@@ -4,66 +4,38 @@ import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-sourc
 import { parseAnswerKey } from '@/lib/answer-key'
 import { stripOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
+import { splitIntoBatches, numberIssues } from '@/lib/paper-batching'
 import { readStoredImage } from '@/lib/storage'
 import OpenAI from 'openai'
 
 // Batching makes this slower than Vercel's default function timeout.
 export const maxDuration = 60
 
-// Measured: a 6.7k-char batch generates ~30 questions in ~12s, so this is many
-// times inside the 60s function limit. The limit is not what breaks; a stalled
-// call is (see the client timeout below).
-const MAX_CHARS_PER_BATCH = 3000
-
 /**
- * Split pasted paper text into chunks small enough for one reliable LLM call.
- * Splits on blank lines, then groups paragraphs into per-question units so a
- * question is never cut in half (a half question was emitted as two).
+ * The question numbers a batch holds, scanned from the text itself. Stating them
+ * outright is what stops one question becoming two: the model reads "…to produce
+ * the compound shown.", then a separate interrogative line, and emits both 36 and
+ * a made-up 37. Told "this batch is 36, one question, no more", it merges them.
  */
-function splitIntoBatches(text: string): string[] {
-  const paragraphs = text
-    .replace(/\r\n/g, '\n')
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0)
+function numberAnchor(expectedNums: number[], short: boolean): string {
+  if (expectedNums.length === 0) return ''
+  const rules = short
+    ? `- 文本里有几道大题就拆几道，不要漏；上面这些题号是给你核对用的。
+- 一道大题可能带 (a)(b)(c) 多个小问，每个小问单独成为一道题，它们都填同一个题号。
+- 不要编造文本里没有的题号。`
+    : `- 一个题号 = 一道题。题干、紧跟其后的疑问句、它的选项、它的图，全部属于同一道题；
+  不要把一道题拆成两道，也不要把题干单独当成一道题。
+- 文本里有几道题就拆几道，不要漏。`
+  return `【题号 —— 用来核对，不是筛掉题目的条件】
+本批文本的题号是：${expectedNums.join('、')}
+${rules}
+- 不要编造文本里没有的题号；题号对不上不影响你把文本里的题目照实拆出来。
+- 每道题的 num 字段填它自己的题号（整数）。
 
-  const isQuestionStart = (p: string) => /^\s*\**\s*\d+\s*[.、)．:]\s*\S/.test(p)
-  const units: string[] = []
-  let cur: string[] = []
-  let sawStart = false
-  for (const para of paragraphs) {
-    if (isQuestionStart(para)) {
-      if (cur.length > 0) { units.push(cur.join('\n\n')); cur = [] }
-      sawStart = true
-    }
-    cur.push(para)
-  }
-  if (cur.length > 0) units.push(cur.join('\n\n'))
-
-  const packables = sawStart ? units : paragraphs
-
-  // Never split a question across batches. A unit (one question, plus the shared
-  // material above it) goes out whole even when it alone exceeds the cap: cutting
-  // it at a line boundary makes the next batch start mid-question, and that
-  // question is then lost. A long batch is the lesser evil — with reasoning off
-  // the model has the whole output budget, so it rarely runs out.
-  const batches: string[] = []
-  let current: string[] = []
-  let currentLen = 0
-  for (const unit of packables) {
-    if (current.length > 0 && currentLen + unit.length + 2 > MAX_CHARS_PER_BATCH) {
-      batches.push(current.join('\n\n'))
-      current = []
-      currentLen = 0
-    }
-    current.push(unit)
-    currentLen += unit.length + 2
-  }
-  if (current.length > 0) batches.push(current.join('\n\n'))
-  return batches.length > 0 ? batches : [text]
+`
 }
 
-function buildPrompt(text: string, courseName: string, lessonList: string, answerKey: Map<number, string> | null): string {
+function buildPrompt(text: string, courseName: string, lessonList: string, answerKey: Map<number, string> | null, expectedNums: number[]): string {
   return `你是 AP/IGCSE 化学题库录入助手。把下面这份试卷的文本拆成一道道的单项选择题，输出 JSON。
 
 【试卷排版特点，必须正确处理】
@@ -75,7 +47,7 @@ function buildPrompt(text: string, courseName: string, lessonList: string, answe
    那一道大题的题号（字符串，如 "1"）。独立成题的填 null。
    共用材料要【完整写进每道题自己的 stem 里】，不要省略、不要写"见上题"。
 
-【逐题判断所属课时】
+${numberAnchor(expectedNums, false)}【逐题判断所属课时】
 下面是这门课（${courseName}）的章节课时清单。为每道题判断它最匹配的课时，返回 lessonRef，格式 "章号.课时号"，例如 "5.1"：
 ${lessonList}
 lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
@@ -106,13 +78,13 @@ ${[...answerKey].map(([n, l]) => `${n}:${l}`).join('  ')}
 - 如果**选项本身就是一张表**（A/B/C/D 各占一行）：stem 里【不要】出现这张表，只在 options 数组里逐行给出。
 
 【输出字段】每题一个对象：
-{"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"groupRef":null}
+{"num":1,"stem":"...","options":[{"content":"...","isCorrect":false}],"explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"groupRef":null}
 - stem/options/explanation 保持原语言（英文），不要翻译
 - LaTeX 原样保留（JSON 字符串里的反斜杠写双反斜杠）
 - explanation 以 "Answer: X" 开头
 - 选项 content 不要带 "(A) " 前缀
 - 题目里夹着的图片：把链接放进 images 数组（一道题可能有多张图），并从 stem 里去掉那几行 ![](...)；没有就填空数组 []
-- num / independentAnswer 只在有官方答案时才需要，其余情况填 null
+- num 必填：这道题在试卷上的题号（整数）。independentAnswer 只在有官方答案时才需要，其余填 null
 - 绝对不要输出任何 HTML 标签
 
 输出纯 JSON（不要 markdown 代码块）：{"questions":[...]}
@@ -132,6 +104,7 @@ function buildShortPrompt(
   lessonList: string,
   position: 'end' | 'inline' | 'none',
   keyText: string,
+  expectedNums: number[],
 ): string {
   const answerBlock =
     position === 'end' && keyText.trim()
@@ -167,7 +140,7 @@ stem 里只留问题本身，不要保留答案。`
    "见上题" —— 学生看到的每一道小问都是独立的，重复没有关系。
    groupRef 只看卷面上的大题号，不要根据内容相似度去猜。
 
-【逐题判断所属课时】
+${numberAnchor(expectedNums, true)}【逐题判断所属课时】
 下面是这门课（${courseName}）的章节课时清单。为每道题判断它最匹配的课时，返回 lessonRef，格式 "章号.课时号"，例如 "5.1"：
 ${lessonList}
 lessonRef 必须来自上面的清单；拿不准就填 null，不要编造。
@@ -184,8 +157,9 @@ ${answerBlock}
   | ethene | $4.8 \times 10^3$ |
 
 【输出字段】每题一个对象：
-{"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"num":null,"groupRef":null}
+{"num":1,"stem":"...","answerText":"...","explanation":"...","difficulty":1,"lessonRef":"5.1","images":[],"groupRef":null}
 - groupRef：所属大题的题号（如 "1"）；独立成题的填 null
+- num 必填：该小问所属大题的题号（整数）
 - stem / answerText / explanation 保持原语言（英文），不要翻译
 - answerText 必填：完整的参考答案，含关键计算过程 —— 它就是判分标准
 - explanation 是给老师看的讲解，可以简略；不要以 "Answer:" 开头（那是选择题的格式）
@@ -295,7 +269,10 @@ export async function POST(request: Request) {
   // deterministic, so the client can just ask for batch 0, 1, 2 … in turn.
   const batches = splitIntoBatches(cleanText)
   const batchIndex = Math.min(Math.max(0, Number(rawBatchIndex) || 0), batches.length - 1)
-  const chunk = batches[batchIndex]
+  const batch = batches[batchIndex]
+  const chunk = batch.text
+  // The question numbers this chunk is supposed to yield, scanned from the text.
+  const expectedNums = batch.nums
 
   // The key is the same for every batch, so the whole thing is handed to each
   // one and the model picks out the numbers it sees. Far simpler than working
@@ -310,8 +287,8 @@ export async function POST(request: Request) {
   const answerKey = parsedKey && parsedKey.size > 0 ? parsedKey : null
 
   let prompt = paperMode === 'short'
-    ? buildShortPrompt(chunk, outline.courseName, outline.promptList, answerPosition, keyText)
-    : buildPrompt(chunk, outline.courseName, outline.promptList, answerKey)
+    ? buildShortPrompt(chunk, outline.courseName, outline.promptList, answerPosition, keyText, expectedNums)
+    : buildPrompt(chunk, outline.courseName, outline.promptList, answerKey, expectedNums)
   // One attempt only: a second one could add 40s to a request that has 60s to
   // live. The route answers 200 with `failed` instead, and the client decides
   // whether to re-run.
@@ -326,7 +303,26 @@ export async function POST(request: Request) {
     prompt += `\n\n【补充】后面附的 ${answerUrls.length} 张图是老师提供的答案区截图 —— 只从里面读答案，不要把它们当成题目。请按题号用官方答案标记。`
   }
 
-  const result = await parseChunk(client, prompt, answerUrls)
+  let result = await parseChunk(client, prompt, answerUrls)
+
+  // Check the batch gave back exactly the questions it was told to produce. One
+  // question read as two (the model splits a stem from its trailing interrogative
+  // line) shows up as a number that is missing, or one that was never there. One
+  // corrective retry, because the model usually gets it right once told what it
+  // did wrong; if it still disagrees we hand the batch over with the mismatch
+  // spelled out for the teacher rather than hiding it.
+  let numIssues = result.ok
+    ? numberIssues(expectedNums, result.questions.map((q: any) => q.num), paperMode)
+    : []
+  if (result.ok && numIssues.length > 0) {
+    const fix = `\n\n【上一次的输出有问题，必须改正】\n${numIssues.map((s) => `- ${s}`).join('\n')}\n请重新输出本批全部题目，严格按上面的题号来。`
+    const retry = await parseChunk(client, prompt + fix, answerUrls)
+    if (retry.ok) {
+      const retryIssues = numberIssues(expectedNums, retry.questions.map((q: any) => q.num), paperMode)
+      if (retryIssues.length < numIssues.length) { result = retry; numIssues = retryIssues }
+    }
+  }
+
   const raw: any[] = result.ok ? result.questions : []
   const failed: string[] = result.ok ? [] : [result.error || chunk.slice(0, 80)]
 
@@ -390,5 +386,16 @@ export async function POST(request: Request) {
     ? !q.answerText
     : (q.options.length < 2 || q.options.filter((o: any) => o.isCorrect).length !== 1),
   ).length
-  return NextResponse.json({ questions, failed, suspect, batchIndex, totalBatches: batches.length })
+  return NextResponse.json({
+    questions,
+    failed,
+    suspect,
+    batchIndex,
+    totalBatches: batches.length,
+    // What this batch should have produced vs what it did, so the page can show
+    // the teacher where to look instead of leaving them to count by hand.
+    expectedNums,
+    gotNums: raw.map((q: any) => (Number.isInteger(q.num) ? q.num : null)),
+    numIssues,
+  })
 }
