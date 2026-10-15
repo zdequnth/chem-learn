@@ -131,3 +131,22 @@ export async function countPaperSessions(paperId: string): Promise<number> {
   })
   return (data || []).length
 }
+
+/**
+ * One course must not end up with two papers of the same name — which is what
+ * happens when a teacher saves a copy and does not retype the title. "AS 2019"
+ * becomes "AS 2019（2）", then （3）, and so on.
+ */
+export async function uniquePaperTitle(courseId: string, title: string): Promise<string> {
+  const { data } = await supabaseAdmin('mock_papers', {
+    query: `?mock_course_id=eq.${courseId}&select=title`,
+  })
+  const used = new Set((data || []).map((p: any) => String(p.title ?? '').trim()))
+  const base = title.trim()
+  if (!used.has(base)) return base
+  for (let n = 2; n < 100; n++) {
+    const candidate = `${base}（${n}）`
+    if (!used.has(candidate)) return candidate
+  }
+  return `${base}（${Date.now()}）`
+}

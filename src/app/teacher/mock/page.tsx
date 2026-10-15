@@ -103,6 +103,10 @@ function MockAdminContent() {
   const [duration, setDuration] = useState(60)
   const [questions, setQuestions] = useState<DraftQuestion[]>([])
   const [published, setPublished] = useState(false)
+  // Exam sessions this paper already holds. Above zero, saving over it would
+  // orphan those answers, so the in-place save is shut off in the UI (and again
+  // on the server).
+  const [sessionsHeld, setSessionsHeld] = useState(0)
 
   const [outline, setOutline] = useState<OutChapter[]>([])
   const [sourceName, setSourceName] = useState<string | null>(null)
@@ -194,6 +198,7 @@ function MockAdminContent() {
       const j = await fetch(`/api/mock/papers/${id}`).then(r => r.json())
       if (j.error) { alert('读取失败：' + j.error); return }
       setTitle(j.paper.title); setDuration(j.paper.durationMinutes); setPublished(!!j.paper.isPublished)
+      setSessionsHeld(Number(j.paper.sessionCount) || 0)
       setMode(j.paper.mode === 'short' ? 'short' : 'choice')
       setQuestions((j.questions || []).map((q: any) => ({
         id: q.id, stem: q.stem, explanation: q.explanation || '', difficulty: q.difficulty,
@@ -248,6 +253,7 @@ function MockAdminContent() {
     setOpen(true)
     setPaperId(null); setQuestions([]); setImportText(''); setDirty(false); setPublished(false)
     setAnswerText(''); setPageImages([]); setAnswerImages([]); setImportMode('text'); setEditQ(null)
+    setSessionsHeld(0)
   }
 
   const togglePublish = async (id: string, next: boolean, paperMode?: 'choice' | 'short') => {
@@ -685,7 +691,8 @@ function MockAdminContent() {
     })
     const j = await res.json()
     if (!res.ok || j.error) { alert('保存失败：' + (j.error || res.status)); return }
-    alert(`已另存为新试卷：${j.saved} 道题` + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
+    const renamed = j.title && j.title !== title ? `\n（标题已改为「${j.title}」—— 同一门课下不能有两份重名的卷子）` : ''
+    alert(`已另存为新试卷：${j.saved} 道题` + renamed + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
     setDirty(false)
     await loadPapers(courseId)
     await openPaper(j.paperId, title, duration)
@@ -1048,8 +1055,9 @@ function MockAdminContent() {
                       {PAPER_MODE[mode].emoji} {PAPER_MODE[mode].label}
                     </span>
 
-                    <button onClick={handleSave} disabled={busy !== ''}
-                      className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
+                    <button onClick={handleSave} disabled={busy !== '' || (!!paperId && sessionsHeld > 0)}
+                      title={paperId && sessionsHeld > 0 ? '这份试卷已有学生作答，只能另存为新试卷' : ''}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${theme.solid}`}>
                       {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       {paperId ? (lang === 'zh' ? '保存（更新本卷）' : 'Save') : (lang === 'zh' ? '保存试卷' : 'Save paper')}
                     </button>
@@ -1077,9 +1085,16 @@ function MockAdminContent() {
                             {published ? '取消发布' : '立即发布'}
                           </button>
                         </p>
-                        <p className="text-amber-700">
-                          ⚠️ 已保存的试卷改完再点保存会**新建一份**，不会覆盖原卷——学生已经考过的记录不受影响。
-                        </p>
+                        {sessionsHeld > 0 ? (
+                          <p className="text-amber-700">
+                            ⚠️ 本试卷已有 <b>{sessionsHeld}</b> 名学生作答过，改动题目会让他们的成绩和题目对不上，
+                            所以「保存（更新本卷）」不可用。要改就点「另存为新试卷」，改好后再发布新那份。
+                          </p>
+                        ) : (
+                          <p className="text-gray-600">
+                            「保存」会直接更新这份试卷，不会另建一份。
+                          </p>
+                        )}
                       </>
                     ) : (
                       <p className="text-gray-600">

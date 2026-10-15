@@ -61,7 +61,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   }
 
   return NextResponse.json({
-    paper: { id: paper!.id, title: paper!.title, mode: paper!.mode ?? 'choice', durationMinutes: paper!.duration_minutes, courseId: paper!.mock_course_id, isPublished: !!paper!.is_published },
+    paper: {
+      id: paper!.id,
+      title: paper!.title,
+      mode: paper!.mode ?? 'choice',
+      durationMinutes: paper!.duration_minutes,
+      courseId: paper!.mock_course_id,
+      isPublished: !!paper!.is_published,
+      // Drives the page's decision to disable "save over this paper".
+      sessionCount: await countPaperSessions(paperId),
+    },
     courseName: course?.name ?? '',
     sourceCourseName: outline?.courseName ?? null,
     questions,

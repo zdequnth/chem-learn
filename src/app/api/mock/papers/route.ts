@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { loadMockCourse, isAdminUser } from '@/lib/mock-source'
-import { loadValidLessonIds, validatePaperQuestions, createPaperQuestions } from '@/lib/mock-paper-write'
+import { loadValidLessonIds, validatePaperQuestions, createPaperQuestions, uniquePaperTitle } from '@/lib/mock-paper-write'
 import { NextResponse } from 'next/server'
 
 // Papers of one mock course.
@@ -81,11 +81,15 @@ export async function POST(request: Request) {
   const problem = validatePaperQuestions(list, mode, validLesson)
   if (problem) return NextResponse.json({ error: problem }, { status: 400 })
 
+  // Saving a copy without retyping the title used to leave two identical names in
+  // the course list, so the name is made unique here rather than trusted.
+  const finalTitle = await uniquePaperTitle(courseId, title.trim())
+
   const { data: paperRows, error: pErr } = await supabaseAdmin('mock_papers', {
     method: 'POST',
     body: {
       mock_course_id: courseId,
-      title: title.trim(),
+      title: finalTitle,
       mode,
       duration_minutes: Math.min(600, Math.max(1, Number(durationMinutes) || 60)),
       sort_order: 0,
@@ -96,5 +100,5 @@ export async function POST(request: Request) {
   const paperId = paperRows[0].id
 
   const { saved, imageWarnings } = await createPaperQuestions(paperId, list, mode, user.id)
-  return NextResponse.json({ paperId, saved, imageWarnings })
+  return NextResponse.json({ paperId, title: finalTitle, saved, imageWarnings })
 }
