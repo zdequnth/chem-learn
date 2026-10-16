@@ -135,9 +135,12 @@ function basicMarkdown(text: string): string {
   })
 
   // Headings (### Title)
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1">$1</h3>')
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-3 mb-1">$1</h2>')
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
+  // Headings carry a colour so a long knowledge-point reads as sections rather
+  // than one grey block. The class names are written out in full — Tailwind's
+  // JIT cannot see a name it has to build by concatenation.
+  html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1 text-violet-700">$1</h3>')
+  html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-1.5 text-violet-800">$1</h2>')
+  html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2 text-violet-900">$1</h1>')
   // Bold and italic
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')

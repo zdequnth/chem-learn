@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import { KatexHtml } from '@/components/KatexSpan'
 import type { Lesson, Chapter, Course, KnowledgePoint, VideoLink, StudentProgress, GateTestSession } from '@/lib/types'
-import { ArrowLeft, BookOpen, Video, Swords, Clock, Lock, Loader2 } from 'lucide-react'
+import { ArrowLeft, BookOpen, Video, Swords, Clock, Lock, Loader2, ChevronDown } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
 export default function LessonHubPage() {
@@ -25,6 +25,15 @@ export default function LessonHubPage() {
   const [videoLinks, setVideoLinks] = useState<Record<string, VideoLink[]>>({})
   const [progress, setProgress] = useState<StudentProgress | null>(null)
   const [lockInfo, setLockInfo] = useState<{ lockedUntil: string | null; failCount: number }>({ lockedUntil: null, failCount: 0 })
+  // Knowledge points start folded: a lesson now carries 8 of them and several are
+  // long, so an all-expanded page is a wall of text. Titles stay visible; click
+  // one to read it.
+  const [openKps, setOpenKps] = useState<Set<string>>(new Set())
+  const toggleKp = (id: string) => setOpenKps(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
   const [vocabCount, setVocabCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -113,15 +122,31 @@ export default function LessonHubPage() {
             {/* Knowledge Points */}
             {knowledgePoints.length > 0 && (
               <div className="bg-card rounded-2xl border p-6 mb-6">
-                <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                  <BookOpen className="w-5 h-5 text-blue-500" /> 知识点清单
-                </h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-blue-500" /> 知识点清单
+                  </h2>
+                  <span className="text-xs text-muted-foreground">{knowledgePoints.length} 个</span>
+                  <button
+                    onClick={() => setOpenKps(openKps.size > 0 ? new Set() : new Set(knowledgePoints.map(k => k.id)))}
+                    className="ml-auto text-xs px-3 py-1.5 rounded-lg border hover:bg-accent transition-colors">
+                    {openKps.size > 0 ? '全部收起' : '全部展开'}
+                  </button>
+                </div>
                 <div className="space-y-3">
-                  {knowledgePoints.map(kp => (
-                    <div key={kp.id} className="border rounded-xl p-4">
-                      <h3 className="font-medium mb-1">{kp.title}</h3>
+                  {knowledgePoints.map(kp => {
+                    const open = openKps.has(kp.id)
+                    return (
+                    <div key={kp.id} className="border rounded-xl overflow-hidden">
+                      <button onClick={() => toggleKp(kp.id)}
+                        className="w-full flex items-start gap-2 px-4 py-3 text-left hover:bg-accent/60 transition-colors">
+                        <ChevronDown className={`w-4 h-4 mt-0.5 shrink-0 text-violet-500 transition-transform ${open ? '' : '-rotate-90'}`} />
+                        <h3 className="font-medium text-violet-800">{kp.title}</h3>
+                      </button>
+                      {open && (
+                      <div className="px-4 pb-4 pl-10">
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
-                        <div className="mt-3 space-y-3">
+                        <div className="space-y-3">
                           {[
                             { key: 'pdf', label: 'PDF 资料', icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600 hover:text-red-700', plat: 'bg-red-100' },
                             { key: 'video', label: '视频讲解', icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600 hover:text-blue-700', plat: 'bg-blue-100' },
@@ -152,8 +177,11 @@ export default function LessonHubPage() {
                         </div>
                       )}
                       {kp.description && <div className="mt-3 text-sm text-muted-foreground"><KatexHtml text={kp.description} /></div>}
+                      </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
