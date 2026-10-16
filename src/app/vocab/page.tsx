@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
-import type { VocabResult, VocabWordWithProgress } from '@/lib/types'
+import type { VocabResult, VocabDifficulty, VocabWordWithProgress } from '@/lib/types'
 import { Loader2, ArrowLeft, Volume2, Sparkles, X } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 
@@ -23,6 +23,11 @@ type StudyMode = 'card' | 'list' | 'spell' | 'choice' | 'def'
 const STUDY_MODES = [['card', '卡片'], ['list', '列表']] as const
 const TEST_MODES = [['spell', '拼写'], ['choice', '选择'], ['def', '释义']] as const
 const GROUP_DEFAULT: Record<'study' | 'test', StudyMode> = { study: 'card', test: 'choice' }
+
+// 「拓展阅读」 means "worth having seen", not "worth being tested on", so the test
+// modes step over those words. The study modes still show them.
+const EXTENDED: VocabDifficulty = '拓展阅读'
+const isTestMode = (m: StudyMode) => TEST_MODES.some(([x]) => x === m)
 
 const SESSION_CAP = 30
 
@@ -224,7 +229,9 @@ function VocabContent() {
       requeued.current.add(word.id)
       nextAgain = [...again, word]
     }
-    const nextPos = pos + 1
+    let nextPos = pos + 1
+    // In a test mode, walk past the reading-only words.
+    if (isTestMode(mode)) { while (nextPos < queue!.length && queue![nextPos].difficulty === EXTENDED) nextPos++ }
     setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
     if (nextPos < queue!.length) { setPos(nextPos); setAgain(nextAgain); return }
     // `requeued` is deliberately NOT cleared here — clearing it would let a word
@@ -328,10 +335,20 @@ function VocabContent() {
     const isLast = pos === queue.length - 1 && again.length === 0
     const pct = Math.round((done / (done + queue.length - pos + again.length)) * 100)
     const correctOption = mode === 'def' ? word.term : word.zh
+    // In a test mode the reading-only words are stepped over. `skipExtended`
+    // returns queue.length when nothing testable is left, and the UI says so
+    // rather than pretending the session ended.
+    const skipExtended = (from: number) => {
+      let i = from
+      while (i < queue.length && queue[i].difficulty === EXTENDED) i++
+      return i
+    }
+    const blockedInTest = isTestMode(mode) && word.difficulty === EXTENDED
     // Switching mode always clears the previous answer state, so a half-answered
     // question never carries over into the next mode.
     const pickMode = (m: StudyMode) => {
       setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
+      if (isTestMode(m)) { const i = skipExtended(pos); if (i < queue.length) setPos(i) }
     }
     const inGroup = (g: 'study' | 'test') =>
       (g === 'study' ? STUDY_MODES : TEST_MODES).some(([m]) => m === mode)
@@ -425,6 +442,17 @@ function VocabContent() {
             <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
 
+          {blockedInTest ? (
+          <div className="bg-card border rounded-2xl p-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              {lang === 'zh' ? '这里剩下的都是「拓展阅读」的词 —— 这类词测试模式不考（看过就行）。' : 'The words left are reading-only; tests skip them.'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {lang === 'zh' ? '换回「学习模式」继续看，或点左上角结束。' : 'Switch back to 学习模式, or end here.'}
+            </p>
+          </div>
+          ) : (
+          <>
           <div className="relative bg-card border rounded-2xl p-8 min-h-[280px] flex flex-col">
             {/* the right/wrong mark stays put until the next word */}
             {fx && (
@@ -566,6 +594,8 @@ function VocabContent() {
               </button>
             )}
           </div>
+          </>
+          )}
 
           <div className="text-center text-xs text-muted-foreground mt-4">
             {lang === 'zh' ? `已完成 ${done} · 剩余 ${queue.length - pos + again.length}` : `Done ${done} · Left ${queue.length - pos + again.length}`}
