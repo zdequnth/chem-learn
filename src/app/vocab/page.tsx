@@ -353,13 +353,13 @@ function VocabContent() {
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className={`rounded-xl border px-3 py-3 text-center ${inGroup('study') ? 'border-sky-400 bg-sky-50' : 'border-sky-200 bg-sky-50/50'}`}>
               <button onClick={() => pickMode(GROUP_DEFAULT.study)}
-                className="block w-full text-base font-bold text-sky-700 hover:underline mb-2">
+                className="block w-full text-lg font-bold text-sky-700 hover:underline mb-2">
                 {lang === 'zh' ? '学习模式' : 'Study'}
               </button>
               <div className="flex flex-wrap justify-center gap-1.5">
                 {STUDY_MODES.map(([m, label]) => (
                   <button key={m} onClick={() => pickMode(m)}
-                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${mode === m ? 'bg-sky-600 border-sky-600 text-white font-semibold' : 'border-sky-300 text-sky-800 hover:bg-sky-100'}`}>
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${mode === m ? 'bg-sky-600 border-sky-600 text-white font-semibold' : 'border-sky-300 text-sky-800 hover:bg-sky-100'}`}>
                     {label}
                   </button>
                 ))}
@@ -371,13 +371,13 @@ function VocabContent() {
 
             <div className={`rounded-xl border px-3 py-3 text-center ${inGroup('test') ? 'border-amber-400 bg-amber-50' : 'border-amber-200 bg-amber-50/50'}`}>
               <button onClick={() => pickMode(GROUP_DEFAULT.test)}
-                className="block w-full text-base font-bold text-amber-700 hover:underline mb-2">
+                className="block w-full text-lg font-bold text-amber-700 hover:underline mb-2">
                 {lang === 'zh' ? '测试模式' : 'Test'}
               </button>
               <div className="flex flex-wrap justify-center gap-1.5">
                 {TEST_MODES.map(([m, label]) => (
                   <button key={m} onClick={() => pickMode(m)}
-                    className={`px-4 py-2 text-sm rounded-lg border transition-colors ${mode === m ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:bg-amber-100'}`}>
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${mode === m ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:bg-amber-100'}`}>
                     {label}
                   </button>
                 ))}
