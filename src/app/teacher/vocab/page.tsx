@@ -9,6 +9,7 @@ import type { Course, Chapter, Lesson } from '@/lib/types'
 import { VOCAB_DIFFICULTIES, normaliseDifficulty } from '@/lib/types'
 import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
+import { shrinkImageFile } from '@/lib/shrink-image-file'
 
 type WordForm = {
   id?: string
@@ -102,14 +103,13 @@ function VocabAdminContent() {
   // Illustrations are pasted straight into the form; the upload route puts the
   // file in Supabase Storage and hands back a public URL for image_url.
   const uploadFile = async (file: File) => {
-    if (file.size > 1024 * 1024) {
-      alert(`图片需小于 1MB，当前 ${Math.round(file.size / 1024)}KB。请先用截图工具缩小。`)
-      return
-    }
     setUploading(true)
     try {
+      // Big screenshots get shrunk here — asking the teacher to go and resize
+      // their own picture was the annoying part.
+      const toSend = await shrinkImageFile(file)
       const fd = new FormData()
-      fd.append('file', file, 'img.png')
+      fd.append('file', toSend)
       const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
       const json = await res.json()
       if (json.url) setEditWord(w => (w ? { ...w, image_url: json.url } : w))

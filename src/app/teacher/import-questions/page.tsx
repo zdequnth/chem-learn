@@ -9,6 +9,7 @@ import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { ArrowLeft, Loader2, CheckCircle, Save, X, Sparkles, Edit3 } from 'lucide-react'
+import { shrinkImageFile } from '@/lib/shrink-image-file'
 
 interface ParsedQuestion {
   stem: string
@@ -176,14 +177,13 @@ function ImportForm() {
         e.preventDefault()
         const file = item.getAsFile()
         if (!file) { alert('无法读取图片'); continue }
-        if (file.size > 1024 * 1024) {
-          alert('图片需小于1MB，当前: ' + Math.round(file.size / 1024) + 'KB。请先用截图工具缩小图片。')
-          continue
-        }
+        // Big screenshots get shrunk in the browser first — a 17 MB paste would
+        // otherwise be turned away, or exceed the upload limit anyway.
+        const toSend = await shrinkImageFile(file)
         setUploadingImage(true)
         try {
           const fd = new FormData()
-          fd.append('file', file, 'img.png')
+          fd.append('file', toSend, 'img.png')
           const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
           const json = await res.json()
           if (json.url) {

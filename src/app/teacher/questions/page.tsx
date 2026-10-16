@@ -11,6 +11,7 @@ import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { Loader2, Search, Edit3, CheckCircle, XCircle, X } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
+import { shrinkImageFile } from '@/lib/shrink-image-file'
 
 function rateBadgeClass(rate: number | null) {
   if (rate === null) return 'bg-gray-100 text-gray-500'
@@ -61,15 +62,13 @@ function QuestionsContent() {
         e.preventDefault()
         const file = item.getAsFile()
         if (!file) { alert('无法读取图片'); continue }
-        // Compress large images before upload
-        if (file.size > 1024 * 1024) {
-          alert('图片需小于1MB，当前: ' + Math.round(file.size / 1024) + 'KB。请先用截图工具缩小图片。')
-          continue
-        }
+        // Big screenshots get shrunk in the browser first — a 17 MB paste would
+        // otherwise be turned away, or exceed the upload limit anyway.
+        const toSend = await shrinkImageFile(file)
         setUploadingImage(true)
         try {
           const formData = new FormData()
-          formData.append('file', file, 'img.png')
+          formData.append('file', toSend, 'img.png')
           const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
           const json = await res.json()
           if (json.url) {
