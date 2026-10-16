@@ -351,11 +351,16 @@ function VocabContent() {
           {/* Left / right, one column each: name on its own line, modes on the
               next, the caveat small underneath. */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className={`rounded-xl border px-3 py-3 text-center ${inGroup('study') ? 'border-sky-400 bg-sky-50' : 'border-sky-200 bg-sky-50/50'}`}>
-              <button onClick={() => pickMode(GROUP_DEFAULT.study)}
-                className="block w-full text-lg font-bold text-sky-700 hover:underline mb-2">
-                {lang === 'zh' ? '学习模式' : 'Study'}
-              </button>
+            <div className={`rounded-xl border px-3 py-2 text-center ${inGroup('study') ? 'border-sky-400 bg-sky-50' : 'border-sky-200 bg-sky-50/50'}`}>
+              <div className="flex items-baseline justify-center gap-2 mb-1.5">
+                <button onClick={() => pickMode(GROUP_DEFAULT.study)}
+                  className="text-lg font-bold text-sky-700 hover:underline">
+                  {lang === 'zh' ? '学习模式' : 'Study'}
+                </button>
+                <span className="text-[11px] text-sky-700/70 whitespace-nowrap">
+                  {lang === 'zh' ? '只学习，不计成绩' : 'not graded'}
+                </span>
+              </div>
               <div className="flex flex-wrap justify-center gap-1.5">
                 {STUDY_MODES.map(([m, label]) => (
                   <button key={m} onClick={() => pickMode(m)}
@@ -364,16 +369,18 @@ function VocabContent() {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-sky-700/80 mt-2 whitespace-nowrap">
-                {lang === 'zh' ? '只学习，不计成绩' : 'Study only · not graded'}
-              </p>
             </div>
 
-            <div className={`rounded-xl border px-3 py-3 text-center ${inGroup('test') ? 'border-amber-400 bg-amber-50' : 'border-amber-200 bg-amber-50/50'}`}>
-              <button onClick={() => pickMode(GROUP_DEFAULT.test)}
-                className="block w-full text-lg font-bold text-amber-700 hover:underline mb-2">
-                {lang === 'zh' ? '测试模式' : 'Test'}
-              </button>
+            <div className={`rounded-xl border px-3 py-2 text-center ${inGroup('test') ? 'border-amber-400 bg-amber-50' : 'border-amber-200 bg-amber-50/50'}`}>
+              <div className="flex items-baseline justify-center gap-2 mb-1.5">
+                <button onClick={() => pickMode(GROUP_DEFAULT.test)}
+                  className="text-lg font-bold text-amber-700 hover:underline">
+                  {lang === 'zh' ? '测试模式' : 'Test'}
+                </button>
+                <span className="text-[11px] text-amber-700/70 whitespace-nowrap">
+                  {lang === 'zh' ? '答对两次算掌握' : 'right twice = mastered'}
+                </span>
+              </div>
               <div className="flex flex-wrap justify-center gap-1.5">
                 {TEST_MODES.map(([m, label]) => (
                   <button key={m} onClick={() => pickMode(m)}
@@ -382,9 +389,6 @@ function VocabContent() {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-amber-700/80 mt-2 whitespace-nowrap">
-                {lang === 'zh' ? '答对两次算掌握' : 'Right twice = mastered'}
-              </p>
             </div>
           </div>
 
