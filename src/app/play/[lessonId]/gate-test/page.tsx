@@ -415,10 +415,13 @@ export default function GateTestPage() {
 
               return (
                 <button key={opt.id} onClick={() => handleSelectOption(opt.id)} disabled={isAnswered}
-                  className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${bgClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}>
-                  <span className="font-medium text-muted-foreground mr-2">{letters[i]}.</span> <KatexHtml text={cleanOption(opt.content)} />
-                  {isCorrectOption && <CheckCircle className="inline w-4 h-4 text-green-500 ml-2" />}
-                  {isWrongSelection && <XCircle className="inline w-4 h-4 text-red-500 ml-2" />}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-colors flex items-start gap-2 ${bgClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}>
+                  {/* flex, not inline spans: KatexHtml wraps its output in a <p>, which
+                      would shove the letter onto a line of its own. */}
+                  <span className="font-medium text-muted-foreground shrink-0 w-6">{letters[i]}.</span>
+                  <span className="flex-1 min-w-0"><KatexHtml text={cleanOption(opt.content)} /></span>
+                  {isCorrectOption && <CheckCircle className="shrink-0 w-4 h-4 text-green-500 mt-0.5" />}
+                  {isWrongSelection && <XCircle className="shrink-0 w-4 h-4 text-red-500 mt-0.5" />}
                 </button>
               )
             })}

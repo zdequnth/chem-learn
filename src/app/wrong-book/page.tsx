@@ -338,11 +338,13 @@ export default function WrongBookPage() {
                         : 'border-gray-200 hover:border-gray-300'
                     return (
                       <button key={opt.id} onClick={() => practiceChoice === null && setPracticeChoice(opt.id)}
-                        className={`w-full text-left px-4 py-2.5 rounded-xl border transition-colors ${cls} ${practiceChoice === null ? 'cursor-pointer' : 'cursor-default'}`}>
-                        <span className="font-medium text-muted-foreground mr-2">{String.fromCharCode(65 + i)}.</span>
-                        <KatexHtml text={cleanOption(opt.content)} />
-                        {revealed && opt.isCorrect && <span className="text-green-600 ml-2">✓</span>}
-                        {revealed && isChosen && !opt.isCorrect && <span className="text-red-500 ml-2">✗</span>}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl border transition-colors flex items-start gap-2 ${cls} ${practiceChoice === null ? 'cursor-pointer' : 'cursor-default'}`}>
+                        {/* flex, not inline spans: KatexHtml wraps its output in a <p>, which
+                            would shove the letter onto a line of its own. */}
+                        <span className="font-medium text-muted-foreground shrink-0 w-6">{String.fromCharCode(65 + i)}.</span>
+                        <span className="flex-1 min-w-0"><KatexHtml text={cleanOption(opt.content)} /></span>
+                        {revealed && opt.isCorrect && <span className="shrink-0 text-green-600 mt-0.5">✓</span>}
+                        {revealed && isChosen && !opt.isCorrect && <span className="shrink-0 text-red-500 mt-0.5">✗</span>}
                       </button>
                     )
                   })}
