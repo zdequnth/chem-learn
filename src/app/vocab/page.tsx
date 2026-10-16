@@ -15,7 +15,14 @@ type LessonRow = {
 }
 type CourseRow = { id: string; name: string; wordCount: number; studied: number; mastered: number; due: number }
 
-type StudyMode = 'card' | 'spell' | 'choice' | 'def'
+type StudyMode = 'card' | 'list' | 'spell' | 'choice' | 'def'
+
+// Two kinds of practice, and they mean different things: 学习 is for reading and
+// never moves the mastery box; only 测试 counts. Each group has its own default
+// (卡片 / 选择) that you get by clicking the group name.
+const STUDY_MODES = [['card', '卡片'], ['list', '列表']] as const
+const TEST_MODES = [['spell', '拼写'], ['choice', '选择'], ['def', '释义']] as const
+const GROUP_DEFAULT: Record<'study' | 'test', StudyMode> = { study: 'card', test: 'choice' }
 
 const SESSION_CAP = 30
 
@@ -321,36 +328,96 @@ function VocabContent() {
     const isLast = pos === queue.length - 1 && again.length === 0
     const pct = Math.round((done / (done + queue.length - pos + again.length)) * 100)
     const correctOption = mode === 'def' ? word.term : word.zh
+    // Switching mode always clears the previous answer state, so a half-answered
+    // question never carries over into the next mode.
+    const pickMode = (m: StudyMode) => {
+      setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
+    }
+    const inGroup = (g: 'study' | 'test') =>
+      (g === 'study' ? STUDY_MODES : TEST_MODES).some(([m]) => m === mode)
 
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="max-w-2xl mx-auto px-4 pt-24 pb-20">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <button onClick={endSession} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '结束' : 'End'}
             </button>
-            <div className="flex gap-1 border rounded-lg overflow-hidden text-xs">
-              {([['card', '卡片'], ['spell', '拼写'], ['choice', '选择'], ['def', '释义']] as const).map(([m, label]) => (
-                <button key={m} onClick={() => {
-                  setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
-                }}
-                  className={`px-3 py-1.5 transition-colors ${mode === m ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
-                  {label}
-                </button>
-              ))}
+          </div>
+
+          {/* 学习 and 测试 are different things, so they get different colours:
+              one is reading, the other is the only thing that moves mastery. */}
+          <div className="space-y-2 mb-4">
+            <div className={`rounded-xl border px-3 py-2 ${inGroup('study') ? 'border-sky-300 bg-sky-50' : 'border-sky-200 bg-sky-50/50'}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => pickMode(GROUP_DEFAULT.study)}
+                  className="text-xs font-semibold text-sky-700 hover:underline">{lang === 'zh' ? '学习模式' : 'Study'}</button>
+                <div className="flex gap-1">
+                  {STUDY_MODES.map(([m, label]) => (
+                    <button key={m} onClick={() => pickMode(m)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${mode === m ? 'bg-sky-600 text-white font-medium' : 'text-sky-800 hover:bg-sky-100'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-sky-700/80 mt-1.5">
+                {lang === 'zh' ? '只用来学，不当作「掌握」的依据 —— 随便翻，不记成绩。' : 'Study only — nothing here counts towards mastery.'}
+              </p>
+            </div>
+
+            <div className={`rounded-xl border px-3 py-2 ${inGroup('test') ? 'border-amber-300 bg-amber-50' : 'border-amber-200 bg-amber-50/50'}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => pickMode(GROUP_DEFAULT.test)}
+                  className="text-xs font-semibold text-amber-700 hover:underline">{lang === 'zh' ? '测试模式' : 'Test'}</button>
+                <div className="flex gap-1">
+                  {TEST_MODES.map(([m, label]) => (
+                    <button key={m} onClick={() => pickMode(m)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${mode === m ? 'bg-amber-500 text-white font-medium' : 'text-amber-800 hover:bg-amber-100'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-amber-700/80 mt-1.5">
+                {lang === 'zh' ? '答对才计入「掌握」；同一个词累计答对两次就算掌握了。' : 'Only this counts — right twice and the word is mastered.'}
+              </p>
             </div>
           </div>
 
+          {mode === 'list' ? (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground mb-1">
+              {lang === 'zh' ? `本课时共 ${wordPool.length} 个词，顺着看一遍就行（不计成绩）。` : `All ${wordPool.length} words of this lesson.`}
+            </p>
+            {wordPool.map(w => (
+              <div key={w.id} className="bg-card border rounded-xl p-3 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="font-semibold">{w.term}</span>
+                    {w.ipa && <span className="text-xs text-muted-foreground">{w.ipa}</span>}
+                    {w.pos && <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{w.pos}</span>}
+                  </div>
+                  <div className="text-sm mt-0.5">{w.zh}</div>
+                  {w.en_def && <div className="text-xs text-muted-foreground mt-0.5">{w.en_def}</div>}
+                  {w.note && <div className="text-xs text-amber-700 mt-1">⚠️ {w.note}</div>}
+                </div>
+                {w.image_url && (
+                  <button type="button" onClick={() => setZoom(w.image_url)}
+                    title={lang === 'zh' ? '点图放大' : 'Tap to enlarge'} className="shrink-0">
+                    <img src={w.image_url} alt={w.term} loading="lazy"
+                      className="w-20 h-20 object-contain rounded-lg border bg-white cursor-zoom-in" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          ) : (
+          <>
           <div className="h-1.5 bg-gray-200 rounded-full mb-2 overflow-hidden">
             <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
-
-          <p className="text-xs text-muted-foreground mb-5">
-            {mode === 'card'
-              ? (lang === 'zh' ? '卡片是预习：这里的「认识」只是自己感觉，不计入「掌握」。掌握要靠 拼写 / 选择 / 释义 答对两次。' : 'Flashcards are for preview — self-rated "known" does not count as mastery. Spelling / choice / definition must be right twice.')
-              : (lang === 'zh' ? '答对会计入「掌握」，同一词累计答对两次即算掌握。' : 'A correct answer counts towards mastery — twice and the word is mastered.')}
-          </p>
 
           <div className="relative bg-card border rounded-2xl p-8 min-h-[280px] flex flex-col">
             {/* the right/wrong mark stays put until the next word */}
@@ -497,6 +564,8 @@ function VocabContent() {
           <div className="text-center text-xs text-muted-foreground mt-4">
             {lang === 'zh' ? `已完成 ${done} · 剩余 ${queue.length - pos + again.length}` : `Done ${done} · Left ${queue.length - pos + again.length}`}
           </div>
+          </>
+          )}
         </main>
 
         {/* full-screen image, for diagrams with small labels */}
