@@ -410,6 +410,9 @@ export default function SchedulePage() {
                 </span>
               )}
             </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              拖动可选连续几节 · 点空白新建 · 点事件编辑 · 勾选即完成
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
