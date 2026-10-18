@@ -141,6 +141,33 @@ export function classColor(classId: string): string {
   return kindColor('class', classId)
 }
 
+const SUBJECT_WORDS = new Set(['化学', '物理', '数学', '英语', '语文', '生物', '历史', '地理', '政治'])
+
+/** A timetable cell is often "课程/班级/老师/教室/时间" on separate lines. */
+function cleanParts(text: string): string[] {
+  return text
+    .split(/[\/|｜]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    // 08:00-08:40 / 13:50~14:35
+    .filter(p => !/^\d{1,2}:\d{2}\s*[-–—~]\s*\d{1,2}:\d{2}$/.test(p))
+    // room codes such as A116 or B-205
+    .filter(p => !/^[A-Za-z]{0,3}[-]?\d{1,4}$/.test(p))
+}
+
+/**
+ * The title to show for a cell. Class-matched entries use the class name
+ * instead; this is for everything else (self-study, clubs, competitions).
+ */
+export function cleanTimetableLabel(text: string): string {
+  const parts = cleanParts(text)
+  if (!parts.length) return text.trim().replace(/\s+/g, ' ').slice(0, 60)
+  const first = parts[0]
+  // "化学 /AP Chemistry-1班" — keep both, or "化学" alone says nothing.
+  const label = SUBJECT_WORDS.has(first) && parts[1] ? `${first} ${parts[1]}` : first
+  return label.replace(/\s+/g, ' ').trim().slice(0, 60)
+}
+
 function normaliseName(value: string): string {
   return value
     .toLowerCase()
@@ -156,15 +183,35 @@ function bigrams(value: string): Set<string> {
 }
 
 /**
- * Match a timetable cell ("化学A班") to one of the teacher's classes
- * ("2026 G9 化学A-3班"). Containment first, then character-bigram overlap; a
- * match needs to be both strong and clearly ahead of the runner-up, so an
- * ambiguous "化学" is left unmatched instead of guessing the wrong class.
+ * Distinctive tokens: "A-2", "G9", "AP". The timetable writes "A-2班" while a
+ * class name may write "化学A-2班", so spaces and CJK are both boundaries.
+ */
+function matchTokens(text: string): Set<string> {
+  const lower = text.toLowerCase()
+  const out = new Set<string>()
+  for (const m of lower.matchAll(/(?:^|[^a-z0-9])([a-z]{1,3})\s*[-–—]?\s*(\d{1,4})/g)) {
+    out.add(m[1] + m[2])
+  }
+  for (const m of lower.matchAll(/[a-z]{2,}/g)) out.add(m[0])
+  return out
+}
+
+/**
+ * Match a timetable cell to one of the teacher's classes.
+ *
+ * Cells look like "化学A/Chemistry A-2班/郑德群/A116/08:00-08:40", so exact
+ * containment alone fails. Two signals are combined: how much of the class
+ * name's character pairs appear in the cell, and whether a distinctive code
+ * ("A-2", "G9", "AP") is shared. A match must be strong AND clearly ahead of
+ * the runner-up — ambiguous cells are left unmatched rather than guessed.
  */
 export function matchClassName(label: string, classes: { id: string; name: string }[]): string | null {
-  const L = normaliseName(label)
+  const cleaned = cleanParts(label).join(' ')
+  const L = normaliseName(cleaned)
   if (!L) return null
   const lb = bigrams(L)
+  const labelTokens = matchTokens(cleaned)
+
   let bestId: string | null = null
   let best = 0
   let second = 0
@@ -173,16 +220,24 @@ export function matchClassName(label: string, classes: { id: string; name: strin
     const C = normaliseName(c.name)
     if (!C) continue
     let score = 0
+
     if (C.includes(L) || L.includes(C)) {
       score = 1
     } else {
       const cb = bigrams(C)
-      if (lb.size && cb.size) {
+      if (cb.size) {
         let hit = 0
-        for (const g of lb) if (cb.has(g)) hit++
-        score = hit / Math.min(lb.size, cb.size)
+        for (const g of cb) if (lb.has(g)) hit++
+        score = hit / cb.size
+      }
+      for (const token of matchTokens(c.name)) {
+        if (labelTokens.has(token)) {
+          score = Math.max(score, 0.9)
+          break
+        }
       }
     }
+
     if (score > best) {
       second = best
       best = score

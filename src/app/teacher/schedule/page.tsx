@@ -10,8 +10,9 @@ import {
 } from 'lucide-react'
 import {
   BREAK_PERIOD, CLASS_PALETTE, DEFAULT_SETTINGS, HORIZON_LABEL, KIND_LABEL, WEEKDAY_NAMES,
-  addDays, classColor, diffDays, isDateString, isoWeekday, kindColor, kindPalette,
-  markKey, matchClassName, monthDay, occursOn, parseYmd, startOfWeek, ymd,
+  addDays, classColor, cleanTimetableLabel, diffDays, isDateString, isoWeekday,
+  kindColor, kindPalette, markKey, matchClassName, monthDay, occursOn, parseYmd,
+  startOfWeek, ymd,
   type GoalHorizon, type MarkStatus, type RepeatMode, type ScheduleGoal,
   type ScheduleItem, type ScheduleKind, type ScheduleSettings,
 } from '@/lib/schedule'
@@ -447,14 +448,25 @@ export default function SchedulePage() {
         if (!matched.has(c.text)) matched.set(c.text, matchClassName(c.text, classes))
       }
       const unmatched = [...matched.entries()].filter(([, id]) => !id).map(([text]) => text)
+      // Give unmatched names colours the matched classes are not already using,
+      // so two different things never share a colour when the pool allows it.
+      const usedColors = new Set(
+        [...matched.values()].filter((id): id is string => !!id).map(id => classColorFor(id)),
+      )
+      const freeColors = CLASS_PALETTE.filter(c => !usedColors.has(c))
+      const colorPool = freeColors.length ? freeColors : CLASS_PALETTE
       const unmatchedColor = new Map(
-        unmatched.map((text, i) => [text, CLASS_PALETTE[i % CLASS_PALETTE.length]]),
+        unmatched.map((text, i) => [text, colorPool[i % colorPool.length]]),
       )
 
       const items = cells.map(c => {
         const classId = matched.get(c.text) || null
         return {
-          title: c.text,
+          // The cell often holds course/class/teacher/room/time; a matched
+          // entry shows the class name, the rest just the course part.
+          title: classId
+            ? (classById.get(classId)?.name || cleanTimetableLabel(c.text))
+            : cleanTimetableLabel(c.text),
           kind: 'class' as const,
           classId,
           color: classId ? classColorFor(classId) : (unmatchedColor.get(c.text) || CLASS_PALETTE[0]),
