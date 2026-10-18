@@ -5,16 +5,17 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, Plus,
-  Settings2, SkipForward, Square, Trash2, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, Plus,
+  Settings2, SkipForward, Sparkles, Square, Target, Trash2, X,
 } from 'lucide-react'
 import {
-  BREAK_PERIOD, DEFAULT_SETTINGS, KIND_LABEL, PALETTE, WEEKDAY_NAMES,
+  BREAK_PERIOD, DEFAULT_SETTINGS, HORIZON_LABEL, KIND_LABEL, PALETTE, WEEKDAY_NAMES,
   addDays, classColor, diffDays, isDateString, isoWeekday, markKey, monthDay,
   occursOn, parseYmd, startOfWeek, ymd,
-  type MarkStatus, type RepeatMode, type ScheduleItem, type ScheduleKind,
-  type ScheduleSettings,
+  type GoalHorizon, type MarkStatus, type RepeatMode, type ScheduleGoal,
+  type ScheduleItem, type ScheduleKind, type ScheduleSettings,
 } from '@/lib/schedule'
+import { shrinkImageFile } from '@/lib/shrink-image-file'
 
 type Editor = {
   id?: string
@@ -33,6 +34,10 @@ type Editor = {
 }
 
 const KINDS: ScheduleKind[] = ['class', 'meeting', 'task', 'other']
+
+type TimetableCell = { weekday: number; startPeriod: number; endPeriod: number; text: string }
+type PlanStep = { date: string; startPeriod: number; endPeriod: number; title: string }
+type GoalForm = { title: string; horizon: GoalHorizon; dueDate: string; note: string }
 
 function dateLabel(date: string): string {
   const d = parseYmd(date)
@@ -54,6 +59,25 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [draft, setDraft] = useState<ScheduleSettings | null>(null)
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importSaving, setImportSaving] = useState(false)
+  const [importError, setImportError] = useState('')
+  const [importCells, setImportCells] = useState<TimetableCell[] | null>(null)
+  const [importTargets, setImportTargets] = useState<Record<string, string>>({})
+  const [importTitles, setImportTitles] = useState<Record<string, string>>({})
+
+  const [goalsOpen, setGoalsOpen] = useState(false)
+  const [goals, setGoals] = useState<ScheduleGoal[]>([])
+  const [goalsLoading, setGoalsLoading] = useState(false)
+  const [goalForm, setGoalForm] = useState<GoalForm | null>(null)
+  const [goalBusy, setGoalBusy] = useState(false)
+  const [planGoal, setPlanGoal] = useState<ScheduleGoal | null>(null)
+  const [planSteps, setPlanSteps] = useState<PlanStep[] | null>(null)
+  const [planDropped, setPlanDropped] = useState(0)
+  const [planChecked, setPlanChecked] = useState<Record<number, boolean>>({})
+  const [planBusy, setPlanBusy] = useState(false)
 
   const [dragSel, setDragSel] = useState<{ day: number; from: number; to: number } | null>(null)
   const dragRef = useRef<{ day: number; anchor: number } | null>(null)
@@ -378,6 +402,249 @@ export default function SchedulePage() {
     }
   }
 
+  const importLabels = useMemo(() => {
+    if (!importCells) return []
+    const counts = new Map<string, number>()
+    for (const c of importCells) counts.set(c.text, (counts.get(c.text) || 0) + 1)
+    return [...counts.entries()].map(([text, count]) => ({ text, count }))
+  }, [importCells])
+
+  const resetImport = () => {
+    setImportCells(null)
+    setImportError('')
+    setImportTargets({})
+    setImportTitles({})
+    setImportBusy(false)
+    setImportSaving(false)
+  }
+
+  const handleTimetableFile = async (file: File) => {
+    setImportBusy(true)
+    setImportError('')
+    setImportCells(null)
+    try {
+      const toSend = await shrinkImageFile(file)
+      const fd = new FormData()
+      fd.append('file', toSend)
+      const up = await fetch('/api/upload-image', { method: 'POST', body: fd })
+      const uj = await up.json().catch(() => ({}))
+      if (!up.ok || !uj.url) throw new Error(uj.error || '图片上传失败')
+
+      const res = await fetch('/api/schedule/parse-timetable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: uj.url }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || '识别失败')
+
+      const cells: TimetableCell[] = Array.isArray(json.cells) ? json.cells : []
+      if (!cells.length) throw new Error('没有识别到课程')
+      setImportCells(cells)
+      const targets: Record<string, string> = {}
+      const titles: Record<string, string> = {}
+      for (const c of cells) {
+        targets[c.text] = 'task'
+        titles[c.text] = c.text
+      }
+      setImportTargets(targets)
+      setImportTitles(titles)
+    } catch (e: any) {
+      setImportError(e.message || '识别失败')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  const confirmImport = async () => {
+    if (!importCells || importSaving) return
+    const colorByLabel = new Map(importLabels.map((l, i) => [l.text, PALETTE[i % PALETTE.length]]))
+    const itemsToCreate = importCells.map(c => {
+      const target = importTargets[c.text] ?? 'task'
+      if (!target) return null
+      const title = (importTitles[c.text] || c.text).trim()
+      if (!title) return null
+      const isClass = target.startsWith('class:')
+      const classId = isClass ? target.slice('class:'.length) : null
+      return {
+        title,
+        kind: (isClass ? 'class' : target) as ScheduleKind,
+        classId,
+        color: classId ? classColor(classId) : (colorByLabel.get(c.text) || PALETTE[0]),
+        repeat: 'weekly' as const,
+        weekday: c.weekday,
+        eventDate: null,
+        startPeriod: c.startPeriod,
+        endPeriod: c.endPeriod,
+        note: '从课表照片导入',
+      }
+    }).filter(Boolean)
+
+    if (!itemsToCreate.length) return alert('没有选择要导入的课程')
+
+    setImportSaving(true)
+    try {
+      const res = await fetch('/api/schedule/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: itemsToCreate }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '导入失败')
+      setImportOpen(false)
+      resetImport()
+      await load(weekStart)
+      alert(`已导入 ${json.items?.length ?? itemsToCreate.length} 个时段`)
+    } catch (e: any) {
+      alert('导入失败：' + e.message)
+    } finally {
+      setImportSaving(false)
+    }
+  }
+
+  const loadGoals = async () => {
+    setGoalsLoading(true)
+    try {
+      const res = await fetch('/api/schedule/goals')
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '目标加载失败')
+      setGoals(json.goals || [])
+    } catch (e: any) {
+      alert('目标加载失败：' + e.message)
+    } finally {
+      setGoalsLoading(false)
+    }
+  }
+
+  const defaultDue = (horizon: GoalHorizon) =>
+    horizon === 'week' ? addDays(weekStart, 6)
+      : horizon === 'month' ? addDays(weekStart, 27)
+        : addDays(settings.termStart, settings.termWeeks * 7 - 1)
+
+  const createGoal = async () => {
+    if (!goalForm || goalBusy) return
+    if (!goalForm.title.trim()) return alert('请填写目标')
+    setGoalBusy(true)
+    try {
+      const res = await fetch('/api/schedule/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(goalForm),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '保存失败')
+      setGoalForm(null)
+      await loadGoals()
+    } catch (e: any) {
+      alert('保存失败：' + e.message)
+    } finally {
+      setGoalBusy(false)
+    }
+  }
+
+  const patchGoal = async (goal: ScheduleGoal, patch: any) => {
+    try {
+      const res = await fetch(`/api/schedule/goals/${goal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '操作失败')
+      await loadGoals()
+    } catch (e: any) {
+      alert('操作失败：' + e.message)
+    }
+  }
+
+  const deleteGoal = async (goal: ScheduleGoal) => {
+    if (!confirm(`删除目标「${goal.title}」？已经排进计划表的步骤会保留。`)) return
+    try {
+      const res = await fetch(`/api/schedule/goals/${goal.id}`, { method: 'DELETE' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '删除失败')
+      if (planGoal?.id === goal.id) {
+        setPlanGoal(null)
+        setPlanSteps(null)
+      }
+      await loadGoals()
+    } catch (e: any) {
+      alert('删除失败：' + e.message)
+    }
+  }
+
+  const runPlan = async (goal: ScheduleGoal) => {
+    setPlanGoal(goal)
+    setPlanSteps(null)
+    setPlanDropped(0)
+    setPlanChecked({})
+    setPlanBusy(true)
+    try {
+      const res = await fetch('/api/schedule/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalId: goal.id, today: today || ymd(new Date()) }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(json.error || 'AI 拆解失败')
+        setPlanGoal(null)
+        return
+      }
+      const steps: PlanStep[] = Array.isArray(json.steps) ? json.steps : []
+      setPlanSteps(steps)
+      setPlanDropped(Number(json.dropped) || 0)
+      setPlanChecked(Object.fromEntries(steps.map((_, i) => [i, true])))
+      if (!steps.length) {
+        alert('AI 没有给出可用安排。可以在目标里补充说明，或先清理一下日程再试。')
+      }
+    } catch (e: any) {
+      alert('AI 拆解失败：' + e.message)
+      setPlanGoal(null)
+    } finally {
+      setPlanBusy(false)
+    }
+  }
+
+  const acceptPlan = async () => {
+    if (!planGoal || !planSteps || planBusy) return
+    const chosen = planSteps.filter((_, i) => planChecked[i] !== false)
+    if (!chosen.length) return alert('请至少勾选一个步骤')
+
+    setPlanBusy(true)
+    try {
+      const res = await fetch('/api/schedule/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalId: planGoal.id,
+          items: chosen.map(s => ({
+            title: s.title,
+            kind: 'task',
+            classId: null,
+            color: classColor(planGoal.id),
+            repeat: 'once',
+            eventDate: s.date,
+            startPeriod: s.startPeriod,
+            endPeriod: s.endPeriod,
+            note: 'AI 拆解',
+          })),
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(json.error || '加入计划表失败')
+      setPlanGoal(null)
+      setPlanSteps(null)
+      await load(weekStart)
+      await loadGoals()
+      alert(`已把 ${json.items?.length ?? chosen.length} 个步骤加入计划表`)
+    } catch (e: any) {
+      alert('加入计划表失败：' + e.message)
+    } finally {
+      setPlanBusy(false)
+    }
+  }
+
   const periodRange = (start: number, end: number) => {
     const a = settings.periods[start - 1]?.start || ''
     const b = settings.periods[end - 1]?.end || ''
@@ -431,6 +698,16 @@ export default function SchedulePage() {
               }}
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">
               <Plus className="w-4 h-4" /> 新建
+            </button>
+            <button
+              onClick={() => { resetImport(); setImportOpen(true) }}
+              className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
+              <ImagePlus className="w-4 h-4" /> 课表导入
+            </button>
+            <button
+              onClick={() => { setGoalsOpen(true); loadGoals() }}
+              className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
+              <Target className="w-4 h-4" /> 目标规划
             </button>
             <button onClick={openSettings}
               className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
@@ -715,6 +992,284 @@ export default function SchedulePage() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {importOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4"
+          tabIndex={-1}
+          onPaste={e => {
+            if (importBusy || importCells) return
+            const f = Array.from(e.clipboardData?.files || []).find(x => x.type.startsWith('image/'))
+            if (f) { e.preventDefault(); handleTimetableFile(f) }
+          }}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <ImagePlus className="w-5 h-5 text-emerald-600" /> 从课表照片导入
+              </h2>
+              <button onClick={() => { setImportOpen(false); resetImport() }}
+                className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            </div>
+
+            {!importCells ? (
+              <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center">
+                {importBusy ? (
+                  <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
+                    正在识别课表，通常需要 10–30 秒…
+                  </div>
+                ) : (
+                  <>
+                    <ImagePlus className="w-9 h-9 mx-auto text-gray-300 mb-2" />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      选一张课表照片或截图。
+                      <br />识别完会先列出每个名称，让你确认它对应哪个班级，再导入。
+                    </p>
+                    <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer">
+                      选择图片
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0]
+                          if (f) handleTimetableFile(f)
+                          e.target.value = ''
+                        }} />
+                    </label>
+                  </>
+                )}
+                {importError && <p className="text-sm text-red-600 mt-3">{importError}</p>}
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-3">
+                  识别到 <span className="font-medium text-foreground">{importCells.length}</span> 个时段、
+                  <span className="font-medium text-foreground">{importLabels.length}</span> 个不同的名称。
+                  确认每个名称怎么处理：
+                </p>
+
+                <div className="divide-y rounded-xl border overflow-hidden">
+                  {importLabels.map(({ text, count }) => (
+                    <div key={text} className="p-3 flex flex-wrap items-center gap-2">
+                      <div className="min-w-[7rem] flex-1">
+                        <div className="text-sm font-medium break-all">{text}</div>
+                        <div className="text-xs text-muted-foreground">{count} 个时段</div>
+                      </div>
+                      <input
+                        value={importTitles[text] ?? text}
+                        onChange={e => setImportTitles({ ...importTitles, [text]: e.target.value })}
+                        placeholder="导入后的标题"
+                        className="w-40 px-2 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                      <select
+                        value={importTargets[text] ?? 'task'}
+                        onChange={e => setImportTargets({ ...importTargets, [text]: e.target.value })}
+                        className="w-48 px-2 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">不导入</option>
+                        <option value="task">作为任务</option>
+                        <option value="meeting">作为会议</option>
+                        <option value="other">作为其他</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={`class:${c.id}`}>绑定班级：{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
+                  {WEEKDAY_NAMES.map((name, i) => {
+                    const cells = importCells.filter(c => c.weekday === i + 1)
+                    if (!cells.length) return null
+                    return (
+                      <div key={name}>
+                        <span className="font-medium">{name}：</span>
+                        {cells.map(c => `${c.startPeriod}${c.endPeriod !== c.startPeriod ? `-${c.endPeriod}` : ''} ${c.text}`).join(' · ')}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <button onClick={confirmImport} disabled={importSaving}
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-60">
+                    {importSaving
+                      ? '导入中…'
+                      : `导入 ${importCells.filter(c => (importTargets[c.text] ?? 'task') !== '').length} 个时段`}
+                  </button>
+                  <button onClick={resetImport}
+                    className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">换一张图片</button>
+                  <button onClick={() => { setImportOpen(false); resetImport() }}
+                    className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {goalsOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Target className="w-5 h-5 text-violet-600" /> 目标规划
+              </h2>
+              <button onClick={() => { setGoalsOpen(false); setGoalForm(null); setPlanGoal(null); setPlanSteps(null) }}
+                className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            </div>
+
+            {planGoal && (
+              <div className="mb-4 rounded-xl border-2 border-violet-200 bg-violet-50/50 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold">「{planGoal.title}」的 AI 拆解</h3>
+                  <button onClick={() => { setPlanGoal(null); setPlanSteps(null) }}
+                    className="p-0.5 rounded hover:bg-white"><X className="w-3.5 h-3.5" /></button>
+                </div>
+                {planBusy && planSteps === null ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+                    <Loader2 className="w-4 h-4 text-violet-500 animate-spin" /> AI 正在查看空档并安排步骤…
+                  </div>
+                ) : (
+                  <>
+                    {planDropped > 0 && (
+                      <p className="text-xs text-amber-700 mb-2">
+                        有 {planDropped} 条建议与现有安排冲突，已自动跳过。
+                      </p>
+                    )}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {(planSteps || []).map((s, i) => (
+                        <label key={i}
+                          className="flex items-start gap-2 bg-white rounded-lg border px-2 py-1.5 cursor-pointer">
+                          <input type="checkbox"
+                            checked={planChecked[i] !== false}
+                            onChange={e => setPlanChecked({ ...planChecked, [i]: e.target.checked })}
+                            className="mt-1" />
+                          <span className="text-sm">
+                            <span className="text-muted-foreground mr-1">
+                              {s.date} {WEEKDAY_NAMES[isoWeekday(s.date) - 1]} · 第 {s.startPeriod}
+                              {s.endPeriod !== s.startPeriod ? `-${s.endPeriod}` : ''} 节
+                            </span>
+                            {s.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={acceptPlan} disabled={planBusy}
+                        className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                        {planBusy ? '加入中…' : '加入计划表'}
+                      </button>
+                      <button onClick={() => { setPlanGoal(null); setPlanSteps(null) }}
+                        className="px-3 py-1.5 border rounded-lg text-sm hover:bg-white">取消</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <p className="text-sm text-muted-foreground">
+                按周 / 月 / 学期定目标，AI 拆成步骤并给出建议排期，你勾选后才写进计划表。
+              </p>
+              {!goalForm && (
+                <button
+                  onClick={() => setGoalForm({ title: '', horizon: 'week', dueDate: defaultDue('week'), note: '' })}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700">
+                  <Plus className="w-3.5 h-3.5" /> 新建目标
+                </button>
+              )}
+            </div>
+
+            {goalForm && (
+              <div className="rounded-xl border bg-gray-50 p-3 mb-4 space-y-2">
+                <input autoFocus value={goalForm.title}
+                  onChange={e => setGoalForm({ ...goalForm, title: e.target.value })}
+                  placeholder="目标，例如：十月月考后完成第 4 章复习"
+                  className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500" />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-sm">
+                    <span className="text-muted-foreground">周期</span>
+                    <select value={goalForm.horizon}
+                      onChange={e => {
+                        const h = e.target.value as GoalHorizon
+                        setGoalForm({ ...goalForm, horizon: h, dueDate: defaultDue(h) })
+                      }}
+                      className="mt-1 w-full px-2 py-1.5 border rounded-lg text-sm">
+                      <option value="week">本周</option>
+                      <option value="month">本月</option>
+                      <option value="term">本学期</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-muted-foreground">截止日期</span>
+                    <input type="date" value={goalForm.dueDate}
+                      onChange={e => setGoalForm({ ...goalForm, dueDate: e.target.value })}
+                      className="mt-1 w-full px-2 py-1.5 border rounded-lg text-sm" />
+                  </label>
+                </div>
+                <textarea value={goalForm.note} rows={2}
+                  onChange={e => setGoalForm({ ...goalForm, note: e.target.value })}
+                  placeholder="补充说明（可选），例如：只安排工作日、每次不超过 2 节"
+                  className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
+                <div className="flex gap-2">
+                  <button onClick={createGoal} disabled={goalBusy}
+                    className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                    {goalBusy ? '保存中…' : '保存目标'}
+                  </button>
+                  <button onClick={() => setGoalForm(null)}
+                    className="px-3 py-1.5 border bg-white rounded-lg text-sm hover:bg-gray-100">取消</button>
+                </div>
+              </div>
+            )}
+
+            {goalsLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+              </div>
+            ) : goals.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                还没有目标。先建一个，然后让 AI 帮你拆到计划表里。
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {goals.map(g => (
+                  <div key={g.id}
+                    className={`rounded-xl border p-3 ${g.status === 'done' ? 'opacity-60 bg-gray-50' : 'bg-white'}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`font-medium ${g.status === 'done' ? 'line-through' : ''}`}>{g.title}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
+                        {HORIZON_LABEL[g.horizon]}
+                      </span>
+                      {g.dueDate && (
+                        <span className="text-xs text-muted-foreground">截止 {g.dueDate}</span>
+                      )}
+                      {!!g.itemCount && (
+                        <span className="text-xs text-muted-foreground">
+                          步骤 {g.doneCount}/{g.itemCount} 完成
+                        </span>
+                      )}
+                      <div className="flex-1" />
+                      <button onClick={() => runPlan(g)} disabled={planBusy}
+                        className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-50 disabled:opacity-50">
+                        <Sparkles className="w-3.5 h-3.5" /> AI 拆解
+                      </button>
+                      <button onClick={() => patchGoal(g, { status: g.status === 'done' ? 'open' : 'done' })}
+                        className="px-2.5 py-1.5 border rounded-lg text-xs hover:bg-gray-50">
+                        {g.status === 'done' ? '重新打开' : '标记完成'}
+                      </button>
+                      <button onClick={() => deleteGoal(g)}
+                        className="p-1.5 border border-red-100 text-red-600 rounded-lg hover:bg-red-50" title="删除目标">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {g.note && (
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{g.note}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

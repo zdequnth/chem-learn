@@ -6,7 +6,7 @@ import {
   rowToItem, type ScheduleMark, type ScheduleSettings,
 } from '@/lib/schedule'
 
-const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note'
+const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note,goal_id'
 
 // GET ?week=YYYY-MM-DD → settings + every item + the marks that fall in that week.
 // Items are few (a teacher's whole term), so returning all of them keeps the page

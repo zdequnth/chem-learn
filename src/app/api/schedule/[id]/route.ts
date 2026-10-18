@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseItemInput, rowToItem } from '@/lib/schedule'
 
-const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note'
+const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note,goal_id'
 
 async function loadOwnedItem(teacherId: string, id: string) {
   const { data } = await supabaseAdmin('schedule_items', {

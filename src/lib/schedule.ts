@@ -32,6 +32,29 @@ export interface ScheduleItem {
   startPeriod: number
   endPeriod: number
   note: string
+  /** 由 AI 拆解出来的步骤会挂到目标上 */
+  goalId: string | null
+}
+
+export type GoalHorizon = 'week' | 'month' | 'term'
+export type GoalStatus = 'open' | 'done'
+
+export interface ScheduleGoal {
+  id: string
+  title: string
+  note: string
+  horizon: GoalHorizon
+  dueDate: string | null
+  status: GoalStatus
+  /** 已排进计划表的步骤数 / 已完成数，由 API 计算 */
+  itemCount?: number
+  doneCount?: number
+}
+
+export const HORIZON_LABEL: Record<GoalHorizon, string> = {
+  week: '本周',
+  month: '本月',
+  term: '学期',
 }
 
 export interface ScheduleMark {
@@ -152,7 +175,40 @@ export function rowToItem(r: any): ScheduleItem {
     startPeriod: r.start_period,
     endPeriod: r.end_period,
     note: r.note ?? '',
+    goalId: r.goal_id ?? null,
   }
+}
+
+export function rowToGoal(r: any): ScheduleGoal {
+  const horizon: GoalHorizon = r.horizon === 'month' || r.horizon === 'term' ? r.horizon : 'week'
+  return {
+    id: r.id,
+    title: r.title,
+    note: r.note ?? '',
+    horizon,
+    dueDate: r.due_date ?? null,
+    status: r.status === 'done' ? 'done' : 'open',
+  }
+}
+
+export interface GoalInput {
+  title: string
+  note: string
+  horizon: GoalHorizon
+  dueDate: string | null
+}
+
+export function parseGoalInput(body: any): { input?: GoalInput; error?: string } {
+  const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 200) : ''
+  if (!title) return { error: '请填写目标' }
+  const horizon: GoalHorizon =
+    body?.horizon === 'month' || body?.horizon === 'term' ? body.horizon : 'week'
+  const note = typeof body?.note === 'string' ? body.note.slice(0, 2000) : ''
+  if (body?.dueDate != null && body.dueDate !== '' && !isDateString(body.dueDate)) {
+    return { error: '截止日期不正确' }
+  }
+  const dueDate = isDateString(body?.dueDate) ? body.dueDate : null
+  return { input: { title, note, horizon, dueDate } }
 }
 
 export interface ItemInput {
