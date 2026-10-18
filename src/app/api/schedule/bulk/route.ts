@@ -3,8 +3,6 @@ import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseItemInput, rowToItem } from '@/lib/schedule'
 
-const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note,goal_id'
-
 // Used by the timetable importer and by "accept AI plan": both create a batch of
 // rows in one go, after the teacher has already confirmed what they should be.
 export async function POST(request: Request) {
@@ -45,7 +43,9 @@ export async function POST(request: Request) {
 
   const rows = inputs.map(input => ({
     teacher_id: user.id,
-    goal_id: goalId,
+    // Only write goal_id when there is one, so timetable import keeps working
+    // even on a database where migration 029 has not been applied yet.
+    ...(goalId ? { goal_id: goalId } : {}),
     title: input.title,
     kind: input.kind,
     class_id: input.classId,
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabaseAdmin('schedule_items', {
     method: 'POST',
     body: rows,
-    query: `?select=${ITEM_FIELDS}`,
+    query: '?select=*',
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

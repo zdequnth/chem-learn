@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, Plus,
+  AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, ImagePlus, Loader2, Plus,
   Settings2, SkipForward, Sparkles, Square, Target, Trash2, X,
 } from 'lucide-react'
 import {
-  BREAK_PERIOD, DEFAULT_SETTINGS, HORIZON_LABEL, KIND_LABEL, PALETTE, WEEKDAY_NAMES,
-  addDays, classColor, diffDays, isDateString, isoWeekday, markKey, monthDay,
-  occursOn, parseYmd, startOfWeek, ymd,
+  BREAK_PERIOD, CLASS_PALETTE, DEFAULT_SETTINGS, HORIZON_LABEL, KIND_LABEL, WEEKDAY_NAMES,
+  addDays, classColor, diffDays, isDateString, isoWeekday, kindColor, kindPalette,
+  markKey, matchClassName, monthDay, occursOn, parseYmd, startOfWeek, ymd,
   type GoalHorizon, type MarkStatus, type RepeatMode, type ScheduleGoal,
   type ScheduleItem, type ScheduleKind, type ScheduleSettings,
 } from '@/lib/schedule'
@@ -62,11 +62,8 @@ export default function SchedulePage() {
 
   const [importOpen, setImportOpen] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
-  const [importSaving, setImportSaving] = useState(false)
   const [importError, setImportError] = useState('')
-  const [importCells, setImportCells] = useState<TimetableCell[] | null>(null)
-  const [importTargets, setImportTargets] = useState<Record<string, string>>({})
-  const [importTitles, setImportTitles] = useState<Record<string, string>>({})
+  const [importResult, setImportResult] = useState<{ count: number; matched: number; ids: string[] } | null>(null)
 
   const [goalsOpen, setGoalsOpen] = useState(false)
   const [goals, setGoals] = useState<ScheduleGoal[]>([])
@@ -144,6 +141,18 @@ export default function SchedulePage() {
   const today = now ? ymd(now) : ''
   const classById = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes])
 
+  // Assign class colours by list position so two classes never get the same
+  // colour (until the pool runs out), instead of a hash which can collide.
+  const classColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    classes.forEach((c, i) => m.set(c.id, CLASS_PALETTE[i % CLASS_PALETTE.length]))
+    return m
+  }, [classes])
+  const classColorFor = useCallback(
+    (id: string) => classColorMap.get(id) || classColor(id),
+    [classColorMap],
+  )
+
   const weekNo = useMemo(() => {
     if (!weekStart) return null
     return Math.floor(diffDays(settings.termStart, weekStart) / 7) + 1
@@ -159,8 +168,9 @@ export default function SchedulePage() {
       title: '',
       kind: 'task',
       classId: '',
-      color: PALETTE[0],
-      repeat: 'weekly',
+      color: kindPalette('task')[0],
+      // Personal work is usually a one-off; repeating is an explicit choice.
+      repeat: 'once',
       note: '',
     })
   }, [])
@@ -402,26 +412,14 @@ export default function SchedulePage() {
     }
   }
 
-  const importLabels = useMemo(() => {
-    if (!importCells) return []
-    const counts = new Map<string, number>()
-    for (const c of importCells) counts.set(c.text, (counts.get(c.text) || 0) + 1)
-    return [...counts.entries()].map(([text, count]) => ({ text, count }))
-  }, [importCells])
-
   const resetImport = () => {
-    setImportCells(null)
     setImportError('')
-    setImportTargets({})
-    setImportTitles({})
     setImportBusy(false)
-    setImportSaving(false)
   }
 
   const handleTimetableFile = async (file: File) => {
     setImportBusy(true)
     setImportError('')
-    setImportCells(null)
     try {
       const toSend = await shrinkImageFile(file)
       const fd = new FormData()
@@ -440,15 +438,52 @@ export default function SchedulePage() {
 
       const cells: TimetableCell[] = Array.isArray(json.cells) ? json.cells : []
       if (!cells.length) throw new Error('没有识别到课程')
-      setImportCells(cells)
-      const targets: Record<string, string> = {}
-      const titles: Record<string, string> = {}
+
+      // Match each distinct label once. Unmatched names still import as a
+      // course (this timetable is what the teacher MUST teach), and get their
+      // own colours from the course pool.
+      const matched = new Map<string, string | null>()
       for (const c of cells) {
-        targets[c.text] = 'task'
-        titles[c.text] = c.text
+        if (!matched.has(c.text)) matched.set(c.text, matchClassName(c.text, classes))
       }
-      setImportTargets(targets)
-      setImportTitles(titles)
+      const unmatched = [...matched.entries()].filter(([, id]) => !id).map(([text]) => text)
+      const unmatchedColor = new Map(
+        unmatched.map((text, i) => [text, CLASS_PALETTE[i % CLASS_PALETTE.length]]),
+      )
+
+      const items = cells.map(c => {
+        const classId = matched.get(c.text) || null
+        return {
+          title: c.text,
+          kind: 'class' as const,
+          classId,
+          color: classId ? classColorFor(classId) : (unmatchedColor.get(c.text) || CLASS_PALETTE[0]),
+          repeat: 'weekly' as const,
+          weekday: c.weekday,
+          eventDate: null,
+          startPeriod: c.startPeriod,
+          endPeriod: c.endPeriod,
+          note: '从课表照片导入',
+        }
+      })
+
+      const created = await fetch('/api/schedule/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      })
+      const createdJson = await created.json().catch(() => ({}))
+      if (!created.ok) throw new Error(createdJson.error || '导入失败')
+
+      const made = Array.isArray(createdJson.items) ? createdJson.items : []
+      setImportOpen(false)
+      resetImport()
+      await load(weekStart)
+      setImportResult({
+        count: made.length || items.length,
+        matched: items.filter(i => i.classId).length,
+        ids: made.map((i: any) => i.id).filter(Boolean),
+      })
     } catch (e: any) {
       setImportError(e.message || '识别失败')
     } finally {
@@ -456,50 +491,15 @@ export default function SchedulePage() {
     }
   }
 
-  const confirmImport = async () => {
-    if (!importCells || importSaving) return
-    const colorByLabel = new Map(importLabels.map((l, i) => [l.text, PALETTE[i % PALETTE.length]]))
-    const itemsToCreate = importCells.map(c => {
-      const target = importTargets[c.text] ?? 'task'
-      if (!target) return null
-      const title = (importTitles[c.text] || c.text).trim()
-      if (!title) return null
-      const isClass = target.startsWith('class:')
-      const classId = isClass ? target.slice('class:'.length) : null
-      return {
-        title,
-        kind: (isClass ? 'class' : target) as ScheduleKind,
-        classId,
-        color: classId ? classColor(classId) : (colorByLabel.get(c.text) || PALETTE[0]),
-        repeat: 'weekly' as const,
-        weekday: c.weekday,
-        eventDate: null,
-        startPeriod: c.startPeriod,
-        endPeriod: c.endPeriod,
-        note: '从课表照片导入',
-      }
-    }).filter(Boolean)
-
-    if (!itemsToCreate.length) return alert('没有选择要导入的课程')
-
-    setImportSaving(true)
-    try {
-      const res = await fetch('/api/schedule/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: itemsToCreate }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '导入失败')
-      setImportOpen(false)
-      resetImport()
-      await load(weekStart)
-      alert(`已导入 ${json.items?.length ?? itemsToCreate.length} 个时段`)
-    } catch (e: any) {
-      alert('导入失败：' + e.message)
-    } finally {
-      setImportSaving(false)
-    }
+  const undoImport = async () => {
+    const r = importResult
+    if (!r) return
+    if (!confirm(`撤销这次导入的 ${r.ids.length} 个时段？`)) return
+    setImportResult(null)
+    await Promise.all(r.ids.map(id =>
+      fetch(`/api/schedule/${id}`, { method: 'DELETE' }).catch(() => null),
+    ))
+    await load(weekStart)
   }
 
   const loadGoals = async () => {
@@ -622,7 +622,7 @@ export default function SchedulePage() {
             title: s.title,
             kind: 'task',
             classId: null,
-            color: classColor(planGoal.id),
+            color: kindColor('task', planGoal.id),
             repeat: 'once',
             eventDate: s.date,
             startPeriod: s.startPeriod,
@@ -868,7 +868,18 @@ export default function SchedulePage() {
                 <label className="block text-sm">
                   <span className="text-muted-foreground">类型</span>
                   <select value={editor.kind}
-                    onChange={e => setEditor({ ...editor, kind: e.target.value as ScheduleKind })}
+                    onChange={e => {
+                      const kind = e.target.value as ScheduleKind
+                      setEditor({
+                        ...editor,
+                        kind,
+                        // Each category has its own colour pool; a class keeps
+                        // its assigned colour instead.
+                        color: kind === 'class' && editor.classId
+                          ? classColorFor(editor.classId)
+                          : kindPalette(kind)[0],
+                      })
+                    }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                     {KINDS.map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
                   </select>
@@ -881,8 +892,8 @@ export default function SchedulePage() {
                       setEditor({
                         ...editor,
                         classId: id,
-                        kind: id ? 'class' : editor.kind,
-                        color: id ? classColor(id) : editor.color,
+                        kind: id ? 'class' : 'task',
+                        color: id ? classColorFor(id) : kindPalette('task')[0],
                       })
                     }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
@@ -957,7 +968,7 @@ export default function SchedulePage() {
               <div>
                 <div className="text-sm text-muted-foreground mb-1">颜色</div>
                 <div className="flex flex-wrap gap-2">
-                  {PALETTE.map(c => (
+                  {kindPalette(editor.kind).map(c => (
                     <button key={c} onClick={() => setEditor({ ...editor, color: c })}
                       className={`w-7 h-7 rounded-full border-2 border-white shadow ${editor.color === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
                       style={{ backgroundColor: c }} title={c} />
@@ -1001,109 +1012,79 @@ export default function SchedulePage() {
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4"
           tabIndex={-1}
           onPaste={e => {
-            if (importBusy || importCells) return
+            if (importBusy) return
             const f = Array.from(e.clipboardData?.files || []).find(x => x.type.startsWith('image/'))
             if (f) { e.preventDefault(); handleTimetableFile(f) }
           }}>
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <ImagePlus className="w-5 h-5 text-emerald-600" /> 从课表照片导入
               </h2>
-              <button onClick={() => { setImportOpen(false); resetImport() }}
+              <button onClick={() => { if (!importBusy) { setImportOpen(false); resetImport() } }}
                 className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
             </div>
 
-            {!importCells ? (
-              <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center">
-                {importBusy ? (
-                  <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
-                    正在识别课表，通常需要 10–30 秒…
-                  </div>
-                ) : (
-                  <>
-                    <ImagePlus className="w-9 h-9 mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-muted-foreground mb-3">
-                      选一张课表照片或截图。
-                      <br />识别完会先列出每个名称，让你确认它对应哪个班级，再导入。
-                    </p>
-                    <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer">
-                      选择图片
-                      <input type="file" accept="image/*" className="hidden"
-                        onChange={e => {
-                          const f = e.target.files?.[0]
-                          if (f) handleTimetableFile(f)
-                          e.target.value = ''
-                        }} />
-                    </label>
-                  </>
-                )}
-                {importError && <p className="text-sm text-red-600 mt-3">{importError}</p>}
+            <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center">
+              {importBusy ? (
+                <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
+                  正在识别课表并自动匹配班级，通常需要 10–30 秒…
+                </div>
+              ) : (
+                <>
+                  <ImagePlus className="w-9 h-9 mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">
+                    选一张课表照片或截图。识别后会按名称自动匹配你的班级，
+                    <br />直接写入每个星期的计划表。
+                  </p>
+                  <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer">
+                    选择图片
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0]
+                        if (f) handleTimetableFile(f)
+                        e.target.value = ''
+                      }} />
+                  </label>
+                </>
+              )}
+              {importError && <p className="text-sm text-red-600 mt-3">{importError}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importResult && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
               </div>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground mb-3">
-                  识别到 <span className="font-medium text-foreground">{importCells.length}</span> 个时段、
-                  <span className="font-medium text-foreground">{importLabels.length}</span> 个不同的名称。
-                  确认每个名称怎么处理：
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold">课表已导入，请核对</h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  已按 AI 识别结果写入 <span className="font-medium text-foreground">{importResult.count}</span> 个时段
+                  {importResult.matched > 0 && (
+                    <>，其中 <span className="font-medium text-foreground">{importResult.matched}</span> 个自动匹配到了班级</>
+                  )}。
                 </p>
-
-                <div className="divide-y rounded-xl border overflow-hidden">
-                  {importLabels.map(({ text, count }) => (
-                    <div key={text} className="p-3 flex flex-wrap items-center gap-2">
-                      <div className="min-w-[7rem] flex-1">
-                        <div className="text-sm font-medium break-all">{text}</div>
-                        <div className="text-xs text-muted-foreground">{count} 个时段</div>
-                      </div>
-                      <input
-                        value={importTitles[text] ?? text}
-                        onChange={e => setImportTitles({ ...importTitles, [text]: e.target.value })}
-                        placeholder="导入后的标题"
-                        className="w-40 px-2 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
-                      <select
-                        value={importTargets[text] ?? 'task'}
-                        onChange={e => setImportTargets({ ...importTargets, [text]: e.target.value })}
-                        className="w-48 px-2 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="">不导入</option>
-                        <option value="task">作为任务</option>
-                        <option value="meeting">作为会议</option>
-                        <option value="other">作为其他</option>
-                        {classes.map(c => (
-                          <option key={c.id} value={`class:${c.id}`}>绑定班级：{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
-                  {WEEKDAY_NAMES.map((name, i) => {
-                    const cells = importCells.filter(c => c.weekday === i + 1)
-                    if (!cells.length) return null
-                    return (
-                      <div key={name}>
-                        <span className="font-medium">{name}：</span>
-                        {cells.map(c => `${c.startPeriod}${c.endPeriod !== c.startPeriod ? `-${c.endPeriod}` : ''} ${c.text}`).join(' · ')}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <button onClick={confirmImport} disabled={importSaving}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-60">
-                    {importSaving
-                      ? '导入中…'
-                      : `导入 ${importCells.filter(c => (importTargets[c.text] ?? 'task') !== '').length} 个时段`}
-                  </button>
-                  <button onClick={resetImport}
-                    className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">换一张图片</button>
-                  <button onClick={() => { setImportOpen(false); resetImport() }}
-                    className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
-                </div>
-              </>
-            )}
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3">
+                  这是 AI 解析的结果，可能会有错漏。请逐格检查课程名称、星期和节次；有错可以直接点开修改或删除。
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={undoImport}
+                className="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50">
+                撤销本次导入
+              </button>
+              <button onClick={() => setImportResult(null)}
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">
+                知道了
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1237,6 +1218,7 @@ export default function SchedulePage() {
                   <div key={g.id}
                     className={`rounded-xl border p-3 ${g.status === 'done' ? 'opacity-60 bg-gray-50' : 'bg-white'}`}>
                     <div className="flex flex-wrap items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: kindColor('task', g.id) }} />
                       <span className={`font-medium ${g.status === 'done' ? 'line-through' : ''}`}>{g.title}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
                         {HORIZON_LABEL[g.horizon]}

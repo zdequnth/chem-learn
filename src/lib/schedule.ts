@@ -91,10 +91,35 @@ export const DEFAULT_SETTINGS: ScheduleSettings = {
 
 export const WEEKDAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
-export const PALETTE = [
-  '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed',
-  '#0891b2', '#db2777', '#4d7c0f', '#475569', '#b45309',
+// Four separate colour pools. Classes (what the teacher must teach) are cool
+// blues/teals, personal work is warm orange/red, meetings violet, everything
+// else neutral — so a glance at the grid tells you WHAT a block is, not just
+// that something is booked.
+export const CLASS_PALETTE = [
+  '#2563eb', '#0891b2', '#0d9488', '#16a34a',
+  '#0284c7', '#65a30d', '#0f766e', '#1d4ed8',
 ]
+export const TASK_PALETTE = [
+  '#ea580c', '#d97706', '#ca8a04', '#dc2626',
+  '#b45309', '#e11d48', '#f59e0b',
+]
+export const MEETING_PALETTE = [
+  '#7c3aed', '#9333ea', '#a21caf', '#6d28d9', '#c026d3',
+]
+export const OTHER_PALETTE = [
+  '#475569', '#64748b', '#78716c', '#57534e', '#737373',
+]
+
+export const KIND_PALETTE: Record<ScheduleKind, string[]> = {
+  class: CLASS_PALETTE,
+  task: TASK_PALETTE,
+  meeting: MEETING_PALETTE,
+  other: OTHER_PALETTE,
+}
+
+export function kindPalette(kind: ScheduleKind): string[] {
+  return KIND_PALETTE[kind] || TASK_PALETTE
+}
 
 export const KIND_LABEL: Record<ScheduleKind, string> = {
   class: '课程',
@@ -103,11 +128,71 @@ export const KIND_LABEL: Record<ScheduleKind, string> = {
   other: '其他',
 }
 
-/** 班级颜色按 id 稳定分配，同一个班每次都是同一个颜色。 */
-export function classColor(classId: string): string {
+/** 同一个 seed 每次得到同一个颜色（用于同一个班级 / 同一个目标）。 */
+export function kindColor(kind: ScheduleKind, seed: string): string {
+  const palette = kindPalette(kind)
   let h = 0
-  for (let i = 0; i < classId.length; i++) h = (h * 31 + classId.charCodeAt(i)) >>> 0
-  return PALETTE[h % PALETTE.length]
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return palette[h % palette.length]
+}
+
+/** 班级永远取「课程」色池，不会和任务/会议的颜色撞。 */
+export function classColor(classId: string): string {
+  return kindColor('class', classId)
+}
+
+function normaliseName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/[\s\-_·.,，。、/\\|:：]/g, '')
+    .replace(/[０-９ａ-ｚ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+}
+
+function bigrams(value: string): Set<string> {
+  const out = new Set<string>()
+  for (let i = 0; i < value.length - 1; i++) out.add(value.slice(i, i + 2))
+  return out
+}
+
+/**
+ * Match a timetable cell ("化学A班") to one of the teacher's classes
+ * ("2026 G9 化学A-3班"). Containment first, then character-bigram overlap; a
+ * match needs to be both strong and clearly ahead of the runner-up, so an
+ * ambiguous "化学" is left unmatched instead of guessing the wrong class.
+ */
+export function matchClassName(label: string, classes: { id: string; name: string }[]): string | null {
+  const L = normaliseName(label)
+  if (!L) return null
+  const lb = bigrams(L)
+  let bestId: string | null = null
+  let best = 0
+  let second = 0
+
+  for (const c of classes) {
+    const C = normaliseName(c.name)
+    if (!C) continue
+    let score = 0
+    if (C.includes(L) || L.includes(C)) {
+      score = 1
+    } else {
+      const cb = bigrams(C)
+      if (lb.size && cb.size) {
+        let hit = 0
+        for (const g of lb) if (cb.has(g)) hit++
+        score = hit / Math.min(lb.size, cb.size)
+      }
+    }
+    if (score > best) {
+      second = best
+      best = score
+      bestId = c.id
+    } else if (score > second) {
+      second = score
+    }
+  }
+
+  return best >= 0.5 && best >= second + 0.1 ? bestId : null
 }
 
 export function ymd(d: Date): string {
@@ -254,7 +339,7 @@ export function parseItemInput(body: any): { input?: ItemInput; error?: string }
 
   const color = typeof body?.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.color)
     ? body.color.toLowerCase()
-    : PALETTE[0]
+    : kindPalette(kind)[0]
   const classId = typeof body?.classId === 'string' && body.classId ? body.classId : null
   const note = typeof body?.note === 'string' ? body.note.slice(0, 2000) : ''
 
