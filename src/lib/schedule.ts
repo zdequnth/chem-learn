@@ -1,0 +1,226 @@
+// Shared pieces of the teacher's weekly plan: the 13 periods of the school day,
+// date arithmetic on plain `YYYY-MM-DD` strings, and the row shape the API and
+// the page pass around. Dates are strings on purpose — a DATE column read back
+// as a timestamp would shift a day around midnight depending on timezone.
+
+export interface PeriodTime {
+  start: string
+  end: string
+}
+
+export interface ScheduleSettings {
+  /** 第一周周一的日期，YYYY-MM-DD */
+  termStart: string
+  termWeeks: number
+  periods: PeriodTime[]
+}
+
+export type ScheduleKind = 'class' | 'meeting' | 'task' | 'other'
+export type RepeatMode = 'once' | 'weekly'
+export type MarkStatus = 'done' | 'skipped'
+
+export interface ScheduleItem {
+  id: string
+  title: string
+  kind: ScheduleKind
+  classId: string | null
+  color: string
+  repeat: RepeatMode
+  /** 1=周一 … 7=周日（仅 weekly） */
+  weekday: number | null
+  eventDate: string | null
+  startPeriod: number
+  endPeriod: number
+  note: string
+}
+
+export interface ScheduleMark {
+  itemId: string
+  date: string
+  status: MarkStatus
+}
+
+export const PERIOD_COUNT = 13
+/** 第 6 节是午饭午休，表格里仍占一行。 */
+export const BREAK_PERIOD = 6
+
+export const DEFAULT_PERIODS: PeriodTime[] = [
+  { start: '08:00', end: '08:45' },
+  { start: '08:50', end: '09:35' },
+  { start: '09:45', end: '10:30' },
+  { start: '10:35', end: '11:20' },
+  { start: '11:30', end: '12:15' },
+  { start: '12:15', end: '13:50' }, // 午饭 · 午休
+  { start: '13:50', end: '14:35' },
+  { start: '14:50', end: '15:35' },
+  { start: '15:45', end: '16:30' },
+  { start: '16:40', end: '17:30' },
+  { start: '18:30', end: '19:30' }, // 晚自习一
+  { start: '19:40', end: '20:30' }, // 晚自习二
+  { start: '20:40', end: '21:30' }, // 晚自习三
+]
+
+export const DEFAULT_SETTINGS: ScheduleSettings = {
+  termStart: '2026-08-31',
+  termWeeks: 22,
+  periods: DEFAULT_PERIODS,
+}
+
+export const WEEKDAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+
+export const PALETTE = [
+  '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed',
+  '#0891b2', '#db2777', '#4d7c0f', '#475569', '#b45309',
+]
+
+export const KIND_LABEL: Record<ScheduleKind, string> = {
+  class: '课程',
+  meeting: '会议',
+  task: '任务',
+  other: '其他',
+}
+
+/** 班级颜色按 id 稳定分配，同一个班每次都是同一个颜色。 */
+export function classColor(classId: string): string {
+  let h = 0
+  for (let i = 0; i < classId.length; i++) h = (h * 31 + classId.charCodeAt(i)) >>> 0
+  return PALETTE[h % PALETTE.length]
+}
+
+export function ymd(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function parseYmd(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+export function isDateString(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  return ymd(parseYmd(value)) === value
+}
+
+export function addDays(date: string, n: number): string {
+  const d = parseYmd(date)
+  d.setDate(d.getDate() + n)
+  return ymd(d)
+}
+
+/** 该日期所在周的周一。 */
+export function startOfWeek(date: string): string {
+  const d = parseYmd(date)
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return ymd(d)
+}
+
+/** 1=周一 … 7=周日 */
+export function isoWeekday(date: string): number {
+  return ((parseYmd(date).getDay() + 6) % 7) + 1
+}
+
+export function diffDays(from: string, to: string): number {
+  return Math.round((parseYmd(to).getTime() - parseYmd(from).getTime()) / 86400000)
+}
+
+export function monthDay(date: string): string {
+  const d = parseYmd(date)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+export function occursOn(item: ScheduleItem, date: string): boolean {
+  return item.repeat === 'once' ? item.eventDate === date : item.weekday === isoWeekday(date)
+}
+
+export function markKey(itemId: string, date: string): string {
+  return `${itemId}|${date}`
+}
+
+export function rowToItem(r: any): ScheduleItem {
+  return {
+    id: r.id,
+    title: r.title,
+    kind: r.kind,
+    classId: r.class_id ?? null,
+    color: r.color,
+    repeat: r.repeat,
+    weekday: r.weekday ?? null,
+    eventDate: r.event_date ?? null,
+    startPeriod: r.start_period,
+    endPeriod: r.end_period,
+    note: r.note ?? '',
+  }
+}
+
+export interface ItemInput {
+  title: string
+  kind: ScheduleKind
+  classId: string | null
+  color: string
+  repeat: RepeatMode
+  weekday: number | null
+  eventDate: string | null
+  startPeriod: number
+  endPeriod: number
+  note: string
+}
+
+const KINDS: ScheduleKind[] = ['class', 'meeting', 'task', 'other']
+
+/** 服务端和客户端共用的一份校验，避免两边对“什么算合法”理解不一致。 */
+export function parseItemInput(body: any): { input?: ItemInput; error?: string } {
+  const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 200) : ''
+  if (!title) return { error: '请填写标题' }
+
+  const kind: ScheduleKind = KINDS.includes(body?.kind) ? body.kind : 'task'
+  const repeat: RepeatMode = body?.repeat === 'once' ? 'once' : 'weekly'
+  const startPeriod = Number(body?.startPeriod)
+  const endPeriod = Number(body?.endPeriod)
+  if (!Number.isInteger(startPeriod) || startPeriod < 1 || startPeriod > PERIOD_COUNT) {
+    return { error: '开始节次不正确' }
+  }
+  if (!Number.isInteger(endPeriod) || endPeriod < startPeriod || endPeriod > PERIOD_COUNT) {
+    return { error: '结束节次不正确' }
+  }
+
+  let weekday: number | null = null
+  let eventDate: string | null = null
+  if (repeat === 'weekly') {
+    weekday = Number(body?.weekday)
+    if (!Number.isInteger(weekday) || weekday < 1 || weekday > 7) return { error: '星期不正确' }
+  } else {
+    if (!isDateString(body?.eventDate)) return { error: '日期不正确' }
+    eventDate = body.eventDate
+  }
+
+  const color = typeof body?.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.color)
+    ? body.color.toLowerCase()
+    : PALETTE[0]
+  const classId = typeof body?.classId === 'string' && body.classId ? body.classId : null
+  const note = typeof body?.note === 'string' ? body.note.slice(0, 2000) : ''
+
+  return { input: { title, kind, classId, color, repeat, weekday, eventDate, startPeriod, endPeriod, note } }
+}
+
+export function parseSettingsInput(body: any): { settings?: ScheduleSettings; error?: string } {
+  if (!isDateString(body?.termStart)) return { error: '学期起始日不正确' }
+  const termWeeks = Number(body?.termWeeks)
+  if (!Number.isInteger(termWeeks) || termWeeks < 1 || termWeeks > 60) {
+    return { error: '学期周数需在 1–60 之间' }
+  }
+  const raw = body?.periods
+  if (!Array.isArray(raw) || raw.length !== PERIOD_COUNT) return { error: '需要 13 个节次' }
+  const periods: PeriodTime[] = []
+  for (const p of raw) {
+    const start = typeof p?.start === 'string' ? p.start : ''
+    const end = typeof p?.end === 'string' ? p.end : ''
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end)) {
+      return { error: '节次时间格式应为 HH:MM' }
+    }
+    periods.push({ start, end })
+  }
+  return { settings: { termStart: body.termStart, termWeeks, periods } }
+}

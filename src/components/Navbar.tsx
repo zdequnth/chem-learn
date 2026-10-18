@@ -34,6 +34,7 @@ function NAV_ITEMS(isTeacher: boolean, lang: 'zh' | 'en'): NavEntry[] {
       },
       { href: '/teacher/vocab', label: t('vocabMgmt', lang), cls: 'text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100' },
       { href: '/teacher/mock', label: t('mockMgmt', lang), cls: 'text-violet-800 bg-violet-50 border border-violet-200 hover:bg-violet-100' },
+      { href: '/teacher/schedule', label: t('schedule', lang), cls: 'text-sky-800 bg-sky-50 border border-sky-200 hover:bg-sky-100' },
       { href: '/teacher/classes', label: t('classes', lang), cls: NEUTRAL },
       { href: '/admin/users', label: t('userMgmt', lang), cls: NEUTRAL },
     ]

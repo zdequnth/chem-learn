@@ -19,6 +19,7 @@ const translations: Record<string, Record<string, string>> = {
   questionBank: { zh: '题库', en: 'Q-Bank' },
   analytics: { zh: '学情分析', en: 'Analytics' },
   classes: { zh: '班级', en: 'Classes' },
+  schedule: { zh: '计划表', en: 'Schedule' },
   userMgmt: { zh: '用户管理', en: 'Users' },
   settings: { zh: '设置', en: 'Settings' },
   signOut: { zh: '退出登录', en: 'Sign Out' },
