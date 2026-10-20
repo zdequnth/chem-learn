@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar'
 import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { VOCAB_DIFFICULTIES, normaliseDifficulty } from '@/lib/types'
-import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus } from 'lucide-react'
+import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus, ChevronUp, ChevronDown } from 'lucide-react'
 import { useLang, t } from '@/lib/i18n'
 import { shrinkImageFile } from '@/lib/shrink-image-file'
 
@@ -86,6 +86,7 @@ function VocabAdminContent() {
   const [loading, setLoading] = useState(true)
   const [editWord, setEditWord] = useState<WordForm | null>(null)
   const [saving, setSaving] = useState(false)
+  const [ordering, setOrdering] = useState(false)
   const [zoom, setZoom] = useState<string | null>(null)
 
   const [showImport, setShowImport] = useState(false)
@@ -217,6 +218,38 @@ function VocabAdminContent() {
     const json = await res.json().catch(() => ({} as any))
     if (!res.ok || json.error) { alert('删除失败：' + (json.error || res.status)); return }
     refetch()
+  }
+
+  // Move one word up/down and save the two swapped positions. Optimistic on
+  // screen so the arrow feels instant; if the save fails, reload the server's order.
+  const moveWord = async (index: number, delta: -1 | 1) => {
+    if (ordering) return
+    const j = index + delta
+    if (j < 0 || j >= words.length) return
+    const next = [...words]
+    ;[next[index], next[j]] = [next[j], next[index]]
+    setWords(next)
+    setOrdering(true)
+    try {
+      const res = await fetch('/api/vocab/words', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lessonId: selectedLesson,
+          updates: [
+            { id: next[index].id, sortOrder: index },
+            { id: next[j].id, sortOrder: j },
+          ],
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || '排序保存失败')
+    } catch (e: any) {
+      alert('排序保存失败：' + (e?.message || e))
+      refetch()
+    } finally {
+      setOrdering(false)
+    }
   }
 
   const previewImport = () => {
@@ -354,7 +387,12 @@ function VocabAdminContent() {
               </div>
             ) : (
               <div className="space-y-2">
-                {words.map((w: any) => (
+                <p className="text-xs text-muted-foreground px-1">
+                  {lang === 'zh'
+                    ? '用 ↑↓ 调整顺序，把同类的词放在一起；进入测试模式时单词顺序和选项都会打乱。'
+                    : 'Use ↑↓ to reorder and keep related words together; entering a test mode shuffles both the word order and the options.'}
+                </p>
+                {words.map((w: any, i: number) => (
                   <div key={w.id} className="bg-card border rounded-xl p-4 flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       {w.image_url && (
@@ -373,6 +411,10 @@ function VocabAdminContent() {
                       {w.note && <div className="text-xs text-amber-700 mt-1">⚠️ {w.note}</div>}
                     </div>
                     <div className="flex gap-1 shrink-0">
+                      <button onClick={() => moveWord(i, -1)} disabled={i === 0 || ordering} title="上移"
+                        className="p-2 rounded-lg hover:bg-accent transition-colors disabled:opacity-30"><ChevronUp className="w-4 h-4 text-muted-foreground" /></button>
+                      <button onClick={() => moveWord(i, 1)} disabled={i === words.length - 1 || ordering} title="下移"
+                        className="p-2 rounded-lg hover:bg-accent transition-colors disabled:opacity-30"><ChevronDown className="w-4 h-4 text-muted-foreground" /></button>
                       <button onClick={() => setEditWord({ ...EMPTY_WORD, ...w, image_url: w.image_url || '' })} title="编辑"
                         className="p-2 rounded-lg hover:bg-accent transition-colors"><Edit3 className="w-4 h-4 text-muted-foreground" /></button>
                       <button onClick={() => deleteWord(w)} title="删除"

@@ -124,6 +124,51 @@ export async function PUT(request: Request) {
   return NextResponse.json({ success: true })
 }
 
+// PATCH {lessonId, updates:[{id, sortOrder}, ...]} → save new positions.
+// The up/down UI only swaps two neighbours, so only those two rows are written.
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+
+  const body = await request.json().catch(() => ({}))
+  const lessonId = typeof body?.lessonId === 'string' ? body.lessonId : ''
+  const raw = Array.isArray(body?.updates) ? body.updates : []
+  const updates = raw.map((u: any) => ({
+    id: typeof u?.id === 'string' ? u.id : '',
+    sortOrder: Number(u?.sortOrder),
+  })).filter((u: any) => u.id && Number.isInteger(u.sortOrder) && u.sortOrder >= 0)
+
+  if (!lessonId || updates.length === 0 || updates.length !== raw.length || updates.length > 200) {
+    return NextResponse.json({ error: '缺少lessonId或顺序' }, { status: 400 })
+  }
+  if (new Set(updates.map((u: any) => u.id)).size !== updates.length) {
+    return NextResponse.json({ error: '顺序里有重复词条' }, { status: 400 })
+  }
+  if (!await checkLessonAccess(user.id, lessonId)) {
+    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+  }
+
+  const ids = updates.map((u: any) => u.id)
+  const { data: existing } = await supabaseAdmin('vocab_words', {
+    query: `?lesson_id=eq.${lessonId}&id=in.(${ids.join(',')})&select=id`,
+  })
+  if ((existing || []).length !== ids.length) {
+    return NextResponse.json({ error: '顺序与课时里的词条不一致，请刷新后重试' }, { status: 400 })
+  }
+
+  for (const u of updates) {
+    const { error } = await supabaseAdmin('vocab_words', {
+      method: 'PATCH',
+      body: { sort_order: u.sortOrder, updated_at: new Date().toISOString() },
+      query: `?id=eq.${u.id}&lesson_id=eq.${lessonId}`,
+    })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

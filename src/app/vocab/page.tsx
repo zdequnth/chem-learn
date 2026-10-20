@@ -100,6 +100,9 @@ function VocabContent() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState(0)
   const requeued = useRef<Set<string>>(new Set())
+  // Test modes shuffle the word order once, so grouped study order does not
+  // leak into the test (and the answer options are shuffled separately).
+  const testShuffled = useRef(false)
 
   // ---- Text-to-speech. British and American are offered separately, because
   // IGCSE uses British spelling but students still need to recognise American
@@ -183,6 +186,7 @@ function VocabContent() {
     setBusy(false)
     if (q.length === 0) { alert(lang === 'zh' ? '这个课时没有可学的词' : 'No words to study'); return }
     requeued.current = new Set()
+    testShuffled.current = false
     // The whole lesson is kept as the distractor pool, so a word re-shown after
     // a mistake still gets four options (the re-queue holds only missed words).
     setWordPool(words)
@@ -348,7 +352,23 @@ function VocabContent() {
     // question never carries over into the next mode.
     const pickMode = (m: StudyMode) => {
       setMode(m); setFlipped(false); setAnswerInput(''); setChoicePick(null); setLastOk(null); setFx(null)
-      if (isTestMode(m)) { const i = skipExtended(pos); if (i < queue.length) setPos(i) }
+      if (isTestMode(m)) {
+        // Entering a test before answering anything: shuffle once, so the
+        // grouped study order cannot be memorised as the question order.
+        if (!testShuffled.current) {
+          testShuffled.current = true
+          if (done === 0 && again.length === 0 && queue && queue.length > 1) {
+            const q = shuffle(queue)
+            let i = 0
+            while (i < q.length && q[i].difficulty === EXTENDED) i++
+            setQueue(q)
+            setPos(i < q.length ? i : 0)
+            return
+          }
+        }
+        const i = skipExtended(pos)
+        if (i < queue.length) setPos(i)
+      }
     }
     const inGroup = (g: 'study' | 'test') =>
       (g === 'study' ? STUDY_MODES : TEST_MODES).some(([m]) => m === mode)
