@@ -3,6 +3,7 @@ import './globals.css'
 import 'katex/dist/katex.min.css'
 import { AuthProvider } from './providers'
 import { LangProvider } from '@/lib/i18n'
+import StudyTools from '@/components/StudyTools'
 
 export const metadata: Metadata = {
   title: 'SelfPass - 自主通关学习平台',
@@ -14,7 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased" suppressHydrationWarning>
         <LangProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <StudyTools />
+          </AuthProvider>
         </LangProvider>
       </body>
     </html>
