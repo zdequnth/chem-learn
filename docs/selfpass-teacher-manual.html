@@ -643,13 +643,13 @@ Explanation: Sodium chloride fully dissociates in water.
     <!-- 9 VOCAB -->
     <section class="card" id="vocab">
       <h2 class="sec"><span class="num">9</span><span class="zh">词汇管理</span><span class="en">Vocabulary management</span></h2>
-      <p class="lead zh">按课时维护专业词汇；学生端用卡片、列表学习，再做拼写 / 选择 / 释义测验。</p>
-      <p class="lead en">Maintain key terms per lesson; students study with cards or lists and take spelling, choice, or meaning quizzes.</p>
+      <p class="lead zh">按课时维护专业词汇；批量导入时只需粘贴单词，AI 自动补齐音标、词性、释义和例句。学生端用卡片、列表学习，再做拼写 / 选择 / 释义测验。</p>
+      <p class="lead en">Maintain key terms per lesson; when importing in bulk, just paste the words and AI fills in IPA, part of speech, meanings, and examples. Students study with cards or lists and take spelling, choice, or meaning quizzes.</p>
       <figure>
         <img src="manual-assets/12-vocab.jpg" alt="Vocabulary management">
         <figcaption>
-          <span class="zh">词汇管理：选择课程、章节、课时后显示词表；可粘贴 JSON 批量导入、手动新增、排序和编辑。</span>
-          <span class="en">Vocabulary management: choose a course, chapter, and lesson to see the word list; import JSON, add words manually, reorder, and edit.</span>
+          <span class="zh">词汇管理：选择课程、章节、课时后显示词表；可批量导入单词（AI 补全）、手动新增、排序和编辑。</span>
+          <span class="en">Vocabulary management: choose a course, chapter, and lesson to see the word list; import a word list (AI completes it), add words manually, reorder, and edit.</span>
         </figcaption>
       </figure>
 
@@ -657,9 +657,34 @@ Explanation: Sodium chloride fully dissociates in water.
       <p class="zh">点<strong>手动新增</strong>或词条右侧的编辑按钮。必填：英文词条、中文释义；可选：音标、词性、英文释义、例句、易错点、配图。</p>
       <p class="en">Click <strong>Add word</strong> or the edit button on a row. Required: term and Chinese meaning. Optional: IPA, part of speech, English definition, examples, notes, and an image.</p>
 
-      <h3><span class="zh">9.2 批量导入 JSON</span><span class="en">9.2 Import JSON</span></h3>
-      <p class="zh">点<strong>粘贴 JSON 导入</strong>，支持数组或 <code>{ "words": [...] }</code>；<code>```json</code> 围栏会自动去掉。</p>
-      <p class="en">Click <strong>Import JSON</strong>. The top level may be an array or <code>{ "words": [...] }</code>; Markdown fences are stripped automatically.</p>
+      <h3><span class="zh">9.2 批量导入单词（AI 自动补全）</span><span class="en">9.2 Import a word list (AI completes it)</span></h3>
+      <ol class="steps">
+        <li><span class="zh">选好课程、章节、课时，点右上角<strong>批量导入词汇</strong>。</span><span class="en">Select the course, chapter, and lesson, then click <strong>Import words</strong>.</span></li>
+        <li><span class="zh">在「单词列表（AI 补全）」里粘贴单词：每行一个，也可用逗号分隔，最多 60 个。可以带题号或项目符号，系统会自动去掉。</span><span class="en">Paste the words in the <strong>Word list (AI)</strong> tab: one per line (commas also work), up to 60. Numbering and bullets are stripped automatically.</span></li>
+        <li><span class="zh">点<strong>AI 生成并导入</strong>。AI 会自动生成音标、词性、中文释义、英文释义、英文例句和难度，并直接写入词表。</span><span class="en">Click <strong>Generate &amp; import</strong>. AI fills in IPA, part of speech, Chinese and English meanings, an English example, and difficulty, then writes them straight into the word bank.</span></li>
+        <li><span class="zh">生成后仍可在词表里逐个编辑；已有重复词会自动跳过；个别词没生成成功时，会提示单词名，检查拼写后重试即可。</span><span class="en">Edit any generated word afterwards. Duplicates already in the lesson are skipped; if a word fails, its name is reported—check the spelling and retry.</span></li>
+      </ol>
+<pre><code>atom
+proton
+neutron
+electron
+isotope</code></pre>
+      <figure>
+        <img src="manual-assets/20-vocab-ai-import.jpg" alt="AI word import">
+        <figcaption>
+          <span class="zh">批量导入词汇：粘贴单词列表，点右下角「AI 生成并导入」，系统会自动补齐全部字段并写入词表。</span>
+          <span class="en">Import words: paste the list and click Generate &amp; import; AI fills every field and writes the words into the bank.</span>
+        </figcaption>
+      </figure>
+      <div class="callout tip">
+        <span class="label zh">提示</span><span class="label en">Tip</span>
+        <span class="zh">这个方式对非化学老师同样好用：AI 会按课程学科生成对应术语，例如物理、生物、历史词汇。</span>
+        <span class="en">This works for non-chemistry teachers too: AI generates terms appropriate to the course subject, e.g. physics, biology, or history vocabulary.</span>
+      </div>
+
+      <h4><span class="zh">高级：粘贴 JSON</span><span class="en">Advanced: paste JSON</span></h4>
+      <p class="zh">切换到「粘贴 JSON（高级）」可以一次导入完整字段，支持数组或 <code>{ "words": [...] }</code>；<code>```json</code> 围栏会自动去掉。</p>
+      <p class="en">Switch to <strong>Paste JSON (advanced)</strong> to import complete fields at once. The top level may be an array or <code>{ "words": [...] }</code>; Markdown fences are stripped automatically.</p>
 <pre><code>[
   {
     "term": "isotope",
@@ -793,6 +818,7 @@ Explanation: Sodium chloride fully dissociates in water.
       <ul>
         <li><span class="zh"><strong>显示名称</strong>会出现在导航栏、班级名单和成绩表中，改完点保存。</span><span class="en">The <strong>display name</strong> appears in the navbar, class lists, and results; save after editing.</span></li>
         <li><span class="zh"><strong>语言切换</strong>：导航栏右上角的地球按钮。中文界面显示“EN”，英文界面显示“中文”。</span><span class="en"><strong>Language</strong>: the globe button at the top right. It shows “EN” in Chinese and “中文” in English.</span></li>
+        <li><span class="zh"><strong>使用指南</strong>：地球按钮旁边的「📘 使用指南」按钮，随时在新标签页打开本手册。网站首页右上角也有同样入口。</span><span class="en"><strong>User guide</strong>: the <strong>📘 Guide</strong> button next to the language switch opens this manual in a new tab. The public homepage has the same button.</span></li>
         <li><span class="zh">切换后所有页面、按钮、提示和 AI 生成内容都会跟随语言，刷新后仍保持。</span><span class="en">All pages, buttons, messages, and AI output follow the selected language and persist after reload.</span></li>
         <li><span class="zh"><strong>修改密码</strong>：退出登录后，在登录页点「忘记密码？」按邮件重置。</span><span class="en"><strong>Change password</strong>: sign out, then use <strong>Forgot password?</strong> on the login page.</span></li>
       </ul>

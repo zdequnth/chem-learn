@@ -84,6 +84,13 @@ export default function Navbar() {
             <button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
               className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors"
               title={tr(lang, '切换到英文', 'Switch to Chinese')}>🌐 {lang === 'zh' ? 'EN' : '中文'}</button>
+            {isTeacher && (
+              <a href="/manual/selfpass-teacher-manual.html" target="_blank" rel="noopener"
+                className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors inline-flex items-center gap-1"
+                title={tr(lang, '打开教师使用指南', 'Open the teacher guide')}>
+                📘 <span className="hidden sm:inline">{tr(lang, '使用指南', 'Guide')}</span>
+              </a>
+            )}
             {/* Phones get the nav links here. Rendered as an absolute panel so the
                 bar keeps its height and no page's top padding has to change. */}
             <div className="relative md:hidden">

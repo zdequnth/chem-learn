@@ -29,6 +29,10 @@ export default function HomePage() {
             <div className="flex items-center gap-3">
               <button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
                 className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors">🌐 {lang === 'zh' ? 'EN' : '中文'}</button>
+              <a href="/manual/selfpass-teacher-manual.html" target="_blank" rel="noopener"
+                className="px-3 py-2 text-sm border rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors inline-flex items-center gap-1">
+                📘 <span className="hidden sm:inline">{tr(lang, '使用指南', 'User Guide')}</span>
+              </a>
               <Link href="/login" className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium transition-colors">{t('login', lang)}</Link>
               <Link href="/login?signup=true" className="px-5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 transition-colors shadow-md">{t('startNow', lang)}</Link>
             </div>

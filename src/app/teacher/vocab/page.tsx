@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar'
 import VocabAnalyticsPanel from '@/components/VocabAnalyticsPanel'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { VOCAB_DIFFICULTIES, normaliseDifficulty } from '@/lib/types'
-import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus, ChevronUp, ChevronDown } from 'lucide-react'
+import { Loader2, Plus, ClipboardPaste, Trash2, Edit3, X, ImagePlus, ChevronUp, ChevronDown, Sparkles } from 'lucide-react'
 import { useLang, t, tr, type Lang } from '@/lib/i18n'
 import { shrinkImageFile } from '@/lib/shrink-image-file'
 
@@ -61,12 +61,12 @@ function parseWordJson(text: string, lang: Lang): any[] {
 // `saving` flag stayed true forever and the Save button was dead until a reload.
 // The timeout matters here because the connection to the API goes through a
 // proxy that can stall instead of failing.
-async function sendJson(url: string, method: string, body: unknown) {
+async function sendJson(url: string, method: string, body: unknown, timeout = 30000) {
   const res = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(timeout),
   })
   const text = await res.text()
   let json: any
@@ -99,6 +99,9 @@ function VocabAdminContent() {
   const [zoom, setZoom] = useState<string | null>(null)
 
   const [showImport, setShowImport] = useState(false)
+  const [importMode, setImportMode] = useState<'list' | 'json'>('list')
+  const [wordList, setWordList] = useState('')
+  const [aiImporting, setAiImporting] = useState(false)
   const [importText, setImportText] = useState('')
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
@@ -292,6 +295,33 @@ function VocabAdminContent() {
     }
   }
 
+  // The friendly path: the teacher pastes bare words and the server asks AI to
+  // fill IPA, meanings, examples, and difficulty, then inserts them directly.
+  const aiImport = async () => {
+    if (!wordList.trim() || !selectedLesson || aiImporting) return
+    setAiImporting(true)
+    try {
+      const json = await sendJson('/api/vocab/generate', 'POST', {
+        lessonId: selectedLesson,
+        words: wordList,
+      }, 70000)
+      const missed: string[] = Array.isArray(json.missing) ? json.missing : []
+      const parts = [
+        tr(lang, `AI 生成并导入 ${json.saved || 0} 条`, `${json.saved || 0} words generated and imported`),
+      ]
+      if (json.skipped) parts.push(tr(lang, `跳过 ${json.skipped} 条重复词`, `${json.skipped} duplicates skipped`))
+      if (missed.length) parts.push(tr(lang, `未生成：${missed.join('、')}（请检查拼写后重试）`, `Not generated: ${missed.join(', ')} (check spelling and retry)`))
+      alert(parts.join(tr(lang, '；', '; ')))
+      setShowImport(false)
+      setWordList('')
+      refetch()
+    } catch (e: any) {
+      alert(tr(lang, 'AI 生成失败：', 'AI generation failed: ') + (e?.message || e))
+    } finally {
+      setAiImporting(false)
+    }
+  }
+
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
   }
@@ -304,7 +334,7 @@ function VocabAdminContent() {
           <div>
             <h1 className="text-2xl font-bold">{tr(lang, '词汇管理', 'Vocabulary')}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {tr(lang, '按课时维护词库；可用 AI 生成 JSON 后粘贴导入。', 'Maintain the word bank per lesson; paste AI-generated JSON to import.')}
+              {tr(lang, '按课时维护词库；只需粘贴单词列表，AI 自动补齐音标、词性、释义和例句。', 'Maintain the word bank per lesson; paste a word list and AI fills in IPA, part of speech, meanings and examples.')}
             </p>
           </div>
         </div>
@@ -383,9 +413,9 @@ function VocabAdminContent() {
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm text-muted-foreground">{tr(lang, `共 ${words.length} 个词`, `${words.length} words`)}</div>
               <div className="flex gap-2">
-                <button onClick={() => { setImportText(''); setImportPreview([]); setShowImport(true) }}
+                <button onClick={() => { setImportMode('list'); setWordList(''); setImportText(''); setImportPreview([]); setShowImport(true) }}
                   className="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
-                  <ClipboardPaste className="w-4 h-4" /> {tr(lang, '粘贴 JSON 导入', 'Paste JSON')}
+                  <Sparkles className="w-4 h-4" /> {tr(lang, '批量导入词汇', 'Import words')}
                 </button>
                 <button onClick={() => setEditWord({ ...EMPTY_WORD })}
                   className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">
@@ -396,7 +426,7 @@ function VocabAdminContent() {
 
             {words.length === 0 ? (
               <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-                {tr(lang, '这个课时还没有词。点「粘贴 JSON 导入」批量加，或手动新增。', 'No words yet for this lesson. Paste JSON to import in bulk, or add one manually.')}
+                {tr(lang, '这个课时还没有词。点「批量导入词汇」粘贴单词即可，或手动新增。', 'No words yet for this lesson. Click Import words and paste a word list, or add one manually.')}
               </div>
             ) : (
               <div className="space-y-2">
@@ -541,43 +571,81 @@ function VocabAdminContent() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto p-4">
           <div className="bg-card rounded-2xl w-full max-w-3xl my-8">
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h2 className="font-semibold">{tr(lang, '粘贴 JSON 导入', 'Import JSON')}</h2>
+              <h2 className="font-semibold">{tr(lang, '批量导入词汇', 'Import words')}</h2>
               <button onClick={() => setShowImport(false)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-xs text-muted-foreground">
-                {tr(lang,
-                  '字段：term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty。顶层可以是数组或 { "words": [...] }；```json 围栏会自动去掉。只有 term 和 zh 是必填。difficulty 填「核心必背 / 重要理解 / 拓展阅读」（写 1/2/3 也认），不填按「重要理解」。',
-                  'Fields: term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty. Top level may be an array or { "words": [...] }; ```json fences are stripped automatically. Only term and zh are required. difficulty accepts Core (核心必背) / Important (重要理解) / Extension (拓展阅读), or 1/2/3; defaults to Important.')}
-              </p>
-              <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportPreview([]) }}
-                rows={10} placeholder={'[\n  { "term": "atom", "ipa": "/ˈætəm/", "zh": "原子", ... }\n]'}
-                className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+              <div className="flex gap-1 border rounded-xl p-1 w-fit">
+                <button onClick={() => setImportMode('list')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${importMode === 'list' ? 'bg-emerald-500 text-white' : 'text-muted-foreground hover:bg-accent'}`}>
+                  {tr(lang, '单词列表（AI 补全）', 'Word list (AI)')}
+                </button>
+                <button onClick={() => setImportMode('json')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${importMode === 'json' ? 'bg-gray-800 text-white' : 'text-muted-foreground hover:bg-accent'}`}>
+                  {tr(lang, '粘贴 JSON（高级）', 'Paste JSON (advanced)')}
+                </button>
+              </div>
 
-              {importPreview.length > 0 && (
-                <div className="border rounded-lg divide-y max-h-72 overflow-y-auto">
-                  <div className="px-3 py-2 text-sm font-medium bg-gray-50">
-                    {tr(lang, `预览：${importPreview.length} 条`, `Preview: ${importPreview.length}`)}
-                  </div>
-                  {importPreview.map((w, i) => (
-                    <div key={i} className="px-3 py-2 flex items-center justify-between gap-3 text-sm">
-                      <div className="min-w-0">
-                        <span className="font-medium">{w.term}</span>
-                        <span className="text-muted-foreground"> · {w.zh}</span>
-                        {w.ipa && <span className="text-xs text-muted-foreground"> {w.ipa}</span>}
+              {importMode === 'list' ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {tr(lang,
+                      '每行一个英文单词或短语（也可用逗号分隔，最多 60 个）。AI 会自动生成音标、词性、中英文释义、例句和难度，然后直接导入。',
+                      'One word or phrase per line (commas also work, up to 60). AI fills in IPA, part of speech, meanings, examples and difficulty, then imports them directly.')}
+                  </p>
+                  <textarea value={wordList} onChange={e => setWordList(e.target.value)}
+                    rows={10}
+                    placeholder={'atom\nproton\nneutron\nelectron\nisotope'}
+                    className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm" />
+                  <p className="text-xs text-muted-foreground">
+                    {tr(lang,
+                      '生成后仍可在词表里逐个修改；已有的重复词会自动跳过。',
+                      'You can edit any generated word afterwards; duplicates already in this lesson are skipped.')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {tr(lang,
+                      '字段：term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty。顶层可以是数组或 { "words": [...] }；```json 围栏会自动去掉。只有 term 和 zh 是必填。difficulty 填「核心必背 / 重要理解 / 拓展阅读」（写 1/2/3 也认），不填按「重要理解」。',
+                      'Fields: term, ipa, pos, zh, en_def, example_en, example_zh, note, difficulty. Top level may be an array or { "words": [...] }; ```json fences are stripped automatically. Only term and zh are required. difficulty accepts Core (核心必背) / Important (重要理解) / Extension (拓展阅读), or 1/2/3; defaults to Important.')}
+                  </p>
+                  <textarea value={importText} onChange={e => { setImportText(e.target.value); setImportPreview([]) }}
+                    rows={10} placeholder={'[\n  { "term": "atom", "ipa": "/ˈætəm/", "zh": "原子", ... }\n]'}
+                    className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
+
+                  {importPreview.length > 0 && (
+                    <div className="border rounded-lg divide-y max-h-72 overflow-y-auto">
+                      <div className="px-3 py-2 text-sm font-medium bg-gray-50">
+                        {tr(lang, `预览：${importPreview.length} 条`, `Preview: ${importPreview.length}`)}
                       </div>
-                      <button onClick={() => setImportPreview(importPreview.filter((_, j) => j !== i))}
-                        className="p-1 rounded hover:bg-red-50 shrink-0"><X className="w-4 h-4 text-red-500" /></button>
+                      {importPreview.map((w, i) => (
+                        <div key={i} className="px-3 py-2 flex items-center justify-between gap-3 text-sm">
+                          <div className="min-w-0">
+                            <span className="font-medium">{w.term}</span>
+                            <span className="text-muted-foreground"> · {w.zh}</span>
+                            {w.ipa && <span className="text-xs text-muted-foreground"> {w.ipa}</span>}
+                          </div>
+                          <button onClick={() => setImportPreview(importPreview.filter((_, j) => j !== i))}
+                            className="p-1 rounded hover:bg-red-50 shrink-0"><X className="w-4 h-4 text-red-500" /></button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t">
               <button onClick={() => setShowImport(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
                 {tr(lang, '取消', 'Cancel')}
               </button>
-              {importPreview.length === 0 ? (
+              {importMode === 'list' ? (
+                <button onClick={aiImport} disabled={aiImporting || !wordList.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50">
+                  <Sparkles className="w-4 h-4" />
+                  {aiImporting ? tr(lang, 'AI 生成中…', 'AI generating…') : tr(lang, 'AI 生成并导入', 'Generate & import')}
+                </button>
+              ) : importPreview.length === 0 ? (
                 <button onClick={previewImport} className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors">
                   {tr(lang, '解析预览', 'Parse')}
                 </button>
