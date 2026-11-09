@@ -39,7 +39,9 @@ function LoginForm() {
     setError('')
     setBusy(true)
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://chem-learn-seven.vercel.app/auth/update-password',
+      // Stay on whatever domain the teacher is actually using (custom domain,
+      // Vercel preview, or localhost) instead of forcing the vercel.app host.
+      redirectTo: `${window.location.origin}/auth/update-password`,
     })
     if (err) { setError(err.message) }
     else { setError(tr(lang, '密码重置邮件已发送，请检查邮箱（含垃圾箱）', 'Reset email sent. Check your inbox (and spam).')) }
