@@ -5,6 +5,7 @@ import {
   mineruTask, downloadZip, unzipMarkdownAndImages,
   referencedImageNames, rewriteImageRefs, basename, mimeForImage,
 } from '@/lib/mineru'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 export const maxDuration = 60
 
@@ -14,31 +15,31 @@ export const maxDuration = 60
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const taskId = searchParams.get('taskId') || ''
   const path = searchParams.get('path') || ''
-  if (!taskId) return NextResponse.json({ error: '缺少taskId' }, { status: 400 })
+  if (!taskId) return NextResponse.json({ error: 'Missing taskId（缺少 taskId）' }, { status: 400 })
   if (!path.startsWith('mineru-tmp/') || path.includes('..')) {
-    return NextResponse.json({ error: '文件路径不合法' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid file path（文件路径不合法）' }, { status: 400 })
   }
 
   const task = await mineruTask(taskId)
-  if (task.error) return NextResponse.json({ error: task.error }, { status: 502 })
+  if (task.error) return NextResponse.json({ error: bilingualError(task.error) }, { status: 502 })
 
   if (task.state === 'failed') {
     await deleteStoredObject(path)
-    return NextResponse.json({ state: 'failed', error: task.errMsg || 'MinerU 解析失败' })
+    return NextResponse.json({ state: 'failed', error: task.errMsg || 'MinerU parsing failed（MinerU 解析失败）' })
   }
   if (task.state !== 'done' || !task.zipUrl) {
     return NextResponse.json({ state: task.state || 'pending' })
   }
 
   const zip = await downloadZip(task.zipUrl)
-  if (!zip) return NextResponse.json({ error: '结果压缩包下载失败' }, { status: 502 })
+  if (!zip) return NextResponse.json({ error: 'Failed to download result archive（结果压缩包下载失败）' }, { status: 502 })
   const { markdown, images } = unzipMarkdownAndImages(zip)
-  if (!markdown) return NextResponse.json({ error: '解析结果里没有 Markdown' }, { status: 502 })
+  if (!markdown) return NextResponse.json({ error: 'The parse result contains no Markdown（解析结果里没有 Markdown）' }, { status: 502 })
 
   // Only the figures the markdown actually references get stored. A result zip
   // can carry decorative images and per-page previews, and uploading those would

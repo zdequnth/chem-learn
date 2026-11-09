@@ -6,17 +6,17 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { sourceChapterId, targetCourseId } = await request.json()
-  if (!sourceChapterId || !targetCourseId) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+  if (!sourceChapterId || !targetCourseId) return NextResponse.json({ error: 'Missing parameters（缺少参数）' }, { status: 400 })
 
   // Get source chapter
   const { data: srcCh } = await supabaseAdmin('chapters', {
     query: `?id=eq.${sourceChapterId}&select=*`,
   })
   const src = srcCh?.[0]
-  if (!src) return NextResponse.json({ error: '源章节不存在' }, { status: 404 })
+  if (!src) return NextResponse.json({ error: 'Source chapter not found（源章节不存在）' }, { status: 404 })
 
   // Get target course's max sort_order
   const { data: targetChs } = await supabaseAdmin('chapters', {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     query: '?select=id',
   })
   const newChapterId = (newCh as any)?.[0]?.id
-  if (!newChapterId) return NextResponse.json({ error: '创建章节失败' }, { status: 500 })
+  if (!newChapterId) return NextResponse.json({ error: 'Failed to create chapter（创建章节失败）' }, { status: 500 })
 
   // 2. Get source lessons
   const { data: srcLessons } = await supabaseAdmin('lessons', {

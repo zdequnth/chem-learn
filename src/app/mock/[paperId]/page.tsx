@@ -12,6 +12,7 @@ import type { MockReview } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Clock, Check, X, BookOpen, Sparkles, WifiOff, Flag } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const theme = kindTheme('mock')
@@ -59,6 +60,7 @@ function MockExamContent() {
   const router = useRouter()
   const sp = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [phase, setPhase] = useState<'loading' | 'intro' | 'exam' | 'review'>('loading')
   const [title, setTitle] = useState('')
@@ -137,13 +139,13 @@ function MockExamContent() {
         })
         j = await res.json()
         if (!res.ok || j.error) { setGrading(null); setGradingError(j.error || String(res.status)); return }
-      } catch { setGrading(null); setGradingError('网络中断，判分没完成'); return }
+      } catch { setGrading(null); setGradingError(tr(lang, '网络中断，判分没完成', 'Connection lost before grading finished')); return }
 
       if (j.review) { setGrading(null); gradeAndShow(j.review); return }
       if (j.failed) {
         // A stalled model call leaves the batch ungraded so it can be retried.
         if (++fails <= 4) continue
-        setGrading(null); setGradingError('判分多次失败，请点「重试判分」'); return
+        setGrading(null); setGradingError(tr(lang, '判分多次失败，请点「重试判分」', 'Grading failed repeatedly. Click "Retry grading".')); return
       }
       fails = 0
       setGrading(g => {
@@ -151,8 +153,8 @@ function MockExamContent() {
         return { done, total: Math.max(g?.total || 0, done + (j.remaining || 0)) }
       })
     }
-    setGrading(null); setGradingError('判分没有结束，请点「重试判分」')
-  }, [gradeAndShow])
+    setGrading(null); setGradingError(tr(lang, '判分没有结束，请点「重试判分」', 'Grading did not finish. Click "Retry grading".'))
+  }, [gradeAndShow, lang])
 
   const doSubmit = useCallback(async (reason: 'manual' | 'timeout') => {
     if (!sessionId || submittedRef.current) return
@@ -172,7 +174,7 @@ function MockExamContent() {
         body: JSON.stringify({ sessionId, reason }),
       })
       const j = await res.json()
-      if (!res.ok || j.error) { alert('交卷失败：' + (j.error || res.status)); setBusy(false); return }
+      if (!res.ok || j.error) { alert(tr(lang, '交卷失败：', 'Submit failed: ') + (j.error || res.status)); setBusy(false); return }
       // A short paper comes back ungraded; grade it before showing anything.
       if (j.review?.grading) { setBusy(false); await runGrading(sessionId); return }
       gradeAndShow(j.review)
@@ -182,7 +184,7 @@ function MockExamContent() {
       setOffline(true)
       setBusy(false)
     }
-  }, [sessionId, gradeAndShow, runGrading])
+  }, [sessionId, gradeAndShow, runGrading, lang])
 
   // ?mode=retry means "start a retest of my wrong questions" — it must NOT ask
   // for the current state, because the latest session is a submitted one and the
@@ -225,7 +227,9 @@ function MockExamContent() {
       })
       const j = await res.json()
       if (!res.ok || j.error) {
-        alert(j.empty ? '这份卷子已经全部答对了，没有错题需要重测 🎉' : '开考失败：' + (j.error || res.status))
+        alert(j.empty
+          ? tr(lang, '这份卷子已经全部答对了，没有错题需要重测 🎉', 'You have answered every question correctly — nothing to retest 🎉')
+          : tr(lang, '开考失败：', 'Could not start the exam: ') + (j.error || res.status))
         if (j.empty) router.replace(`/mock/${paperId}`)
         return
       }
@@ -236,7 +240,7 @@ function MockExamContent() {
       setExpiresAt(j.expiresAt); setDurationSeconds(j.durationSeconds ?? 0)
       setIdx(0); setPhase('exam')
     } catch (e: any) {
-      alert('开考出错：' + (e?.message || e))
+      alert(tr(lang, '开考出错：', 'Error starting exam: ') + (e?.message || e))
     } finally { setBusy(false) }
   }
 
@@ -338,10 +342,10 @@ function MockExamContent() {
     try {
       const j = await (await fetch('/api/ai/generate-kp-from-question', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stem, explanation }),
+        body: JSON.stringify({ stem, explanation, lang }),
       })).json()
-      setKpText(j.error ? '生成失败：' + j.error : (j.result || ''))
-    } catch { setKpText('生成失败') }
+      setKpText(j.error ? tr(lang, '生成失败：', 'Generation failed: ') + j.error : (j.result || ''))
+    } catch { setKpText(tr(lang, '生成失败', 'Generation failed')) }
   }
 
   const openPractice = async (questionId: string) => {
@@ -349,7 +353,7 @@ function MockExamContent() {
     try {
       const j = await (await fetch(`/api/student/similar-question?questionId=${questionId}`)).json()
       if (j.error) { alert(j.error); return }
-      if (!j.question) { alert('题库里暂时没有同类型的题目可以练。'); return }
+      if (!j.question) { alert(tr(lang, '题库里暂时没有同类型的题目可以练。', 'No similar questions are available to practice right now.')); return }
       setPractice(j.question)
     } finally { setPracticeLoading(false) }
   }
@@ -395,15 +399,15 @@ function MockExamContent() {
         <Navbar />
         <main className="max-w-2xl mx-auto px-4 pt-28 pb-24 text-center">
           <div className="text-6xl mb-4">{theme.emoji}</div>
-          <h1 className="text-2xl font-bold mb-2">{sessionMode === 'retry' ? '错题重测' : '开始模拟考'}</h1>
+          <h1 className="text-2xl font-bold mb-2">{sessionMode === 'retry' ? tr(lang, '错题重测', 'Wrong Question Retest') : tr(lang, '开始模拟考', 'Start Mock Exam')}</h1>
           <p className="text-muted-foreground mb-6">
             {sessionMode === 'retry'
-              ? '只考你之前没答对的题（含空着没答的），已经答对的不再出现。题目顺序和选项顺序都重新打乱，别凭印象选。可以反复重测，直到全部答对。'
-              : '倒计时开始后，答题过程中不会显示对错。可以点题号回到任意一题检查或改答案，交卷（或倒计时结束）之后才看得到分数和错题。'}
+              ? tr(lang, '只考你之前没答对的题（含空着没答的），已经答对的不再出现。题目顺序和选项顺序都重新打乱，别凭印象选。可以反复重测，直到全部答对。', 'Only questions you have not answered correctly yet (including blanks) appear; questions you have already got right are left out. Questions and options are reshuffled, so do not rely on memory. You can retest as many times as you like until every question is correct.')
+              : tr(lang, '倒计时开始后，答题过程中不会显示对错。可以点题号回到任意一题检查或改答案，交卷（或倒计时结束）之后才看得到分数和错题。', 'Once the timer starts, no right/wrong feedback is shown. Use the question numbers to revisit and change answers. Your score and wrong questions appear only after you hand in (or time runs out).')}
           </p>
           <button onClick={startExam} disabled={busy}
             className={`px-8 py-3 rounded-xl text-white font-semibold disabled:opacity-50 ${theme.solid}`}>
-            {busy ? '准备中…' : '开始考试'}
+            {tr(lang, busy ? '准备中…' : '开始考试', busy ? 'Preparing…' : 'Start Exam')}
           </button>
         </main>
       </div>
@@ -418,23 +422,23 @@ function MockExamContent() {
         <Navbar />
         <main className="max-w-xl mx-auto px-4 pt-32 pb-24 text-center">
           <div className="text-5xl mb-4">📝</div>
-          <h1 className="text-xl font-bold mb-2">交卷了，正在判分</h1>
+          <h1 className="text-xl font-bold mb-2">{tr(lang, '交卷了，正在判分', 'Submitted — grading in progress')}</h1>
           {gradingError ? (
             <>
               <p className="text-muted-foreground mb-5">{gradingError}</p>
               <button onClick={() => runGrading(review?.sessionId || sessionId)}
-                className={`px-6 py-2.5 rounded-xl text-white font-medium ${theme.solid}`}>重试判分</button>
+                className={`px-6 py-2.5 rounded-xl text-white font-medium ${theme.solid}`}>{tr(lang, '重试判分', 'Retry grading')}</button>
             </>
           ) : (
             <>
               <p className="text-muted-foreground mb-5">
-                简答题由 AI 对照参考答案逐题判定，几十道题要分批跑，请稍候。
+                {tr(lang, '简答题由 AI 对照参考答案逐题判定，几十道题要分批跑，请稍候。', 'Short answers are marked by AI against the reference answers. Dozens of questions are graded in batches, so please wait a moment.')}
               </p>
               <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-2">
                 <div className="h-full bg-violet-500 transition-all" style={{ width: `${pct}%` }} />
               </div>
               <p className="text-sm tabular-nums text-muted-foreground">
-                {grading!.done} / {grading!.total || '…'} 题
+                {grading!.done} / {grading!.total || '…'} {tr(lang, '题', 'questions')}
               </p>
             </>
           )}
@@ -450,7 +454,7 @@ function MockExamContent() {
         <Navbar />
         <main className="max-w-3xl mx-auto px-4 pt-24 pb-24">
           <Link href="/mock" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> 返回模拟考列表
+            <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回模拟考列表', 'Back to Mock Exams')}
           </Link>
 
           <div className="bg-card border rounded-2xl p-6 mb-6">
@@ -459,25 +463,25 @@ function MockExamContent() {
               {/* Cumulative mastery — how much of the whole paper is now correct. */}
               <div className={`text-5xl font-bold ${theme.text}`}>{review.score.percentage}%</div>
               <div className="text-sm text-muted-foreground mt-2">
-                全卷 {review.score.total} 题，已答对 {review.score.correct} 题
-                {review.score.unanswered > 0 && ` · 还没答对 ${review.score.unanswered} 题`}
+                {tr(lang, `全卷 ${review.score.total} 题，已答对 ${review.score.correct} 题`, `${review.score.correct} of ${review.score.total} questions correct`)}
+                {review.score.unanswered > 0 && tr(lang, ` · 还没答对 ${review.score.unanswered} 题`, ` · ${review.score.unanswered} still incorrect`)}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                本次用时 {fmt(review.usedSeconds)} / {fmt(review.durationSeconds)}
-                {review.submitReason === 'timeout' && ' · 倒计时结束自动交卷'}
+                {tr(lang, `本次用时 ${fmt(review.usedSeconds)} / ${fmt(review.durationSeconds)}`, `Time used ${fmt(review.usedSeconds)} / ${fmt(review.durationSeconds)}`)}
+                {review.submitReason === 'timeout' && tr(lang, ' · 倒计时结束自动交卷', ' · Auto-submitted when time ran out')}
               </div>
             </div>
 
             {/* 历次成绩：每次的对/总，以及到目前为止全卷累计答对了多少 */}
             {review.attempts.length > 0 && (
               <div className="mt-5 pt-4 border-t">
-                <div className="text-xs text-muted-foreground mb-2">历次成绩</div>
+                <div className="text-xs text-muted-foreground mb-2">{tr(lang, '历次成绩', 'Previous attempts')}</div>
                 <div className="space-y-1">
                   {review.attempts.map(a => (
                     <div key={a.sessionId}
                       className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1 ${a.sessionId === review.sessionId ? 'bg-violet-50' : ''}`}>
                       <span className="w-14 shrink-0 text-muted-foreground">
-                        第 {a.n} 次{a.mode === 'retry' ? '（重测）' : ''}
+                        {tr(lang, `第 ${a.n} 次${a.mode === 'retry' ? '（重测）' : ''}`, `Attempt ${a.n}${a.mode === 'retry' ? ' (retest)' : ''}`)}
                       </span>
                       <span className="tabular-nums text-muted-foreground">
                         {a.correctInAttempt}/{a.totalInAttempt}
@@ -492,7 +496,7 @@ function MockExamContent() {
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">
-                  百分比是**全卷累计**：一道题只要答对过一次就算对（比如第 2 次是 70 题里答对 3 道，但加上第 1 次已对的 5 道，累计是 8/75）。
+                  {tr(lang, '百分比是**全卷累计**：一道题只要答对过一次就算对（比如第 2 次是 70 题里答对 3 道，但加上第 1 次已对的 5 道，累计是 8/75）。', 'The percentage is **cumulative across the paper**: a question counts once it has been answered correctly at least once (for example, 3 correct out of 70 on the second attempt plus 5 already correct on the first adds up to 8/75).')}
                 </p>
               </div>
             )}
@@ -502,11 +506,11 @@ function MockExamContent() {
               behind them, "which ones am I still getting wrong" is the question. */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
             {([
-              ['all', '全部', review.questions.length],
-              ['thisWrong', '本次做错', review.questions.filter(q => !q.isCorrect && !q.notInThisSession).length],
-              ['everWrong', '错过', review.questions.filter(q => (q.wrongTimes ?? 0) > 0).length],
-              ['repeatWrong', '反复错', review.questions.filter(q => (q.wrongTimes ?? 0) >= 2).length],
-              ['never', '至今没答对', review.questions.filter(q => q.firstCorrectAttempt == null).length],
+              ['all', tr(lang, '全部', 'All'), review.questions.length],
+              ['thisWrong', tr(lang, '本次做错', 'Wrong this time'), review.questions.filter(q => !q.isCorrect && !q.notInThisSession).length],
+              ['everWrong', tr(lang, '错过', 'Wrong before'), review.questions.filter(q => (q.wrongTimes ?? 0) > 0).length],
+              ['repeatWrong', tr(lang, '反复错', 'Repeatedly wrong'), review.questions.filter(q => (q.wrongTimes ?? 0) >= 2).length],
+              ['never', tr(lang, '至今没答对', 'Never correct'), review.questions.filter(q => q.firstCorrectAttempt == null).length],
             ] as const).map(([k, label, n]) => (
               <button key={k} onClick={() => setReviewFilter(k)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
@@ -532,30 +536,32 @@ function MockExamContent() {
                   {q.isCorrect ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-rose-600" />}
                   {q.flagged && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
-                      <Flag className="w-3 h-3" /> 考试时标记过
+                      <Flag className="w-3 h-3" /> {tr(lang, '考试时标记过', 'Flagged during the exam')}
                     </span>
                   )}
                   {/* Across all attempts, not just this one. */}
                   {q.notInThisSession && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                      本次未考（之前已答对）
+                      {tr(lang, '本次未考（之前已答对）', 'Not in this attempt (already correct)')}
                     </span>
                   )}
                   {q.firstCorrectAttempt == null ? (
                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                      至今没答对（错 {q.wrongTimes} 次）
+                      {tr(lang, `至今没答对（错 ${q.wrongTimes} 次）`, `Never correct (${q.wrongTimes} wrong)`)}
                     </span>
                   ) : (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                       q.firstCorrectAttempt === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
-                      {q.firstCorrectAttempt === 1 ? '第一次就答对' : `第 ${q.firstCorrectAttempt} 次才答对`}
+                      {q.firstCorrectAttempt === 1
+                        ? tr(lang, '第一次就答对', 'Correct on the first attempt')
+                        : tr(lang, `第 ${q.firstCorrectAttempt} 次才答对`, `Correct on attempt ${q.firstCorrectAttempt}`)}
                     </span>
                   )}
                   {/* Links to the lesson's page, where its knowledge points and
                       video links live — the whole point of tagging each question
                       with the lesson it belongs to. */}
                   {q.lessonId && (q.chapterTitle || q.lessonTitle) && (
-                    <Link href={`/play/${q.lessonId}`} title="去这一课复习知识点"
+                    <Link href={`/play/${q.lessonId}`} title={tr(lang, '去这一课复习知识点', 'Review this lesson’s knowledge points')}
                       className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-800 underline decoration-dotted underline-offset-2 transition-colors">
                       {q.chapterTitle}{q.lessonRef ? ` › ${q.lessonRef}` : ''} {q.lessonTitle} ↗
                     </Link>
@@ -569,20 +575,20 @@ function MockExamContent() {
                   {q.answerType === 'short' ? (
                     <div className="space-y-2 text-sm">
                       <div className={`px-3 py-2 rounded-lg border ${q.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
-                        <div className="text-xs text-muted-foreground mb-1">我的作答</div>
+                        <div className="text-xs text-muted-foreground mb-1">{tr(lang, '我的作答', 'My answer')}</div>
                         <div className="whitespace-pre-wrap">
-                          {q.myAnswer ? q.myAnswer : <span className="text-muted-foreground">（未作答）</span>}
+                          {q.myAnswer ? q.myAnswer : <span className="text-muted-foreground">{tr(lang, '（未作答）', '(No answer)')}</span>}
                         </div>
                       </div>
                       {q.referenceAnswer && (
                         <div className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50/60">
-                          <div className="text-xs text-muted-foreground mb-1">参考答案</div>
+                          <div className="text-xs text-muted-foreground mb-1">{tr(lang, '参考答案', 'Reference answer')}</div>
                           <div className="whitespace-pre-wrap"><KatexHtml text={wrapBareLatex(q.referenceAnswer)} /></div>
                         </div>
                       )}
                       {q.feedback && (
                         <div className="px-3 py-2 rounded-lg bg-gray-50 text-muted-foreground">
-                          <span className="text-xs">AI 批语：</span>{q.feedback}
+                          <span className="text-xs">{tr(lang, 'AI 批语：', 'AI feedback: ')}</span>{q.feedback}
                         </div>
                       )}
                     </div>
@@ -597,8 +603,8 @@ function MockExamContent() {
                           : picked ? 'bg-rose-50 border-rose-200' : 'border-transparent'}`}>
                         <span className="font-medium text-muted-foreground shrink-0">{LETTERS[oi]}.</span>
                         <span className="flex-1">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
-                        {isCorrect && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
-                        {picked && !isCorrect && <span className="text-xs text-rose-700 shrink-0">你选的</span>}
+                        {isCorrect && <span className="text-xs text-emerald-700 shrink-0">{tr(lang, '正确答案', 'Correct answer')}</span>}
+                        {picked && !isCorrect && <span className="text-xs text-rose-700 shrink-0">{tr(lang, '你选的', 'Your choice')}</span>}
                       </div>
                     )
                   })
@@ -614,11 +620,11 @@ function MockExamContent() {
                 <div className="flex items-center gap-2 mt-3">
                   <button onClick={() => openKp(q.questionId, q.stem, q.explanation)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border hover:bg-accent transition-colors">
-                    <Sparkles className="w-3.5 h-3.5 text-violet-500" /> AI 生成知识点
+                    <Sparkles className="w-3.5 h-3.5 text-violet-500" /> {tr(lang, 'AI 生成知识点', 'AI generate knowledge point')}
                   </button>
                   <button onClick={() => openPractice(q.questionId)}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border hover:bg-accent transition-colors">
-                    <BookOpen className="w-3.5 h-3.5 text-violet-500" /> 同类型题目重复训练
+                    <BookOpen className="w-3.5 h-3.5 text-violet-500" /> {tr(lang, '同类型题目重复训练', 'Practice similar questions')}
                   </button>
                 </div>
               </div>
@@ -631,12 +637,12 @@ function MockExamContent() {
           <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
             <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> 知识点总结</h3>
-                <button onClick={() => setKpFor(null)} title="关闭"
+                <h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {tr(lang, '知识点总结', 'Knowledge Point Summary')}</h3>
+                <button onClick={() => setKpFor(null)} title={tr(lang, '关闭', 'Close')}
                   className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
               </div>
               {kpText ? <div className="text-sm leading-relaxed"><KatexHtml text={kpText} /></div>
-                      : <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> 生成中…</div>}
+                      : <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> {tr(lang, '生成中…', 'Generating…')}</div>}
             </div>
           </div>
         )}
@@ -646,13 +652,13 @@ function MockExamContent() {
           <div className="fixed inset-0 z-[70] bg-black/50 flex items-start justify-center overflow-y-auto p-4">
             <div className="bg-card rounded-2xl w-full max-w-2xl my-8 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> 同类型题目
-                  {practice?.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">AI 现场出的</span>}</h3>
-                <button onClick={() => { setPractice(null); setPracticeChoice(null) }} title="关闭"
+                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500" /> {tr(lang, '同类型题目', 'Similar Questions')}
+                  {practice?.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">{tr(lang, 'AI 现场出的', 'AI-generated')}</span>}</h3>
+                <button onClick={() => { setPractice(null); setPracticeChoice(null) }} title={tr(lang, '关闭', 'Close')}
                   className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
               </div>
               {practiceLoading || !practice ? (
-                <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> 找题中…</div>
+                <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /> {tr(lang, '找题中…', 'Finding a question…')}</div>
               ) : (
                 <>
                   <div className="text-sm mb-2"><KatexHtml text={practice.stem} /></div>
@@ -693,16 +699,16 @@ function MockExamContent() {
       <main className="max-w-3xl mx-auto px-4 pt-24 pb-32">
         <div className="sticky top-16 z-30 bg-card border rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
           <span className="font-semibold truncate">
-            {sessionMode === 'retry' && <span className="text-violet-600">错题重测 · </span>}
+            {sessionMode === 'retry' && <span className="text-violet-600">{tr(lang, '错题重测 · ', 'Retest · ')}</span>}
             {title}
           </span>
-          <span className="text-xs text-muted-foreground shrink-0">已答 {answeredCount}/{questions.length}</span>
+          <span className="text-xs text-muted-foreground shrink-0">{tr(lang, `已答 ${answeredCount}/${questions.length}`, `${answeredCount}/${questions.length} answered`)}</span>
           {/* Submit sits next to the clock: the two things a student looks for
               when deciding whether to stop. */}
-          <button onClick={() => { if (confirm(`还有 ${questions.length - answeredCount} 题没作答。确定交卷？`)) doSubmit('manual') }}
+          <button onClick={() => { if (confirm(tr(lang, `还有 ${questions.length - answeredCount} 题没作答。确定交卷？`, `${questions.length - answeredCount} questions are still unanswered. Hand in anyway?`))) doSubmit('manual') }}
             disabled={busy}
             className={`ml-auto shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${theme.solid}`}>
-            {busy ? '交卷中…' : '交卷'}
+            {tr(lang, busy ? '交卷中…' : '交卷', busy ? 'Submitting…' : 'Hand in')}
           </button>
           <span className={`flex items-center gap-1.5 tabular-nums font-semibold shrink-0 ${lowTime ? 'text-rose-600' : theme.text}`}>
             <Clock className="w-4 h-4" /> {fmt(remaining)}
@@ -711,7 +717,7 @@ function MockExamContent() {
 
         {offline && (
           <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-            <WifiOff className="w-4 h-4" /> 网络不稳定：答案先存在本机，联网后会自动补传。
+            <WifiOff className="w-4 h-4" /> {tr(lang, '网络不稳定：答案先存在本机，联网后会自动补传。', 'Connection unstable: answers are saved on this device and uploaded automatically when you are back online.')}
           </div>
         )}
 
@@ -720,12 +726,12 @@ function MockExamContent() {
         {cur && (
           <div className="bg-card border rounded-2xl p-5 mb-4">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-muted-foreground">第 {idx + 1} 题 / 共 {questions.length} 题</span>
+              <span className="text-xs text-muted-foreground">{tr(lang, `第 ${idx + 1} 题 / 共 ${questions.length} 题`, `Question ${idx + 1} of ${questions.length}`)}</span>
               <button onClick={() => toggleFlag(cur)}
                 className={`ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors ${
                   flags[cur.questionId] ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
                 <Flag className="w-4 h-4" />
-                {flags[cur.questionId] ? '已标记（回头再看）' : '标记这题'}
+                {tr(lang, flags[cur.questionId] ? '已标记（回头再看）' : '标记这题', flags[cur.questionId] ? 'Flagged (come back later)' : 'Flag this question')}
               </button>
             </div>
             <div className="text-base mb-3"><KatexHtml text={cur.stem} /></div>
@@ -743,11 +749,12 @@ function MockExamContent() {
                     onChange={e => setDrafts(prev => ({ ...prev, [cur.questionId]: e.target.value }))}
                     onBlur={e => saveDraft(cur, e.target.value)}
                     rows={7}
-                    placeholder="把你的解答写在这里（文字、计算过程或结论都可以）"
+                    placeholder={tr(lang, '把你的解答写在这里（文字、计算过程或结论都可以）', 'Write your answer here (text, working, or a conclusion)')}
                     className="w-full px-3 py-2.5 border rounded-xl bg-background text-sm outline-none focus:ring-2 focus:ring-violet-400" />
                   <p className="text-xs text-muted-foreground">
-                    判分的是 AI，它看的是化学含义，所以直接写 <code>CH3NH2</code>、<code>10^-4</code> 这种普通写法也认。
-                    下标/上标可以点上面的按钮。离开这一题时自动保存。
+                    {tr(lang, '判分的是 AI，它看的是化学含义，所以直接写 ', 'The AI marks by chemical meaning, so plain ')}
+                    <code>CH3NH2</code>{tr(lang, '、', ' or ')}<code>10^-4</code>
+                    {tr(lang, ' 这种普通写法也认。下标/上标可以点上面的按钮。离开这一题时自动保存。', ' is fine. Use the buttons above for sub/superscripts. Your work is saved when you leave the question.')}
                   </p>
                 </>
               ) : (
@@ -769,9 +776,9 @@ function MockExamContent() {
 
             <div className="flex items-center justify-center gap-3 mt-6">
               <button onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}
-                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
+                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">{tr(lang, '上一题', 'Previous')}</button>
               <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}
-                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
+                className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">{tr(lang, '下一题', 'Next')}</button>
             </div>
           </div>
         )}
@@ -800,18 +807,18 @@ function MockExamContent() {
             if (row.length === 0) return null
             return (
               <div key={gi} className="flex flex-wrap items-center gap-1.5">
-                <span className="w-14 shrink-0 text-xs text-muted-foreground">第 {gi + 1} 题</span>
+                <span className="w-14 shrink-0 text-xs text-muted-foreground">{tr(lang, `第 ${gi + 1} 题`, `Question ${gi + 1}`)}</span>
                 {buttons}
               </div>
             )
           })}
           <button onClick={() => setOnlyFlagged(v => !v)}
             className={`px-2.5 ${isShortPaper ? 'h-8' : 'h-9'} rounded-lg text-xs border font-medium transition-colors ${onlyFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
-            {onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`}
+            {tr(lang, onlyFlagged ? '显示全部' : `只看标记 (${Object.values(flags).filter(Boolean).length})`, onlyFlagged ? 'Show all' : `Flagged only (${Object.values(flags).filter(Boolean).length})`)}
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          紫色 = 已作答，黄色 = 你标记过的。{isShortPaper ? '同一行的小问属于同一道大题。' : ''}答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。
+          {tr(lang, '紫色 = 已作答，黄色 = 你标记过的。', 'Purple = answered, amber = flagged.')}{isShortPaper ? tr(lang, '同一行的小问属于同一道大题。', 'Parts on the same row belong to one main question.') : ''}{tr(lang, '答案随时在保存，中途刷新或换设备都能接着答；交卷后才显示对错。', 'Answers are saved continuously, so you can resume after a refresh or on another device. Right/wrong is shown only after you hand in.')}
         </p>
       </main>
     </div>

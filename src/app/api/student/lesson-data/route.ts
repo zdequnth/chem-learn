@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   // Ensure profile exists
   await supabaseAdmin('profiles', {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const lessonId = searchParams.get('lessonId')
-  if (!lessonId) return NextResponse.json({ error: '缺少lessonId' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ error: 'Missing lessonId（缺少 lessonId）' }, { status: 400 })
 
   // Lesson + chapter + course
   const { data: lessons } = await supabaseAdmin('lessons', { query: `?id=eq.${lessonId}&select=*` })

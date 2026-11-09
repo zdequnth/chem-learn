@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import { BookOpen, BarChart3, LogOut, User, Settings, BookMarked, FileText, Menu } from 'lucide-react'
 import { useState } from 'react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 const NEUTRAL = 'text-muted-foreground hover:text-foreground hover:bg-accent'
 
@@ -83,11 +83,11 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             <button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
               className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors"
-              title={lang === 'zh' ? 'Switch to English' : '切换到中文'}>🌐 {lang === 'zh' ? 'EN' : '中文'}</button>
+              title={tr(lang, '切换到英文', 'Switch to Chinese')}>🌐 {lang === 'zh' ? 'EN' : '中文'}</button>
             {/* Phones get the nav links here. Rendered as an absolute panel so the
                 bar keeps its height and no page's top padding has to change. */}
             <div className="relative md:hidden">
-              <button onClick={() => setNavOpen(v => !v)} aria-label="菜单"
+              <button onClick={() => setNavOpen(v => !v)} aria-label={tr(lang, '菜单', 'Menu')}
                 className="p-2 rounded-lg hover:bg-accent transition-colors">
                 <Menu className="w-5 h-5" />
               </button>

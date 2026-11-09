@@ -10,7 +10,13 @@ import CourseBindings from '@/components/CourseBindings'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { Plus, Users, Copy, Loader2, Trash2 } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
+
+const KIND_SHORT: Record<string, { zh: string; en: string }> = {
+  gate: { zh: '过关', en: 'Gate' },
+  vocab: { zh: '背单词', en: 'Vocabulary' },
+  mock: { zh: '模拟考', en: 'Mock Exam' },
+}
 
 interface ClassData {
   id: string
@@ -60,7 +66,7 @@ export default function TeacherClassesPage() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return
-    if (!newCourse) { alert('请选择关联课程'); return }
+    if (!newCourse) { alert(tr(lang, '请选择关联课程', 'Please select a course')); return }
     await fetch('/api/classes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -73,14 +79,14 @@ export default function TeacherClassesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除此班级？')) return
+    if (!confirm(tr(lang, '确定删除此班级？', 'Delete this class?'))) return
     await fetch(`/api/classes?id=${id}`, { method: 'DELETE' })
     fetchData()
   }
 
   const copyInviteCode = (code: string) => {
     navigator.clipboard.writeText(code)
-    alert('邀请码已复制：' + code)
+    alert(tr(lang, '邀请码已复制：', 'Invite code copied: ') + code)
   }
 
   if (authLoading || !profile) {
@@ -93,31 +99,31 @@ export default function TeacherClassesPage() {
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold mb-1">{t('classes', lang) + (lang==='zh'?'管理':'')}</h1>
-            <p className="text-sm text-muted-foreground">{lang==='zh'?'创建班级并分享邀请码给学生加入':'Create classes and share invite codes with students'}</p>
+            <h1 className="text-2xl font-bold mb-1">{tr(lang, t('classes', lang) + '管理', 'Class Management')}</h1>
+            <p className="text-sm text-muted-foreground">{tr(lang, '创建班级并分享邀请码给学生加入', 'Create classes and share invite codes with students')}</p>
           </div>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">
-            <Plus className="w-4 h-4" /> {lang==='zh'?'新建班级':'New Class'}
+            <Plus className="w-4 h-4" /> {tr(lang, '新建班级', 'New Class')}
           </button>
         </div>
 
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
             <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-              <h2 className="text-lg font-semibold mb-4">新建班级</h2>
+              <h2 className="text-lg font-semibold mb-4">{tr(lang, '新建班级', 'New Class')}</h2>
               <div className="space-y-3">
-                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="年份+年级+课程+班级，如 2026 G9 化学A-3班"
+                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={tr(lang, '年份+年级+课程+班级，如 2026 G9 化学A-3班', 'Year + grade + course + class, e.g. 2026 G9 Chemistry A-3')}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <select value={newCourse} onChange={e => setNewCourse(e.target.value)}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="">选择课程（必选）</option>
+                  <option value="">{tr(lang, '选择课程（必选）', 'Select a course (required)')}</option>
                   {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={handleCreate} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">创建</button>
-                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium">取消</button>
+                <button onClick={handleCreate} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">{tr(lang, '创建', 'Create')}</button>
+                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium">{tr(lang, '取消', 'Cancel')}</button>
               </div>
             </div>
           </div>
@@ -128,8 +134,8 @@ export default function TeacherClassesPage() {
         ) : classes.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
             <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h2 className="text-xl font-semibold mb-2">还没有班级</h2>
-            <p>点击上方按钮创建第一个班级</p>
+            <h2 className="text-xl font-semibold mb-2">{tr(lang, '还没有班级', 'No classes yet')}</h2>
+            <p>{tr(lang, '点击上方按钮创建第一个班级', 'Click the button above to create your first class')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -149,7 +155,7 @@ export default function TeacherClassesPage() {
                         {k !== 'gate' && <span>{theme.emoji}</span>}
                         {cls.name}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${theme.pill}`}>
-                          {theme.label.replace('课程', '')}
+                          {tr(lang, KIND_SHORT[k]?.zh ?? '过关', KIND_SHORT[k]?.en ?? 'Gate')}
                         </span>
                         {course && (
                           <span className={`text-xs font-normal ${k !== 'gate' ? theme.text : 'text-muted-foreground'}`}>
@@ -158,17 +164,17 @@ export default function TeacherClassesPage() {
                         )}
                       </h3>
                       <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {cls.student_count} 名学生</span>
+                        <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {tr(lang, `${cls.student_count} 名学生`, `${cls.student_count} students`)}</span>
                         <span onClick={e => { e.preventDefault(); copyInviteCode(cls.invite_code) }}
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-700 cursor-pointer">
-                          <Copy className="w-3.5 h-3.5" /> 邀请码: {cls.invite_code}
+                          <Copy className="w-3.5 h-3.5" /> {tr(lang, '邀请码:', 'Invite code:')} {cls.invite_code}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={e => { e.preventDefault(); setBindFor({ id: cls.id, name: cls.name }) }}
                         className="px-3 py-1.5 text-xs rounded-lg border font-medium hover:bg-accent transition-colors">
-                        绑定课程
+                        {tr(lang, '绑定课程', 'Bind Course')}
                       </button>
                       <button onClick={e => { e.preventDefault(); handleDelete(cls.id) }}
                         className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors">
@@ -188,13 +194,13 @@ export default function TeacherClassesPage() {
       {bindFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-1">绑定课程</h2>
+            <h2 className="text-lg font-semibold mb-1">{tr(lang, '绑定课程', 'Bind Course')}</h2>
             <p className="text-sm text-muted-foreground mb-4">{bindFor.name}</p>
 
             <CourseBindings classId={bindFor.id} />
 
             <div className="flex justify-end mt-5">
-              <button onClick={() => setBindFor(null)} className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">关闭</button>
+              <button onClick={() => setBindFor(null)} className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">{tr(lang, '关闭', 'Close')}</button>
             </div>
           </div>
         </div>

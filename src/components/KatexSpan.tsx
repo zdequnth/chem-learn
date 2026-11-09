@@ -3,6 +3,7 @@
 import katex from 'katex'
 import 'katex/dist/contrib/mhchem.mjs'
 import { useMemo } from 'react'
+import { useLang, tr } from '@/lib/i18n'
 import { QUESTION_IMAGE_CLASS } from '@/components/QuestionImage'
 import { collapseOptionTable } from '@/lib/question-text'
 
@@ -154,14 +155,16 @@ function basicMarkdown(text: string): string {
 }
 
 export function KatexHtml({ text }: { text: string }) {
+  const { lang } = useLang()
+  const defaultPdfTitle = tr(lang, 'PDF 资料', 'PDF Document')
   const html = useMemo(() => {
     // 1. Extract PDF from original text FIRST
-    let pdfTitle = 'PDF 资料'
+    let pdfTitle = defaultPdfTitle
     let pdfUrl = ''
     let content = text
     const pdfMatch = content.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
     if (pdfMatch) {
-      pdfTitle = pdfMatch[1] || 'PDF 资料'
+      pdfTitle = pdfMatch[1] || defaultPdfTitle
       pdfUrl = pdfMatch[2] || pdfMatch[1] || ''
       content = content.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '')
     }
@@ -179,7 +182,7 @@ export function KatexHtml({ text }: { text: string }) {
     // Append PDF card if url exists
     if (pdfUrl) {
       result += `<div class="mt-3 border rounded-lg p-3 bg-red-50 border-red-200">
-        <div class="text-sm font-medium text-red-800 mb-1">📄 PDF 资料</div>
+        <div class="text-sm font-medium text-red-800 mb-1">${tr(lang, '📄 PDF 资料', '📄 PDF Document')}</div>
         <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer"
           class="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 no-underline">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -188,7 +191,7 @@ export function KatexHtml({ text }: { text: string }) {
     }
 
     return result
-  }, [text])
+  }, [text, lang, defaultPdfTitle])
   return <span dangerouslySetInnerHTML={{ __html: html }} />
 }
 

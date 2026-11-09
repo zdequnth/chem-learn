@@ -20,18 +20,18 @@ async function loadClass(userId: string, classId: string) {
     query: `?id=eq.${classId}&select=id,name,teacher_id`,
   })
   const cls = data?.[0]
-  if (!cls) return { error: '班级不存在', status: 404 }
-  if (cls.teacher_id !== userId) return { error: '只有班级创建者可以管理课程绑定', status: 403 }
+  if (!cls) return { error: 'Class not found（班级不存在）', status: 404 }
+  if (cls.teacher_id !== userId) return { error: 'Only the class creator can manage course bindings（只有班级创建者可以管理课程绑定）', status: 403 }
   return { cls }
 }
 
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const classId = new URL(request.url).searchParams.get('classId')
-  if (!classId) return NextResponse.json({ error: '缺少classId' }, { status: 400 })
+  if (!classId) return NextResponse.json({ error: 'Missing classId（缺少 classId）' }, { status: 400 })
 
   const { data: rows } = await supabaseAdmin('class_courses', {
     query: `?class_id=eq.${classId}&select=id,kind,course_id`,
@@ -50,10 +50,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { classId, courseId } = await request.json()
-  if (!classId || !courseId) return NextResponse.json({ error: '参数不全' }, { status: 400 })
+  if (!classId || !courseId) return NextResponse.json({ error: 'Missing parameters（参数不全）' }, { status: 400 })
 
   const { error, status } = await loadClass(user.id, classId)
   if (error) return NextResponse.json({ error }, { status: status || 400 })
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     query: `?id=eq.${courseId}&select=id,name,kind`,
   })
   const course = courseRows?.[0]
-  if (!course) return NextResponse.json({ error: '课程不存在' }, { status: 404 })
+  if (!course) return NextResponse.json({ error: 'Course not found（课程不存在）' }, { status: 404 })
   const kind = course.kind || 'gate'
 
   const { data: existing } = await supabaseAdmin('class_courses', {
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   const current = existing?.[0]
 
   if (current && kind === 'gate') {
-    return NextResponse.json({ error: '通关课程绑定后不能更改（学生的课时进度挂在这门课上）' }, { status: 400 })
+    return NextResponse.json({ error: 'The gate course binding cannot be changed after it is set (student lesson progress is tied to this course)（通关课程绑定后不能更改（学生的课时进度挂在这门课上））' }, { status: 400 })
   }
 
   if (current) {
@@ -96,13 +96,13 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const params = new URL(request.url).searchParams
   const classId = params.get('classId')
   const kind = params.get('kind')
-  if (!classId || !kind) return NextResponse.json({ error: '参数不全' }, { status: 400 })
-  if (kind === 'gate') return NextResponse.json({ error: '通关课程不能解绑' }, { status: 400 })
+  if (!classId || !kind) return NextResponse.json({ error: 'Missing parameters（参数不全）' }, { status: 400 })
+  if (kind === 'gate') return NextResponse.json({ error: 'The gate course cannot be unbound（通关课程不能解绑）' }, { status: 400 })
 
   const { error, status } = await loadClass(user.id, classId)
   if (error) return NextResponse.json({ error }, { status: status || 400 })

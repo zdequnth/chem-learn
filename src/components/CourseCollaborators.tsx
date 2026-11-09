@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { useLang } from '@/lib/i18n'
+import { useLang, tr } from '@/lib/i18n'
 
 // Course collaborators, shared by the gate-test course editor and the word bank.
 // A vocabulary course never opens the course editor (it redirects to /teacher/vocab),
@@ -65,9 +65,9 @@ export default function CourseCollaborators({ courseId }: { courseId: string }) 
 
   return (
     <div className="bg-card rounded-2xl border p-6">
-      <h2 className="text-lg font-semibold mb-1">{lang === 'zh' ? '协作者管理' : 'Collaborators'}</h2>
+      <h2 className="text-lg font-semibold mb-1">{tr(lang, '协作者管理', 'Collaborators')}</h2>
       <p className="text-xs text-muted-foreground mb-3">
-        {lang === 'zh' ? '添加其他教师后，他们也能编辑这门课程。' : 'Added teachers can edit this course too.'}
+        {tr(lang, '添加其他教师后，他们也能编辑这门课程。', 'Added teachers can edit this course too.')}
       </p>
 
       {isOwner && (
@@ -76,7 +76,7 @@ export default function CourseCollaborators({ courseId }: { courseId: string }) 
             <div className="relative flex-1">
               <button onClick={loadTeachers}
                 className="w-full px-3 py-2 text-sm border rounded-lg outline-none text-left flex items-center justify-between hover:border-emerald-500">
-                <span className={input ? '' : 'text-muted-foreground'}>{input || (lang === 'zh' ? '选择教师...' : 'Choose a teacher...')}</span>
+                <span className={input ? '' : 'text-muted-foreground'}>{input || tr(lang, '选择教师...', 'Choose a teacher...')}</span>
                 <span className="text-xs text-muted-foreground">▼</span>
               </button>
               {showTeacherList && availableTeachers.length > 0 && (
@@ -90,7 +90,7 @@ export default function CourseCollaborators({ courseId }: { courseId: string }) 
             </div>
             <button onClick={() => add()} disabled={!input}
               className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-              {lang === 'zh' ? '添加' : 'Add'}
+              {tr(lang, '添加', 'Add')}
             </button>
           </div>
           {msg && <p className="text-sm mb-2">{msg}</p>}
@@ -109,8 +109,8 @@ export default function CourseCollaborators({ courseId }: { courseId: string }) 
       ) : (
         <p className="text-sm text-muted-foreground">
           {isOwner
-            ? (lang === 'zh' ? '暂无协作者。' : 'No collaborators yet.')
-            : (lang === 'zh' ? '只有课程创建者可以管理协作者。' : 'Only the course owner can manage collaborators.')}
+            ? tr(lang, '暂无协作者。', 'No collaborators yet.')
+            : tr(lang, '只有课程创建者可以管理协作者。', 'Only the course owner can manage collaborators.')}
         </p>
       )}
     </div>

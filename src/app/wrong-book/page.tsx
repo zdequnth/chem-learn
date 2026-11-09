@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { Loader2, BookOpen, ChevronRight, Printer } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 interface WrongRecord {
   id: string
@@ -81,12 +81,12 @@ export default function WrongBookPage() {
     setAiGenerating(recordId)
     const res = await fetch('/api/ai/generate-kp-from-question', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stem, explanation }),
+      body: JSON.stringify({ stem, explanation, lang }),
     })
     const json = await res.json()
     setAiGenerating(null)
-    if (json.error) { alert('生成失败: ' + json.error); return }
-    setAiModal({ title: '知识点总结', content: json.result || '' })
+    if (json.error) { alert(tr(lang, '生成失败: ', 'Generation failed: ') + json.error); return }
+    setAiModal({ title: tr(lang, '知识点总结', 'Knowledge Point Summary'), content: json.result || '' })
   }
 
   const analyzeWeakness = async () => {
@@ -97,10 +97,10 @@ export default function WrongBookPage() {
       if (selectedChapter && r.chapter_id !== selectedChapter) return false
       return true
     })
-    if (src.length === 0) { alert('当前筛选范围内还没有错题。'); return }
+    if (src.length === 0) { alert(tr(lang, '当前筛选范围内还没有错题。', 'No wrong questions in the current filter.')); return }
     const map = new Map<string, string[]>()
     for (const r of src) {
-      const key = r.chapter_title || '未分章'
+      const key = r.chapter_title || tr(lang, '未分章', 'Uncategorised')
       const arr = map.get(key) || []
       arr.push(r.question_stem)
       map.set(key, arr)
@@ -117,10 +117,10 @@ export default function WrongBookPage() {
         body: JSON.stringify({ groups }),
       })
       const json = await res.json()
-      if (json.error) { alert('分析失败: ' + json.error); return }
-      setAiModal({ title: `我的薄弱点分析${scopeName ? '（' + scopeName + '）' : '（全部）'}`, content: json.result || '' })
+      if (json.error) { alert(tr(lang, '分析失败: ', 'Analysis failed: ') + json.error); return }
+      setAiModal({ title: tr(lang, `我的薄弱点分析${scopeName ? '（' + scopeName + '）' : '（全部）'}`, `My Weakness Analysis${scopeName ? ' (' + scopeName + ')' : ' (All)'}`), content: json.result || '' })
     } catch {
-      alert('分析失败，请重试')
+      alert(tr(lang, '分析失败，请重试', 'Analysis failed. Please try again.'))
     } finally {
       setWeaknessLoading(false)
     }
@@ -133,7 +133,7 @@ export default function WrongBookPage() {
     try {
       const json = await (await fetch(`/api/student/similar-question?questionId=${questionId}`)).json()
       if (json.error) { alert(json.error); setPractice(null); return }
-      if (!json.question) { alert('这次没能生成同类题，稍后再试试。'); setPractice(null); return }
+      if (!json.question) { alert(tr(lang, '这次没能生成同类题，稍后再试试。', 'Could not generate a similar question this time. Please try again later.')); setPractice(null); return }
       setPractice(json.question)
     } catch {
       setPractice(null)
@@ -185,20 +185,20 @@ export default function WrongBookPage() {
             {records.filter(r => !r.is_resolved).length > 0 && (
               <Link href={`/play/wrong-test?chapterId=${selectedChapter}`}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 text-sm no-print">
-                🎯 错题重测
+                🎯 {tr(lang, '错题重测', 'Wrong Q Retest')}
               </Link>
             )}
             {records.length > 0 && (
               <button onClick={analyzeWeakness} disabled={weaknessLoading}
-                title="按当前筛选的课程/章节分析；都未选则分析全部错题"
+                title={tr(lang, '按当前筛选的课程/章节分析；都未选则分析全部错题', 'Analyze the selected course/chapter; analyzes all wrong questions when none is selected')}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 text-sm no-print">
-                {weaknessLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> 分析中...</> : <>🧠 AI 分析我的薄弱点</>}
+                {weaknessLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> {tr(lang, '分析中...', 'Analyzing...')}</> : <>🧠 {tr(lang, 'AI 分析我的薄弱点', 'AI analyze my weaknesses')}</>}
               </button>
             )}
             {records.length > 0 && (
               <button onClick={() => window.print()}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors text-sm no-print">
-                <Printer className="w-4 h-4" /> 导出
+                <Printer className="w-4 h-4" /> {tr(lang, '导出', 'Export')}
               </button>
             )}
           </div>
@@ -220,13 +220,13 @@ export default function WrongBookPage() {
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
             <input type="checkbox" checked={showResolved} onChange={e => setShowResolved(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" />
-            显示已掌握
+            {tr(lang, '显示已掌握', 'Show mastered')}
           </label>
           <button onClick={() => setShowRepeatedOnly(!showRepeatedOnly)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               showRepeatedOnly ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-gray-100 text-muted-foreground border'
             }`}>
-            🌶️ 反复错误
+            🌶️ {tr(lang, '反复错误', 'Repeated wrong')}
           </button>
         </div>
 
@@ -235,8 +235,8 @@ export default function WrongBookPage() {
         ) : records.length === 0 ? (
           <div className="text-center py-20">
             <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">错题本为空</h2>
-            <p className="text-muted-foreground">还没有错题记录</p>
+            <h2 className="text-xl font-semibold mb-2">{tr(lang, '错题本为空', 'Wrong book is empty')}</h2>
+            <p className="text-muted-foreground">{tr(lang, '还没有错题记录', 'No wrong answers yet')}</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -249,7 +249,7 @@ export default function WrongBookPage() {
                   <div key={chapter} className="ml-4 mb-4 print-chapter-break">
                     <h3 className="text-md font-semibold mb-2 text-muted-foreground flex items-center gap-1">
                       <ChevronRight className="w-4 h-4" /> {chapter}
-                      <span className="text-sm">({chapterRecords.length} 题)</span>
+                      <span className="text-sm">{tr(lang, `(${chapterRecords.length} 题)`, `(${chapterRecords.length} questions)`)}</span>
                     </h3>
                     <div className="space-y-3">
                       {chapterRecords.map(r => (
@@ -267,29 +267,29 @@ export default function WrongBookPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              {r.is_repeated_wrong && <span className="text-sm" title="反复错误">🌶️</span>}
-                              {r.is_resolved && <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-50 text-green-600">✓ 已掌握</span>}
+                              {r.is_repeated_wrong && <span className="text-sm" title={tr(lang, '反复错误', 'Repeated wrong')}>🌶️</span>}
+                              {r.is_resolved && <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-50 text-green-600">✓ {tr(lang, '已掌握', 'Mastered')}</span>}
                             </div>
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-2 no-print">
                             <button onClick={() => handleGenerateKP(r.id, r.question_stem, r.question_explanation || '')} disabled={aiGenerating === r.id}
                               className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 disabled:opacity-50">
-                              🧠 {aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点'}
+                              🧠 {tr(lang, aiGenerating === r.id ? 'AI 生成中...' : 'AI 生成知识点', aiGenerating === r.id ? 'AI generating...' : 'AI generate knowledge point')}
                             </button>
                             <button onClick={() => openPractice(r.question_id)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100">
-                              🔁 同类型题目重复训练
+                              🔁 {tr(lang, '同类型题目重复训练', 'Practice similar questions')}
                             </button>
                           </div>
                           {r.question_explanation && (
                             <div className="bg-blue-50 rounded-lg p-3 mt-2">
-                              <p className="text-sm text-blue-800">解析：<KatexHtml text={r.question_explanation} /></p>
+                              <p className="text-sm text-blue-800">{tr(lang, '解析：', 'Explanation: ')}<KatexHtml text={r.question_explanation} /></p>
                             </div>
                           )}
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            <span>答错 {r.wrong_count} 次</span>
-                            <span>最近：{new Date(r.last_wrong_at).toLocaleDateString('zh-CN')}</span>
-                            <span>课时：{r.lesson_title}</span>
+                            <span>{tr(lang, `答错 ${r.wrong_count} 次`, `Wrong ${r.wrong_count} times`)}</span>
+                            <span>{tr(lang, '最近：', 'Recently: ')}{new Date(r.last_wrong_at).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-GB')}</span>
+                            <span>{tr(lang, '课时：', 'Lesson: ')}{r.lesson_title}</span>
                           </div>
                         </div>
                       ))}
@@ -307,7 +307,7 @@ export default function WrongBookPage() {
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-3xl mx-4 max-h-[88vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-3">
               <h3 className="text-lg font-semibold">🧠 {aiModal.title}</h3>
-              <button onClick={() => setAiModal(null)} title="关闭"
+              <button onClick={() => setAiModal(null)} title={tr(lang, '关闭', 'Close')}
                 className="shrink-0 -mt-1 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
@@ -319,8 +319,8 @@ export default function WrongBookPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2">🔁 同类型题目训练
-                {practice.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">AI 现场出的</span>}</h3>
+              <h3 className="text-lg font-semibold flex items-center gap-2">🔁 {tr(lang, '同类型题目训练', 'Similar Question Practice')}
+                {practice.generated && <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-normal">{tr(lang, 'AI 现场出的', 'AI-generated')}</span>}</h3>
               <button onClick={() => setPractice(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
             {practice.loading ? (
@@ -350,12 +350,12 @@ export default function WrongBookPage() {
                   })}
                 </div>
                 {practiceChoice !== null && practice.explanation && (
-                  <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded-lg mt-3">解析：<KatexHtml text={practice.explanation} /></p>
+                  <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded-lg mt-3">{tr(lang, '解析：', 'Explanation: ')}<KatexHtml text={practice.explanation} /></p>
                 )}
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => openPractice(practiceSrc)}
-                    className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">换一题</button>
-                  <button onClick={() => setPractice(null)} className="flex-1 py-2 bg-gray-100 rounded-lg text-sm">关闭</button>
+                    className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">{tr(lang, '换一题', 'New question')}</button>
+                  <button onClick={() => setPractice(null)} className="flex-1 py-2 bg-gray-100 rounded-lg text-sm">{tr(lang, '关闭', 'Close')}</button>
                 </div>
               </>
             )}

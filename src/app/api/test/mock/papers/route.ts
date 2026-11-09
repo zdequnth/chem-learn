@@ -8,16 +8,16 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const courseId = new URL(request.url).searchParams.get('courseId')
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
 
   const { data: courseRows } = await supabaseAdmin('courses', {
     query: `?id=eq.${courseId}&select=id,name,kind,is_published`,
   })
   const course = courseRows?.[0]
-  if (!course || course.kind !== 'mock') return NextResponse.json({ error: '课程不存在' }, { status: 404 })
+  if (!course || course.kind !== 'mock') return NextResponse.json({ error: 'Course not found（课程不存在）' }, { status: 404 })
 
   // Only published papers — a paper the teacher has not approved yet is invisible
   // to students.

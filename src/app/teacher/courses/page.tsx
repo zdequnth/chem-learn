@@ -10,7 +10,25 @@ import type { Course, CourseKind } from '@/lib/types'
 import { COURSE_KINDS } from '@/lib/types'
 import { KIND_THEME, kindTheme } from '@/lib/course-kind'
 import { Plus, Edit3, Loader2, ArrowLeft, FileText } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
+
+const KIND_TEXT: Record<CourseKind, { zh: string; en: string; zhBlurb: string; enBlurb: string }> = {
+  gate: {
+    zh: '过关课程', en: 'Gate Course',
+    zhBlurb: '上新课时用：一章节、一课时地过关',
+    enBlurb: 'For new material: pass chapter by chapter, lesson by lesson',
+  },
+  vocab: {
+    zh: '背单词课程', en: 'Vocabulary Course',
+    zhBlurb: '按课时背专业词汇，卡片 + 发音 + 测验',
+    enBlurb: 'Learn subject vocabulary by lesson with cards, audio, and quizzes',
+  },
+  mock: {
+    zh: '模拟考课程', en: 'Mock Exam Course',
+    zhBlurb: '考前一两个月冲刺：限时做完整套题',
+    enBlurb: 'Exam-season sprint: full papers under time limits',
+  },
+}
 
 export default function TeacherCoursesPage() {
   const router = useRouter()
@@ -55,7 +73,7 @@ export default function TeacherCoursesPage() {
   const handleCreate = async () => {
     if (!newCourse.name.trim()) return
     if (newCourse.kind === 'mock' && !newCourse.mock_source_course_id) {
-      alert('模拟考课程必须选择绑定的通关课程')
+      alert(tr(lang, '模拟考课程必须选择绑定的通关课程', 'A mock exam course must be linked to a gate course.'))
       return
     }
     try {
@@ -75,14 +93,14 @@ export default function TeacherCoursesPage() {
       })
       const json = await res.json()
       if (json.error) {
-        alert('创建失败: ' + json.error)
+        alert(tr(lang, '创建失败: ', 'Create failed: ') + json.error)
       } else {
         setShowCreate(false)
         setNewCourse({ name: '', description: '', grade_level: '', icon: '🧪', subject: 'Chemistry', kind: 'gate', mock_source_course_id: '' })
         fetchCourses()
       }
     } catch (e: any) {
-      alert('创建出错: ' + (e?.message || '未知错误'))
+      alert(tr(lang, '创建出错: ', 'Create error: ') + (e?.message || tr(lang, '未知错误', 'Unknown error')))
     }
   }
 
@@ -92,11 +110,13 @@ export default function TeacherCoursesPage() {
   const handleDelete = async (id: string) => {
     const course = courses.find(c => c.id === id)
     const extra = course?.kind === 'mock'
-      ? '\n\n注意：这门课绑定的通关课程不会被删除。'
+      ? tr(lang, '\n\n注意：这门课绑定的通关课程不会被删除。', '\n\nNote: the gate course linked to this course will not be deleted.')
       : course?.kind === 'gate'
-        ? '\n\n⚠️ 若有模拟考课程绑定到这门课，那些模拟考的题目会一起消失、试卷变空。'
+        ? tr(lang, '\n\n⚠️ 若有模拟考课程绑定到这门课，那些模拟考的题目会一起消失、试卷变空。', '\n\n⚠️ If any mock exam courses are linked to this course, their questions will disappear and those papers will become empty.')
         : ''
-    if (!confirm(`确定要删除这门课程吗？所有章节、课时和题目将被永久删除。${extra}`)) return
+    if (!confirm(tr(lang,
+      `确定要删除这门课程吗？所有章节、课时和题目将被永久删除。${extra}`,
+      `Delete this course? All chapters, lessons, and questions will be permanently deleted.${extra}`))) return
     await fetch(`/api/courses?id=${id}`, { method: 'DELETE' })
     fetchCourses()
   }
@@ -148,33 +168,33 @@ export default function TeacherCoursesPage() {
                       <button key={k} type="button" onClick={() => setNewCourse({ ...newCourse, kind: k })}
                         className={`py-2.5 rounded-lg border text-xs font-medium transition-colors ${
                           newCourse.kind === k ? KIND_THEME[k].solid : 'hover:bg-accent'}`}>
-                        {KIND_THEME[k].emoji} {KIND_THEME[k].label}
+                        {KIND_THEME[k].emoji} {tr(lang, KIND_TEXT[k].zh, KIND_TEXT[k].en)}
                       </button>
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    {lang === 'zh' ? KIND_THEME[newCourse.kind].blurb : KIND_THEME[newCourse.kind].label}
-                    {newCourse.kind === 'mock' && lang === 'zh' && '（题目来自绑定的通关课程，交卷后才看分数）'}
+                    {tr(lang, KIND_TEXT[newCourse.kind].zhBlurb, KIND_TEXT[newCourse.kind].enBlurb)}
+                    {newCourse.kind === 'mock' && tr(lang, '（题目来自绑定的通关课程，交卷后才看分数）', ' (Questions come from the linked gate course; scores are shown after submission)')}
                   </p>
                   {newCourse.kind === 'mock' && (
                     <div className="mt-2">
                       <select value={newCourse.mock_source_course_id}
                         onChange={e => setNewCourse({ ...newCourse, mock_source_course_id: e.target.value })}
                         className="w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-violet-500 text-sm">
-                        <option value="">{lang === 'zh' ? '选择绑定的通关课程…' : 'Bind a gate course…'}</option>
+                        <option value="">{tr(lang, '选择绑定的通关课程…', 'Select a gate course…')}</option>
                         {gateCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                       <p className="text-xs text-muted-foreground mt-1">
                         {gateCourses.length === 0
-                          ? (lang === 'zh' ? '你还没有过关课程，先建一门再来绑定。' : 'You have no gate course yet.')
-                          : (lang === 'zh' ? '试卷里每道题都会对应到这门课的某个章节和课时。' : 'Each paper question maps to a chapter/lesson of this course.')}
+                          ? tr(lang, '你还没有过关课程，先建一门再来绑定。', 'You have no gate course yet. Create one first.')
+                          : tr(lang, '试卷里每道题都会对应到这门课的某个章节和课时。', 'Each paper question maps to a chapter and lesson of this course.')}
                       </p>
                     </div>
                   )}
                 </div>
                 <select value={newCourse.subject} onChange={e => setNewCourse({ ...newCourse, subject: e.target.value })}
                   className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  {[{k:'Chinese',n:lang==='zh'?'语文 📖':'Chinese 📖'},{k:'Math',n:lang==='zh'?'数学 📐':'Math 📐'},{k:'English',n:lang==='zh'?'英语 🌍':'English 🌍'},{k:'Second foreign Language',n:lang==='zh'?'二外 🗣️':'2nd Lang 🗣️'},{k:'Physics',n:lang==='zh'?'物理 ⚛️':'Physics ⚛️'},{k:'Chemistry',n:lang==='zh'?'化学 🧪':'Chemistry 🧪'},{k:'Biology',n:lang==='zh'?'生物 🧬':'Biology 🧬'},{k:'Humanities',n:lang==='zh'?'人文 📜':'Humanities 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
+                  {[{k:'Chinese',n:tr(lang,'语文 📖','Chinese 📖')},{k:'Math',n:tr(lang,'数学 📐','Math 📐')},{k:'English',n:tr(lang,'英语 🌍','English 🌍')},{k:'Second foreign Language',n:tr(lang,'二外 🗣️','2nd Lang 🗣️')},{k:'Physics',n:tr(lang,'物理 ⚛️','Physics ⚛️')},{k:'Chemistry',n:tr(lang,'化学 🧪','Chemistry 🧪')},{k:'Biology',n:tr(lang,'生物 🧬','Biology 🧬')},{k:'Humanities',n:tr(lang,'人文 📜','Humanities 📜')}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
                 </select>
                 <input value={newCourse.name} onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
                   placeholder={t('courseName', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -213,9 +233,9 @@ export default function TeacherCoursesPage() {
                     <h3 className="font-semibold">{(course.kind ?? 'gate') !== 'gate' ? `${theme.emoji} ${course.name}` : course.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       {course.grade_level && <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{course.grade_level}</span>}
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${theme.pill}`}>{theme.label}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${theme.pill}`}>{tr(lang, KIND_TEXT[course.kind ?? 'gate'].zh, KIND_TEXT[course.kind ?? 'gate'].en)}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${course.is_published ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                        {course.is_published ? '已发布' : '未发布'}
+                        {course.is_published ? tr(lang, '已发布', 'Published') : tr(lang, '未发布', 'Unpublished')}
                       </span>
                     </div>
                   </div>
@@ -223,7 +243,7 @@ export default function TeacherCoursesPage() {
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleTogglePublish(course)}
                     className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${course.is_published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                    {course.is_published ? '取消发布' : '发布'}
+                    {course.is_published ? tr(lang, '取消发布', 'Unpublish') : tr(lang, '发布', 'Publish')}
                   </button>
                   {/* Each kind needs both its own content editor and the main
                       editor (so collaborators and, for vocab, the chapter list
@@ -231,22 +251,22 @@ export default function TeacherCoursesPage() {
                   {course.kind === 'vocab' && (
                     <Link href={`/teacher/vocab?course=${course.id}`}
                       className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
-                      📖 词库
+                      {tr(lang, '📖 词库', '📖 Vocabulary')}
                     </Link>
                   )}
                   {course.kind === 'mock' && (
                     <Link href={`/teacher/mock?course=${course.id}`}
                       className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
-                      <FileText className="w-3 h-3" /> 试卷
+                      <FileText className="w-3 h-3" /> {tr(lang, '试卷', 'Papers')}
                     </Link>
                   )}
                   <Link href={`/teacher/courses/${course.id}`}
                     className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${theme.button}`}>
-                    <Edit3 className="w-3 h-3" /> 编辑
+                    <Edit3 className="w-3 h-3" /> {tr(lang, '编辑', 'Edit')}
                   </Link>
                   <button onClick={() => handleDelete(course.id)}
                     className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors">
-                    删除
+                    {tr(lang, '删除', 'Delete')}
                   </button>
                 </div>
               </div>

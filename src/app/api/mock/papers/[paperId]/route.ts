@@ -7,6 +7,7 @@ import {
   loadValidLessonIds, validatePaperQuestions, createPaperQuestions,
   clearPaperQuestions, countPaperSessions,
 } from '@/lib/mock-paper-write'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { NextResponse } from 'next/server'
 
 // One paper, with its questions in paper order and their chapter/lesson resolved
@@ -15,10 +16,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pap
   const { paperId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   const outline = course?.mock_source_course_id ? await loadSourceOutline(course.mock_source_course_id) : null
 
@@ -88,10 +89,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
   const { paperId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   const body = await request.json()
   const patch: any = { updated_at: new Date().toISOString() }
@@ -114,22 +115,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pa
   // the paper exactly as it was, title included.
   if (replacing) {
     patch.mode = mode
-    if (list.length === 0) return NextResponse.json({ error: '试卷里至少要有一道题' }, { status: 400 })
+    if (list.length === 0) return NextResponse.json({ error: 'A paper must have at least one question（试卷里至少要有一道题）' }, { status: 400 })
 
     const sessions = await countPaperSessions(paperId)
     if (sessions > 0) {
       return NextResponse.json({
-        error: `这张卷子已经有 ${sessions} 场考试记录。直接改题会让旧成绩和题目对不上。`,
+        error: `This paper already has ${sessions} exam session(s). Editing its questions would make old results inconsistent with the questions.（这张卷子已经有 ${sessions} 场考试记录。直接改题会让旧成绩和题目对不上。）`,
         hasSessions: true,
         sessions,
       }, { status: 409 })
     }
     if (!course?.mock_source_course_id) {
-      return NextResponse.json({ error: '这门模拟考课程还没有绑定通关课程' }, { status: 400 })
+      return NextResponse.json({ error: 'This mock course is not bound to a gate course yet（这门模拟考课程还没有绑定通关课程）' }, { status: 400 })
     }
     const validLesson = await loadValidLessonIds(course.mock_source_course_id)
     const problem = validatePaperQuestions(list, mode, validLesson)
-    if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+    if (problem) return NextResponse.json({ error: bilingualError(problem) }, { status: 400 })
   }
 
   const { error: e } = await supabaseAdmin('mock_papers', { method: 'PATCH', body: patch, query: `?id=eq.${paperId}` })
@@ -151,10 +152,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
   const { paperId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   const body = await request.json()
   const outline = course?.mock_source_course_id ? await loadSourceOutline(course.mock_source_course_id) : null
@@ -171,10 +172,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
     const paperMode: 'choice' | 'short' = (paper as any)?.mode === 'short' ? 'short' : 'choice'
     for (const q of add) {
       if (!q?.lessonId || !validLesson.has(q.lessonId)) {
-        return NextResponse.json({ error: '新增的题必须指定所属章节/课时' }, { status: 400 })
+        return NextResponse.json({ error: 'New questions must specify a chapter/lesson（新增的题必须指定所属章节/课时）' }, { status: 400 })
       }
       if ((q?.answerType === 'short' ? 'short' : 'choice') !== paperMode) {
-        return NextResponse.json({ error: '新增的题和这份试卷的题型不一致' }, { status: 400 })
+        return NextResponse.json({ error: 'New questions must match this paper\'s question type（新增的题和这份试卷的题型不一致）' }, { status: 400 })
       }
       const images: string[] = []
       for (const raw of (Array.isArray(q.images) ? q.images : [])) {
@@ -183,7 +184,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pap
         if (isLocalImage(url)) { images.push(url); continue }
         const got = await importRemoteImage(url)
         if (got.url) images.push(got.url)
-        else imageWarnings.push(got.error || '取图失败')
+        else imageWarnings.push(got.error ? bilingualError(got.error) : 'Failed to fetch image（取图失败）')
       }
       const isShort = paperMode === 'short'
       const { data: qRows } = await supabaseAdmin('questions', {
@@ -248,10 +249,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { paperId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   // Delete the questions too — a mock question belongs to its paper and nothing
   // else, so leaving them behind would litter the lesson it points at.

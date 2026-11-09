@@ -9,7 +9,7 @@ import AnswerFx from '@/components/AnswerFx'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { ArrowLeft, CheckCircle, XCircle, Clock, Loader2, Star, AlertTriangle } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 interface GateTestQuestion {
   id: string
@@ -103,7 +103,7 @@ export default function GateTestPage() {
 
     if (data.error) {
       if (data.lockedUntil) {
-        setError(`测试已锁定，${data.minutesRemaining} 分钟后可重试`)
+        setError(tr(lang, `测试已锁定，${data.minutesRemaining} 分钟后可重试`, `Test locked. Try again in ${data.minutesRemaining} minutes.`))
         setInitialLocked(true)
         setLockedMinutes(data.minutesRemaining)
       } else {
@@ -234,7 +234,7 @@ export default function GateTestPage() {
   }
 
   const handleQuit = () => {
-    if (!confirm('确定退出测试吗？本次测试将作废，不记录成绩。')) return
+    if (!confirm(tr(lang, '确定退出测试吗？本次测试将作废，不记录成绩。', 'Quit the test? This attempt will be discarded and not recorded.'))) return
     router.push(`/play/${lessonId}`)
   }
 
@@ -363,7 +363,7 @@ export default function GateTestPage() {
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleQuit}
             className="text-sm text-muted-foreground hover:text-red-500 transition-colors">
-            ✕ 退出测试
+            ✕ {tr(lang, '退出测试', 'Quit test')}
           </button>
         </div>
         <p className="text-center text-base sm:text-lg font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 mb-4">
@@ -375,29 +375,29 @@ export default function GateTestPage() {
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">{stats.consecutiveCorrect}</div>
-              <div className="text-xs text-muted-foreground">连续正确</div>
-              <div className="text-xs text-muted-foreground">/ 7 通关</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '连续正确', 'Correct in a row')}</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '/ 7 通关', '/ 7 to pass')}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-emerald-600">{stats.totalCorrect}</div>
-              <div className="text-xs text-muted-foreground">累计正确</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '累计正确', 'Total correct')}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-red-500">{stats.totalWrong}</div>
-              <div className="text-xs text-muted-foreground">累计错误</div>
-              <div className="text-xs text-muted-foreground">/ 3 锁定</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '累计错误', 'Total wrong')}</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '/ 3 锁定', '/ 3 to lock')}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600">{stats.accuracy}%</div>
-              <div className="text-xs text-muted-foreground">正确率</div>
-              <div className="text-xs text-muted-foreground">/ 90% 通关</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '正确率', 'Accuracy')}</div>
+              <div className="text-xs text-muted-foreground">{tr(lang, '/ 90% 通关', '/ 90% to pass')}</div>
             </div>
           </div>
         </div>
 
         {/* Question */}
         <div className="bg-card rounded-2xl border p-6 mb-6">
-          <div className="text-xs text-muted-foreground mb-2">第 {questionNumber} 题</div>
+          <div className="text-xs text-muted-foreground mb-2">{tr(lang, `第 ${questionNumber} 题`, `Question ${questionNumber}`)}</div>
           <h2 className="text-lg font-medium mb-4"><KatexHtml text={question.stem} /></h2>
           {question.imageUrl && (
             <QuestionImage src={question.imageUrl} className="mb-4" />
@@ -432,7 +432,7 @@ export default function GateTestPage() {
         {isAnswered && !isCorrect && explanation && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
             <div className="font-medium text-amber-800 mb-1">
-              {lang === 'zh' ? '正确答案：' : 'Answer: '}{question.options.findIndex(o => o.id === correctOptionId) >= 0
+              {tr(lang, '正确答案：', 'Answer: ')}{question.options.findIndex(o => o.id === correctOptionId) >= 0
                 ? String.fromCharCode(65 + question.options.findIndex(o => o.id === correctOptionId)!)
                 : '?'}
             </div>
@@ -442,15 +442,15 @@ export default function GateTestPage() {
               setAiGenerating(true)
               const res = await fetch('/api/ai/generate-kp-from-question', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stem: question.stem, explanation }),
+                body: JSON.stringify({ stem: question.stem, explanation, lang }),
               })
               const json = await res.json()
               setAiGenerating(false)
-              if (json.error) { alert('生成失败: ' + json.error); return }
-              setAiModal({ title: '知识点总结', content: json.result || '' })
+              if (json.error) { alert(tr(lang, '生成失败: ', 'Generation failed: ') + json.error); return }
+              setAiModal({ title: tr(lang, '知识点总结', 'Knowledge Point Summary'), content: json.result || '' })
             }} disabled={aiGenerating}
               className="mt-3 flex items-center gap-1 px-3 py-1.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 disabled:opacity-50">
-              🧠 {aiGenerating ? 'AI 生成中...' : 'AI 生成知识点'}
+              🧠 {tr(lang, aiGenerating ? 'AI 生成中...' : 'AI 生成知识点', aiGenerating ? 'AI generating...' : 'AI generate knowledge point')}
             </button>
           </div>
         )}
@@ -461,7 +461,7 @@ export default function GateTestPage() {
             <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-3xl mx-4 max-h-[88vh] overflow-y-auto">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h3 className="text-lg font-semibold">🧠 {aiModal.title}</h3>
-                <button onClick={() => setAiModal(null)} title="关闭"
+                <button onClick={() => setAiModal(null)} title={tr(lang, '关闭', 'Close')}
                   className="shrink-0 -mt-1 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
               </div>
               <div className="text-sm leading-relaxed"><KatexHtml text={aiModal.content} /></div>
@@ -474,10 +474,10 @@ export default function GateTestPage() {
           {!isAnswered ? (
             <button onClick={handleSubmit} disabled={!selectedOption || submitting}
               className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-              {submitting ? (lang === 'zh' ? '提交中...' : 'Submitting...') : (lang === 'zh' ? '提交答案' : 'Submit')}
+              {tr(lang, submitting ? '提交中...' : '提交答案', submitting ? 'Submitting...' : 'Submit')}
             </button>
           ) : isCorrect ? (
-            <span className="px-8 py-3 text-emerald-600 font-medium">{lang === 'zh' ? '✓ 正确！' : '✓ Correct!'}</span>
+            <span className="px-8 py-3 text-emerald-600 font-medium">{tr(lang, '✓ 正确！', '✓ Correct!')}</span>
           ) : (
             <button onClick={handleNext}
               className="px-8 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">

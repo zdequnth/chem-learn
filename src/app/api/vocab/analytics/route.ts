@@ -43,7 +43,7 @@ async function canAccessCourse(userId: string, role: string | undefined, courseI
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
   const role = (user.user_metadata as any)?.role
 
   const { searchParams } = new URL(request.url)
@@ -56,18 +56,18 @@ export async function GET(request: Request) {
   let scopeStudents: string[] | null = null // null = "everyone with progress in this course"
 
   if (scope === 'class') {
-    if (!classIdParam) return NextResponse.json({ error: '缺少classId' }, { status: 400 })
+    if (!classIdParam) return NextResponse.json({ error: 'Missing classId（缺少 classId）' }, { status: 400 })
     const { data: cls } = await supabaseAdmin('classes', { query: `?id=eq.${classIdParam}&select=id,name,teacher_id,course_id` })
     const c = cls?.[0]
-    if (!c) return NextResponse.json({ error: '班级不存在' }, { status: 404 })
-    if (c.teacher_id !== user.id && role !== 'admin') return NextResponse.json({ error: '无权查看' }, { status: 403 })
+    if (!c) return NextResponse.json({ error: 'Class not found（班级不存在）' }, { status: 404 })
+    if (c.teacher_id !== user.id && role !== 'admin') return NextResponse.json({ error: 'Access denied（无权查看）' }, { status: 403 })
     courseId = c.course_id
     scopeName = c.name
     const members = await fetchAllIn('class_members', 'class_id', [classIdParam], 'student_id')
     scopeStudents = [...new Set(members.map((m: any) => m.student_id))]
   } else {
-    if (!courseIdParam) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
-    if (!await canAccessCourse(user.id, role, courseIdParam)) return NextResponse.json({ error: '无权查看' }, { status: 403 })
+    if (!courseIdParam) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
+    if (!await canAccessCourse(user.id, role, courseIdParam)) return NextResponse.json({ error: 'Access denied（无权查看）' }, { status: 403 })
     const { data: cr } = await supabaseAdmin('courses', { query: `?id=eq.${courseIdParam}&select=name` })
     courseId = courseIdParam
     scopeName = cr?.[0]?.name || ''

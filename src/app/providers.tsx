@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const localProfile: Profile = {
       id: userId,
       role: userMeta?.role || 'student',
-      display_name: userMeta?.display_name || userEmail || '用户',
+      display_name: userMeta?.display_name || userEmail || 'User',
       avatar_url: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

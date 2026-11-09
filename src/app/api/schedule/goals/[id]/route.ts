@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseGoalInput, rowToGoal } from '@/lib/schedule'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 async function loadOwnedGoal(teacherId: string, id: string) {
   const { data } = await supabaseAdmin('schedule_goals', {
@@ -14,10 +15,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const existing = await loadOwnedGoal(user.id, id)
-  if (!existing) return NextResponse.json({ error: '目标不存在' }, { status: 404 })
+  if (!existing) return NextResponse.json({ error: 'Goal not found（目标不存在）' }, { status: 404 })
 
   const body = await request.json().catch(() => ({}))
   const { input, error: parseError } = parseGoalInput({
@@ -27,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     dueDate: existing.due_date,
     ...body,
   })
-  if (!input) return NextResponse.json({ error: parseError }, { status: 400 })
+  if (!input) return NextResponse.json({ error: bilingualError(parseError || '') }, { status: 400 })
 
   const status = body?.status === 'done' ? 'done' : body?.status === 'open' ? 'open' : existing.status
 
@@ -52,10 +53,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const existing = await loadOwnedGoal(user.id, id)
-  if (!existing) return NextResponse.json({ error: '目标不存在' }, { status: 404 })
+  if (!existing) return NextResponse.json({ error: 'Goal not found（目标不存在）' }, { status: 404 })
 
   // Steps stay on the calendar (goal_id becomes NULL) — deleting the plan
   // should not silently erase work the teacher already scheduled.

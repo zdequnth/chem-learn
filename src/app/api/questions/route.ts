@@ -33,11 +33,11 @@ async function deleteQuestionDependents(questionIds: string[]) {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const lessonId = searchParams.get('lessonId')
-  if (!lessonId) return NextResponse.json({ error: '缺少lessonId' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ error: 'Missing lessonId（缺少 lessonId）' }, { status: 400 })
 
   // Get questions with options via join
   const { data: questions } = await supabaseAdmin('questions', {
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { id, is_approved, lesson_id } = body
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   // New question creation
   if (lesson_id) {
     if (!await checkLessonAccess(user.id, lesson_id)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
     const { data, error } = await supabaseAdmin('questions', {
       method: 'POST', body, query: '?select=id',
@@ -83,11 +83,11 @@ export async function POST(request: Request) {
   }
 
   // Approval toggle — find lesson via question
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
   const { data: q } = await supabaseAdmin('questions', { query: `?id=eq.${id}&select=lesson_id` })
   if (q?.[0]) {
     if (!await checkLessonAccess(user.id, q[0].lesson_id)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
   }
 
@@ -104,16 +104,16 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { id, stem, explanation, difficulty, image_url, options } = body
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   const { data: q } = await supabaseAdmin('questions', { query: `?id=eq.${id}&select=lesson_id` })
-  if (!q?.[0]) return NextResponse.json({ error: '题目不存在' }, { status: 404 })
+  if (!q?.[0]) return NextResponse.json({ error: 'Question not found（题目不存在）' }, { status: 404 })
   if (!await checkLessonAccess(user.id, q[0].lesson_id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
 
   const { error } = await supabaseAdmin('questions', {
@@ -156,7 +156,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -164,7 +164,7 @@ export async function DELETE(request: Request) {
 
   if (lessonId) {
     if (!await checkLessonAccess(user.id, lessonId)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
     // "Empty this lesson's questions" must not touch mock-exam questions, or it
     // would silently gut every paper built on this lesson.
@@ -182,7 +182,7 @@ export async function DELETE(request: Request) {
     const { data: q } = await supabaseAdmin('questions', { query: `?id=eq.${id}&select=lesson_id` })
     if (q?.[0]) {
       if (!await checkLessonAccess(user.id, q[0].lesson_id)) {
-        return NextResponse.json({ error: '无权操作' }, { status: 403 })
+        return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
       }
     }
     await deleteQuestionDependents([id])
@@ -194,5 +194,5 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  return NextResponse.json({ error: '缺少id或lessonId' }, { status: 400 })
+  return NextResponse.json({ error: 'Missing id or lessonId（缺少 id 或 lessonId）' }, { status: 400 })
 }

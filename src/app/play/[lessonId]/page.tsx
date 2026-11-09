@@ -9,7 +9,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml } from '@/components/KatexSpan'
 import type { Lesson, Chapter, Course, KnowledgePoint, VideoLink, StudentProgress, GateTestSession } from '@/lib/types'
 import { ArrowLeft, BookOpen, Video, Swords, Clock, Lock, Loader2, ChevronDown } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 export default function LessonHubPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
@@ -101,7 +101,7 @@ export default function LessonHubPage() {
           <>
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-              <Link href="/dashboard" className="hover:text-foreground">课程</Link>
+              <Link href="/dashboard" className="hover:text-foreground">{tr(lang, '课程', 'Courses')}</Link>
               <span>/</span>
               {course && <Link href={`/courses/${course.id}`} className="hover:text-foreground">{course.name}</Link>}
               {chapter && <><span>/</span><span>{chapter.title}</span></>}
@@ -114,7 +114,7 @@ export default function LessonHubPage() {
               {progress?.status === 'passed' && (
                 <div className="mt-3 flex items-center gap-2 text-yellow-500">
                   {'★'.repeat(progress.stars_earned || 0)}{'☆'.repeat(3 - (progress.stars_earned || 0))}
-                  <span className="text-sm text-muted-foreground">已通关</span>
+                  <span className="text-sm text-muted-foreground">{tr(lang, '已通关', 'Passed')}</span>
                 </div>
               )}
             </div>
@@ -124,13 +124,13 @@ export default function LessonHubPage() {
               <div className="bg-card rounded-2xl border p-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-blue-500" /> 知识点清单
+                    <BookOpen className="w-5 h-5 text-blue-500" /> {tr(lang, '知识点清单', 'Knowledge Points')}
                   </h2>
-                  <span className="text-xs text-muted-foreground">{knowledgePoints.length} 个</span>
+                  <span className="text-xs text-muted-foreground">{tr(lang, `${knowledgePoints.length} 个`, `${knowledgePoints.length} items`)}</span>
                   <button
                     onClick={() => setOpenKps(openKps.size > 0 ? new Set() : new Set(knowledgePoints.map(k => k.id)))}
                     className="ml-auto text-xs px-3 py-1.5 rounded-lg border hover:bg-accent transition-colors">
-                    {openKps.size > 0 ? '全部收起' : '全部展开'}
+                    {tr(lang, openKps.size > 0 ? '全部收起' : '全部展开', openKps.size > 0 ? 'Collapse all' : 'Expand all')}
                   </button>
                 </div>
                 <div className="space-y-3">
@@ -148,9 +148,9 @@ export default function LessonHubPage() {
                       {videoLinks[kp.id] && videoLinks[kp.id].length > 0 && (
                         <div className="space-y-3">
                           {[
-                            { key: 'pdf', label: 'PDF 资料', icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600 hover:text-red-700', plat: 'bg-red-100' },
-                            { key: 'video', label: '视频讲解', icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600 hover:text-blue-700', plat: 'bg-blue-100' },
-                            { key: 'web', label: '网页演示', icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700 hover:text-emerald-800', plat: 'bg-emerald-100' },
+                            { key: 'pdf', label: tr(lang, 'PDF 资料', 'PDF Resources'), icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600 hover:text-red-700', plat: 'bg-red-100' },
+                            { key: 'video', label: tr(lang, '视频讲解', 'Video Lessons'), icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600 hover:text-blue-700', plat: 'bg-blue-100' },
+                            { key: 'web', label: tr(lang, '网页演示', 'Web Demos'), icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700 hover:text-emerald-800', plat: 'bg-emerald-100' },
                           ].map(g => {
                             const typeOf = (vl: any) => vl.platform === 'pdf' ? 'pdf' : vl.platform === 'web' ? 'web' : 'video'
                             const items = videoLinks[kp.id].filter((vl: any) => typeOf(vl) === g.key).sort((a: any, b: any) => a.sort_order - b.sort_order)
@@ -193,7 +193,7 @@ export default function LessonHubPage() {
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-xl">📖</div>
                   <h3 className="font-semibold">{t('vocab', lang)}</h3>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{vocabCount} 词</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{tr(lang, `${vocabCount} 词`, `${vocabCount} words`)}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {lang === 'zh' ? '先认识本课时的专业词汇，再去做题会更顺。' : 'Learn this lesson\'s key terms first.'}
@@ -228,7 +228,7 @@ export default function LessonHubPage() {
                   <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
                     <Lock className="w-5 h-5 text-gray-400" />
                   </div>
-                  <h3 className="font-semibold text-muted-foreground">关卡测试</h3>
+                  <h3 className="font-semibold text-muted-foreground">{tr(lang, '关卡测试', 'Gate Test')}</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">{lang === 'zh' ? '请先完成上一个课时的关卡测试' : 'Complete the previous lesson first'}</p>
               </div>

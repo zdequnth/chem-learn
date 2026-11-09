@@ -5,11 +5,11 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const courseId = searchParams.get('courseId')
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
 
   // Support listing all teachers for dropdown
   if (searchParams.get('listTeachers')) {
@@ -38,16 +38,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { courseId, teacherEmail } = await request.json()
-  if (!courseId || !teacherEmail) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+  if (!courseId || !teacherEmail) return NextResponse.json({ error: 'Missing parameters（缺少参数）' }, { status: 400 })
 
   // Check ownership
   const role = (user.user_metadata as any)?.role
   const { data: course } = await supabaseAdmin('courses', { query: `?id=eq.${courseId}&select=owner_id` })
   if (course?.[0]?.owner_id !== user.id && role !== 'admin') {
-    return NextResponse.json({ error: '仅课程创建者可管理协作者' }, { status: 403 })
+    return NextResponse.json({ error: 'Only the course creator can manage collaborators（仅课程创建者可管理协作者）' }, { status: 403 })
   }
 
   // Find teacher by name (fuzzy search)
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     p.id === search
   )
 
-  if (!teacher) return NextResponse.json({ error: '未找到该教师，请确认邮箱或姓名' }, { status: 404 })
+  if (!teacher) return NextResponse.json({ error: 'Teacher not found. Please check the email or name.（未找到该教师，请确认邮箱或姓名）' }, { status: 404 })
 
   const { error } = await supabaseAdmin('course_collaborators', {
     method: 'POST',
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   })
   if (error) {
     if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-      return NextResponse.json({ error: '该教师已是协作者' }, { status: 409 })
+      return NextResponse.json({ error: 'This teacher is already a collaborator（该教师已是协作者）' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -79,12 +79,12 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const courseId = searchParams.get('courseId')
   const teacherId = searchParams.get('teacherId')
-  if (!courseId || !teacherId) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+  if (!courseId || !teacherId) return NextResponse.json({ error: 'Missing parameters（缺少参数）' }, { status: 400 })
 
   const { error } = await supabaseAdmin('course_collaborators', {
     method: 'DELETE',

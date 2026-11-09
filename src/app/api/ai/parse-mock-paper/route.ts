@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { parseAnswerKey } from '@/lib/answer-key'
 import { stripOptionTable, collapseOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
@@ -200,7 +201,7 @@ async function parseChunk(client: OpenAI, prompt: string, images: string[] = [])
       parsed = JSON.parse(raw)
     } catch {
       const match = raw.match(/\{[\s\S]*\}/)
-      if (!match) throw new Error('AI未返回有效JSON')
+      if (!match) throw new Error('AI did not return valid JSON（AI 未返回有效 JSON）')
       parsed = JSON.parse(match[0])
     }
     return { ok: true, questions: Array.isArray(parsed?.questions) ? parsed.questions : [] }
@@ -214,14 +215,14 @@ async function parseChunk(client: OpenAI, prompt: string, images: string[] = [])
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const {
     text, courseId, batchIndex: rawBatchIndex, answerText,
     paperMode: rawPaperMode, answerPosition: rawAnswerPosition, answerImages,
   } = await request.json()
-  if (!text?.trim()) return NextResponse.json({ error: '请粘贴试卷文本' }, { status: 400 })
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!text?.trim()) return NextResponse.json({ error: 'Please paste the paper text（请粘贴试卷文本）' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
 
   const paperMode: 'choice' | 'short' = rawPaperMode === 'short' ? 'short' : 'choice'
   // Where the answers are. "end" means they were pasted into the answer box;
@@ -232,15 +233,15 @@ export async function POST(request: Request) {
     : String(answerText ?? '').trim() ? 'end' : 'none'
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
   if (!course!.mock_source_course_id) {
-    return NextResponse.json({ error: '这门模拟考课程还没有绑定通关课程' }, { status: 400 })
+    return NextResponse.json({ error: 'This mock course is not bound to a gate course yet（这门模拟考课程还没有绑定通关课程）' }, { status: 400 })
   }
 
   const outline = await loadSourceOutline(course!.mock_source_course_id)
-  if (!outline) return NextResponse.json({ error: '绑定的通关课程不存在' }, { status: 400 })
+  if (!outline) return NextResponse.json({ error: 'The bound gate course does not exist（绑定的通关课程不存在）' }, { status: 400 })
   if (outline.lessons.length === 0) {
-    return NextResponse.json({ error: '绑定的通关课程还没有章节课时，无法标注对应关系' }, { status: 400 })
+    return NextResponse.json({ error: 'The bound gate course has no chapters/lessons yet, so mappings cannot be marked（绑定的通关课程还没有章节课时，无法标注对应关系）' }, { status: 400 })
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY

@@ -26,17 +26,17 @@ function shuffled<T>(arr: T[]): T[] {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { paperId, mode: rawMode } = await request.json()
-  if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
+  if (!paperId) return NextResponse.json({ error: 'Missing paperId（缺少 paperId）' }, { status: 400 })
   const mode: 'full' | 'retry' = rawMode === 'retry' ? 'retry' : 'full'
 
   const { data: paperRows } = await supabaseAdmin('mock_papers', {
     query: `?id=eq.${paperId}&select=id,title,mode,duration_minutes,mock_course_id,is_published`,
   })
   const paper = paperRows?.[0]
-  if (!paper) return NextResponse.json({ error: '试卷不存在' }, { status: 404 })
+  if (!paper) return NextResponse.json({ error: 'Paper not found（试卷不存在）' }, { status: 404 })
 
   const { data: existingRows } = await supabaseAdmin('mock_test_sessions', {
     query: `?student_id=eq.${user.id}&paper_id=eq.${paperId}&status=eq.in_progress&order=started_at.desc&limit=1&select=*`,
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   // the paper out from under a student mid-exam would be worse than letting them
   // finish it.
   if (!paper.is_published && !session) {
-    return NextResponse.json({ error: '这套卷子还没有发布' }, { status: 403 })
+    return NextResponse.json({ error: 'This paper has not been published yet（这套卷子还没有发布）' }, { status: 403 })
   }
 
   if (session) {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       // A multi-part question comes back whole, so its parts stay together.
       const remaining = await neverCorrectQuestions(user.id, paperId)
       if (remaining.length === 0) {
-        return NextResponse.json({ empty: true, error: '这份卷子已经全部答对了，没有错题需要重测' }, { status: 400 })
+        return NextResponse.json({ empty: true, error: 'All questions in this paper have been answered correctly; there are no wrong questions to retest（这份卷子已经全部答对了，没有错题需要重测）' }, { status: 400 })
       }
       // Re-ordering stops a student answering from memory of "it was the third
       // one". It must NOT happen on a free-response paper: (b) has to follow (a)
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       })
       questionIds = ((pq || []) as any[]).map((r) => r.question_id)
     }
-    if (questionIds.length === 0) return NextResponse.json({ error: '这套试卷还没有题目' }, { status: 400 })
+    if (questionIds.length === 0) return NextResponse.json({ error: 'This paper has no questions yet（这套试卷还没有题目）' }, { status: 400 })
 
     const durationSeconds = Math.max(1, (paper.duration_minutes || 60) * 60)
     const { data: created, error } = await supabaseAdmin('mock_test_sessions', {
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       },
       query: '?select=*',
     })
-    if (error || !created?.[0]) return NextResponse.json({ error: error?.message || '开考失败' }, { status: 500 })
+    if (error || !created?.[0]) return NextResponse.json({ error: error?.message || 'Failed to start the exam（开考失败）' }, { status: 500 })
     session = created[0] as SessionRow
 
     // Pre-insert one row per question: this makes the session its own paper
@@ -132,10 +132,10 @@ export async function GET(request: Request) {
   // without starting anything.
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const paperId = new URL(request.url).searchParams.get('paperId')
-  if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
+  if (!paperId) return NextResponse.json({ error: 'Missing paperId（缺少 paperId）' }, { status: 400 })
 
   const { data: rows } = await supabaseAdmin('mock_test_sessions', {
     query: `?student_id=eq.${user.id}&paper_id=eq.${paperId}&order=started_at.desc&limit=1&select=*`,

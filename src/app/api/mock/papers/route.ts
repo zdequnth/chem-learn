@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { loadMockCourse, isAdminUser } from '@/lib/mock-source'
 import { loadValidLessonIds, validatePaperQuestions, createPaperQuestions, uniquePaperTitle } from '@/lib/mock-paper-write'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { NextResponse } from 'next/server'
 
 // Papers of one mock course.
@@ -10,13 +11,13 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const courseId = new URL(request.url).searchParams.get('courseId')
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
 
   const { error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   // select=* rather than a column list: `is_published` arrives with migration 017,
   // and naming a column that does not exist yet makes PostgREST reject the whole
@@ -55,31 +56,31 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { courseId, title, durationMinutes, questions } = body
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
-  if (!title?.trim()) return NextResponse.json({ error: '请填写试卷标题' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
+  if (!title?.trim()) return NextResponse.json({ error: 'Please enter a paper title（请填写试卷标题）' }, { status: 400 })
 
   // One shape per paper. The question rows still carry their own answer_type, so
   // relaxing this later is a UI change, not a migration.
   const mode: 'choice' | 'short' = body.mode === 'short' ? 'short' : 'choice'
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
   if (!course!.mock_source_course_id) {
-    return NextResponse.json({ error: '这门模拟考课程还没有绑定通关课程' }, { status: 400 })
+    return NextResponse.json({ error: 'This mock course is not bound to a gate course yet（这门模拟考课程还没有绑定通关课程）' }, { status: 400 })
   }
 
   const list: any[] = Array.isArray(questions) ? questions : []
-  if (list.length === 0) return NextResponse.json({ error: '试卷里至少要有一道题' }, { status: 400 })
+  if (list.length === 0) return NextResponse.json({ error: 'A paper must have at least one question（试卷里至少要有一道题）' }, { status: 400 })
 
   // Every question must name a lesson OF THE BOUND GATE COURSE — that mapping is
   // the whole point, so it is validated rather than trusted.
   const validLesson = await loadValidLessonIds(course!.mock_source_course_id)
   const problem = validatePaperQuestions(list, mode, validLesson)
-  if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+  if (problem) return NextResponse.json({ error: bilingualError(problem) }, { status: 400 })
 
   // Saving a copy without retyping the title used to leave two identical names in
   // the course list, so the name is made unique here rather than trusted.
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     },
     query: '?select=id',
   })
-  if (pErr || !paperRows?.[0]) return NextResponse.json({ error: pErr?.message || '创建试卷失败' }, { status: 500 })
+  if (pErr || !paperRows?.[0]) return NextResponse.json({ error: pErr?.message || 'Failed to create paper（创建试卷失败）' }, { status: 500 })
   const paperId = paperRows[0].id
 
   const { saved, imageWarnings } = await createPaperQuestions(paperId, list, mode, user.id)

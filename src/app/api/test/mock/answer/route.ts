@@ -9,13 +9,13 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { sessionId, questionId, selectedOptionId, answerText, flagged } = await request.json()
-  if (!sessionId || !questionId) return NextResponse.json({ error: '参数不全' }, { status: 400 })
+  if (!sessionId || !questionId) return NextResponse.json({ error: 'Missing parameters（参数不全）' }, { status: 400 })
 
   const session = await loadSession(sessionId)
-  if (!session || session.student_id !== user.id) return NextResponse.json({ error: '考试不存在' }, { status: 404 })
+  if (!session || session.student_id !== user.id) return NextResponse.json({ error: 'Exam not found（考试不存在）' }, { status: 404 })
 
   if (session.status === 'submitted') {
     return NextResponse.json({ submitted: true, review: await buildReview(session) })
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         query: `?id=eq.${selectedOptionId}&select=question_id`,
       })
       if (opt?.[0]?.question_id !== questionId) {
-        return NextResponse.json({ error: '选项不属于这道题' }, { status: 400 })
+        return NextResponse.json({ error: 'Option does not belong to this question（选项不属于这道题）' }, { status: 400 })
       }
     }
     patch.selected_option_id = selectedOptionId || null

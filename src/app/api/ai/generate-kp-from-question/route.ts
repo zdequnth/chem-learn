@@ -9,17 +9,21 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { stem, explanation } = await request.json()
-  if (!stem) return NextResponse.json({ error: '缺少题目内容' }, { status: 400 })
+  const { stem, explanation, lang } = await request.json()
+  if (!stem) return NextResponse.json({ error: 'Missing question content（缺少题目内容）' }, { status: 400 })
 
   // Detect question language: count CJK characters
   const cjkCount = (stem.match(/[一-鿿㐀-䶿]/g) || []).length
   const totalChars = stem.replace(/\s/g, '').length
   const isChineseText = totalChars > 0 && cjkCount / totalChars > 0.3
 
-  const langInst = isChineseText
-    ? '使用中文（与题目的语言风格保持一致）'
-    : '使用英文输出正文，最后额外附加一段中文翻译（标注"中文翻译："）'
+  // An English-UI student gets English only. Otherwise keep the old habit of
+  // adding a Chinese translation after English, which helps bilingual students.
+  const langInst = lang === 'en'
+    ? 'Use English throughout. Do not add a Chinese translation.'
+    : isChineseText
+      ? '使用中文（与题目的语言风格保持一致）'
+      : '使用英文输出正文，最后额外附加一段中文翻译（标注"中文翻译："）'
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
@@ -72,6 +76,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'AI生成失败' }, { status: 500 })
+    return NextResponse.json({ error: e.message || 'AI generation failed（AI 生成失败）' }, { status: 500 })
   }
 }

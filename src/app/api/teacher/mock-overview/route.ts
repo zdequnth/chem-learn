@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { classesOfStudents, loadMockCourse, isAdminUser } from '@/lib/mock-source'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { NextResponse } from 'next/server'
 
 // One student's performance ACROSS the papers of a mock course — a students ×
@@ -10,15 +11,15 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const params = new URL(request.url).searchParams
   const courseId = params.get('courseId')
   const classId = params.get('classId') || ''
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   const { data: papers } = await supabaseAdmin('mock_papers', {
     query: `?mock_course_id=eq.${courseId}&order=sort_order&select=id,title,duration_minutes,is_published`,

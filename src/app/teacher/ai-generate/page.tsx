@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { ArrowLeft, Sparkles, Loader2, CheckCircle, Save, X } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 interface GeneratedQuestion {
   stem: string
@@ -20,6 +21,7 @@ function AIGenerateForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [courses, setCourses] = useState<Course[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -79,13 +81,13 @@ function AIGenerateForm() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        lessonId: selectedLesson, questionType, count, topic,
+        lessonId: selectedLesson, questionType, count, topic, lang,
       }),
     })
     const data = await res.json()
 
     if (data.error) {
-      alert('生成失败：' + data.error)
+      alert(tr(lang, '生成失败：', 'Generation failed: ') + data.error)
     } else {
       setQuestions(data.questions || [])
     }
@@ -118,9 +120,9 @@ function AIGenerateForm() {
       })
       const json = await res.json()
       setSaved(true)
-      alert(`已保存 ${json.saved || 0} 道题目到题库！`)
+      alert(tr(lang, `已保存 ${json.saved || 0} 道题目到题库！`, `Saved ${json.saved || 0} questions to the question bank!`))
     } catch (e: any) {
-      alert('保存失败: ' + (e?.message || '未知错误'))
+      alert(tr(lang, '保存失败: ', 'Save failed: ') + (e?.message || tr(lang, '未知错误', 'Unknown error')))
     } finally {
       setSaving(false)
     }
@@ -135,60 +137,60 @@ function AIGenerateForm() {
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 pt-24 pb-20">
         <Link href="/teacher/questions" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> 返回题库
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回题库', 'Back to Question Bank')}
         </Link>
 
-        <h1 className="text-2xl font-bold mb-6">🤖 AI 智能出题</h1>
+        <h1 className="text-2xl font-bold mb-6">{tr(lang, '🤖 AI 智能出题', '🤖 AI Question Generator')}</h1>
 
         {/* Config */}
         <div className="bg-card rounded-2xl border p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-1">课程</label>
+              <label className="block text-sm font-medium mb-1">{tr(lang, '课程', 'Course')}</label>
               <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="">选择课程</option>
+                <option value="">{tr(lang, '选择课程', 'Select Course')}</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">章节</label>
+              <label className="block text-sm font-medium mb-1">{tr(lang, '章节', 'Chapter')}</label>
               <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-                <option value="">选择章节</option>
+                <option value="">{tr(lang, '选择章节', 'Select Chapter')}</option>
                 {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">目标课时</label>
+              <label className="block text-sm font-medium mb-1">{tr(lang, '目标课时', 'Target Lesson')}</label>
               <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-                <option value="">选择课时</option>
+                <option value="">{tr(lang, '选择课时', 'Select Lesson')}</option>
                 {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">题型</label>
+              <label className="block text-sm font-medium mb-1">{tr(lang, '题型', 'Question Type')}</label>
               <select value={questionType} onChange={e => setQuestionType(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="gate_test">关卡测试</option>
+                <option value="gate_test">{tr(lang, '关卡测试', 'Gate Test')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">题目数量</label>
+              <label className="block text-sm font-medium mb-1">{tr(lang, '题目数量', 'Number of Questions')}</label>
               <input type="number" min={1} max={30} value={count} onChange={e => setCount(Number(e.target.value))}
                 className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">知识点主题</label>
+            <label className="block text-sm font-medium mb-1">{tr(lang, '知识点主题', 'Knowledge Point Topic')}</label>
             <textarea value={topic} onChange={e => setTopic(e.target.value)}
-              placeholder="描述知识点，例如：Chemical bonding, redox reactions, organic nomenclature..."
+              placeholder={tr(lang, '描述知识点，例如：化学键、氧化还原反应、有机命名...', 'Describe the knowledge point, e.g. Chemical bonding, redox reactions, organic nomenclature...')}
               rows={2} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
           </div>
           <button onClick={handleGenerate} disabled={!selectedLesson || generating}
             className="w-full py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-            {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> AI 生成中...</> : <><Sparkles className="w-5 h-5" /> 开始生成</>}
+            {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> {tr(lang, 'AI 生成中...', 'Generating...')}</> : <><Sparkles className="w-5 h-5" /> {tr(lang, '开始生成', 'Generate')}</>}
           </button>
         </div>
 
@@ -196,15 +198,15 @@ function AIGenerateForm() {
         {questions.length > 0 && (
           <div className="bg-card rounded-2xl border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">审核预览 ({questions.length} 题)</h2>
+              <h2 className="text-lg font-semibold">{tr(lang, `审核预览 (${questions.length} 题)`, `Review Preview (${questions.length} questions)`)}</h2>
               <button onClick={handleSaveAll} disabled={saving || saved}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-                {saved ? <><CheckCircle className="w-4 h-4" /> 已保存</>
-                 : saving ? <><Loader2 className="w-4 h-4 animate-spin" /> 保存中...</>
-                 : <><Save className="w-4 h-4" /> 全部保存到题库</>}
+                {saved ? <><CheckCircle className="w-4 h-4" /> {tr(lang, '已保存', 'Saved')}</>
+                 : saving ? <><Loader2 className="w-4 h-4 animate-spin" /> {tr(lang, '保存中...', 'Saving...')}</>
+                 : <><Save className="w-4 h-4" /> {tr(lang, '全部保存到题库', 'Save All to Question Bank')}</>}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">审核每道题，不满意的点 ✕ 删除，剩下的点"全部保存"一键入库。</p>
+            <p className="text-xs text-muted-foreground mb-4">{tr(lang, '审核每道题，不满意的点 ✕ 删除，剩下的点"全部保存"一键入库。', 'Review each question. Click ✕ to delete any you do not want, then click "Save All" to add the rest to the bank.')}</p>
             <div className="space-y-3">
               {questions.map((q, i) => (
                 <div key={i} className="border rounded-xl p-4 relative group">
@@ -215,7 +217,7 @@ function AIGenerateForm() {
                   </button>
                   <div className="flex items-center gap-2 mb-2 pr-8">
                     <span className="text-xs font-medium text-muted-foreground">#{i + 1}</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">难度 {q.difficulty}</span>
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{tr(lang, `难度 ${q.difficulty}`, `Difficulty ${q.difficulty}`)}</span>
                   </div>
                   <p className="text-sm mb-2"><KatexHtml text={q.stem} /></p>
                   <div className="grid grid-cols-2 gap-1">

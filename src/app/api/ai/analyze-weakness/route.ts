@@ -6,11 +6,11 @@ import OpenAI from 'openai'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { groups } = await request.json() // [{ chapter, stems: string[] }]
   if (!Array.isArray(groups) || groups.length === 0) {
-    return NextResponse.json({ error: '暂无错题可分析' }, { status: 400 })
+    return NextResponse.json({ error: 'No wrong questions to analyze（暂无错题可分析）' }, { status: 400 })
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY
@@ -48,6 +48,6 @@ ${body}
     })
     return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'AI分析失败' }, { status: 500 })
+    return NextResponse.json({ error: e.message || 'AI analysis failed（AI 分析失败）' }, { status: 500 })
   }
 }

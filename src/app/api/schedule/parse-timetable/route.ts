@@ -28,19 +28,19 @@ const PROMPT = `这是一张学校周课表的照片或截图。请把表格里�
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const imageUrl = body?.imageUrl
   if (!isLocalImage(imageUrl)) {
-    return NextResponse.json({ error: '请先上传课表图片' }, { status: 400 })
+    return NextResponse.json({ error: 'Please upload a timetable image first（请先上传课表图片）' }, { status: 400 })
   }
 
   const img = await readStoredImage(imageUrl)
-  if (!img) return NextResponse.json({ error: '课表图片读不出来（可能已被删除）' }, { status: 400 })
+  if (!img) return NextResponse.json({ error: 'The timetable image could not be read (it may have been deleted)（课表图片读不出来（可能已被删除））' }, { status: 400 })
 
   const apiKey = process.env.DEEPSEEK_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key 未配置' }, { status: 500 })
+  if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key is not configured（DeepSeek API key 未配置）' }, { status: 500 })
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: 50_000, maxRetries: 0 })
   const dataUrl = `data:${img.contentType};base64,${img.buf.toString('base64')}`
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       parsed = JSON.parse(raw)
     } catch {
       const m = raw.match(/\{[\s\S]*\}/)
-      if (!m) throw new Error('AI 没有返回有效 JSON')
+      if (!m) throw new Error('AI did not return valid JSON（AI 没有返回有效 JSON）')
       parsed = JSON.parse(m[0])
     }
 
@@ -95,12 +95,12 @@ export async function POST(request: Request) {
 
     if (cells.length === 0) {
       return NextResponse.json({
-        error: '没有识别到课程。换一张更清晰、正对表格的照片，或改用手动排课。',
+        error: 'No courses were recognized. Try a clearer, straight-on photo of the table, or schedule manually.（没有识别到课程。换一张更清晰、正对表格的照片，或改用手动排课。）',
       }, { status: 422 })
     }
 
     return NextResponse.json({ cells })
   } catch (e: any) {
-    return NextResponse.json({ error: '识别失败：' + (e?.message || e) }, { status: 502 })
+    return NextResponse.json({ error: 'Recognition failed（识别失败）: ' + (e?.message || e) }, { status: 502 })
   }
 }

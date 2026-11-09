@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { useLang, tr } from '@/lib/i18n'
 
 // Sub/superscripts a plain textarea cannot type. Inserting the real Unicode
 // characters keeps the answer unambiguous — "10-4" could read as subtraction,
@@ -21,6 +22,7 @@ export default function ChemToolbar({
   onChange: (next: string) => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }) {
+  const { lang } = useLang()
   const btn = 'w-6 h-6 rounded border text-xs hover:bg-accent transition-colors'
 
   // `caretBack` places the caret that many characters from the end of what was
@@ -40,20 +42,20 @@ export default function ChemToolbar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       <div className="flex items-center gap-0.5">
-        <span className="text-muted-foreground mr-0.5">下标</span>
+        <span className="text-muted-foreground mr-0.5">{tr(lang, '下标', 'Subscript')}</span>
         {SUB.map((c) => <button key={c} type="button" onClick={() => insert(c)} className={btn}>{c}</button>)}
       </div>
       <div className="flex items-center gap-0.5">
-        <span className="text-muted-foreground mr-0.5">上标</span>
+        <span className="text-muted-foreground mr-0.5">{tr(lang, '上标', 'Superscript')}</span>
         {SUP.map((c) => <button key={c} type="button" onClick={() => insert(c)} className={btn}>{c}</button>)}
       </div>
       <div className="flex items-center gap-0.5">
         {SYMBOLS.map((c) => <button key={c} type="button" onClick={() => insert(c)} className={btn}>{c}</button>)}
       </div>
-      <button type="button" title="插入一个分式，光标落在分子的括号里"
+      <button type="button" title={tr(lang, '插入一个分式，光标落在分子的括号里', 'Insert a fraction; the cursor lands inside the numerator brackets')}
         onClick={() => insert('()/()', 4)}
         className="h-6 px-2 rounded border text-xs hover:bg-accent transition-colors">
-        a/b 分式
+        {tr(lang, 'a/b 分式', 'a/b Fraction')}
       </button>
     </div>
   )

@@ -5,10 +5,10 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { courseId, markdown } = await request.json()
-  if (!courseId || !markdown?.trim()) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+  if (!courseId || !markdown?.trim()) return NextResponse.json({ error: 'Missing parameters（缺少参数）' }, { status: 400 })
 
   // Get existing max sort_order so new chapters go to the end
   const { data: existing } = await supabaseAdmin('chapters', {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useLang } from '@/lib/i18n'
+import { useLang, tr } from '@/lib/i18n'
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 
 type LessonStat = { id: string; title: string; wordCount: number; studiedStudents: number; studied: number; mastered: number; masteryRate: number | null }
@@ -48,23 +48,23 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
   return (
     <section className="no-print">
       <h2 className="text-lg font-semibold mb-3">
-        {lang === 'zh' ? '词汇掌握情况' : 'Vocabulary Mastery'}
+        {tr(lang, '词汇掌握情况', 'Vocabulary Mastery')}
       </h2>
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>
       ) : !data || data.empty ? (
         <div className="bg-card border rounded-2xl p-8 text-center text-muted-foreground text-sm">
-          {lang === 'zh' ? '该范围内还没有词汇数据（老师还没上传词库，或学生还没开始背）。' : 'No vocabulary data in this scope yet.'}
+          {tr(lang, '该范围内还没有词汇数据（老师还没上传词库，或学生还没开始背）。', 'No vocabulary data in this scope yet.')}
         </div>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: lang === 'zh' ? '词条数' : 'Words', value: words.length },
-              { label: lang === 'zh' ? '总学习人次' : 'Study records', value: totalStudied },
-              { label: lang === 'zh' ? '整体掌握率' : 'Overall mastery', value: pct(totalStudied > 0 ? totalMastered / totalStudied : null) },
-              { label: lang === 'zh' ? '开始背的学生' : 'Active students', value: (data.students || []).filter((s: any) => s.studied > 0).length },
+              { label: tr(lang, '词条数', 'Words'), value: words.length },
+              { label: tr(lang, '总学习人次', 'Study records'), value: totalStudied },
+              { label: tr(lang, '整体掌握率', 'Overall mastery'), value: pct(totalStudied > 0 ? totalMastered / totalStudied : null) },
+              { label: tr(lang, '开始背的学生', 'Active students'), value: (data.students || []).filter((s: any) => s.studied > 0).length },
             ].map(k => (
               <div key={k.label} className="bg-card border rounded-xl p-3">
                 <div className="text-xs text-muted-foreground">{k.label}</div>
@@ -76,10 +76,10 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
           {/* Weak words */}
           <div className="bg-card border rounded-2xl overflow-hidden">
             <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{lang === 'zh' ? '薄弱词（按掌握率升序）' : 'Weakest words'}</h3>
+              <h3 className="text-sm font-semibold">{tr(lang, '薄弱词（按掌握率升序）', 'Weakest words')}</h3>
               {weakWords.length > 12 && (
                 <button onClick={() => setShowAllWords(v => !v)} className="text-xs text-emerald-600 hover:underline">
-                  {showAllWords ? (lang === 'zh' ? '收起' : 'Show less') : (lang === 'zh' ? `展开全部 ${weakWords.length}` : `Show all ${weakWords.length}`)}
+                  {showAllWords ? tr(lang, '收起', 'Show less') : tr(lang, `展开全部 ${weakWords.length}`, `Show all ${weakWords.length}`)}
                 </button>
               )}
             </div>
@@ -87,11 +87,11 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-muted-foreground">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">{lang === 'zh' ? '词' : 'Word'}</th>
-                    <th className="text-left px-4 py-2 font-medium">{lang === 'zh' ? '课时' : 'Lesson'}</th>
-                    <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '学习人次' : 'Records'}</th>
-                    <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '不认识' : "Don't know"}</th>
-                    <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '掌握率' : 'Mastery'}</th>
+                    <th className="text-left px-4 py-2 font-medium">{tr(lang, '词', 'Word')}</th>
+                    <th className="text-left px-4 py-2 font-medium">{tr(lang, '课时', 'Lesson')}</th>
+                    <th className="text-right px-4 py-2 font-medium">{tr(lang, '学习人次', 'Records')}</th>
+                    <th className="text-right px-4 py-2 font-medium">{tr(lang, '不认识', "Don't know")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{tr(lang, '掌握率', 'Mastery')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -106,7 +106,7 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
                   ))}
                   {shownWords.length === 0 && (
                     <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground text-sm">
-                      {lang === 'zh' ? '还没有学生开始背词。' : 'No one has studied yet.'}
+                      {tr(lang, '还没有学生开始背词。', 'No one has studied yet.')}
                     </td></tr>
                   )}
                 </tbody>
@@ -118,7 +118,7 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
           <div className="bg-card border rounded-2xl overflow-hidden">
             <button onClick={() => setOpenLessons(v => !v)}
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent transition-colors">
-              <h3 className="text-sm font-semibold">{lang === 'zh' ? '按课时（点开查看）' : 'By lesson'}</h3>
+              <h3 className="text-sm font-semibold">{tr(lang, '按课时（点开查看）', 'By lesson')}</h3>
               {openLessons ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
             {openLessons && (
@@ -126,10 +126,10 @@ export default function VocabAnalyticsPanel({ scope, courseId, classId }: {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-muted-foreground">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium">{lang === 'zh' ? '课时' : 'Lesson'}</th>
-                      <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '词数' : 'Words'}</th>
-                      <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '学习人数' : 'Students'}</th>
-                      <th className="text-right px-4 py-2 font-medium">{lang === 'zh' ? '掌握率' : 'Mastery'}</th>
+                      <th className="text-left px-4 py-2 font-medium">{tr(lang, '课时', 'Lesson')}</th>
+                      <th className="text-right px-4 py-2 font-medium">{tr(lang, '词数', 'Words')}</th>
+                      <th className="text-right px-4 py-2 font-medium">{tr(lang, '学习人数', 'Students')}</th>
+                      <th className="text-right px-4 py-2 font-medium">{tr(lang, '掌握率', 'Mastery')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">

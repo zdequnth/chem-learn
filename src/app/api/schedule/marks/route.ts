@@ -9,23 +9,23 @@ import { isDateString } from '@/lib/schedule'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const itemId = typeof body?.itemId === 'string' ? body.itemId : ''
   const date = body?.date
   const status = body?.status
   if (!itemId || !isDateString(date)) {
-    return NextResponse.json({ error: '缺少安排或日期' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing schedule or date（缺少安排或日期）' }, { status: 400 })
   }
   if (status !== 'done' && status !== 'skipped' && status !== 'none') {
-    return NextResponse.json({ error: '状态不正确' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid status（状态不正确）' }, { status: 400 })
   }
 
   const { data: owned } = await supabaseAdmin('schedule_items', {
     query: `?id=eq.${itemId}&teacher_id=eq.${user.id}&select=id`,
   })
-  if (!owned?.length) return NextResponse.json({ error: '安排不存在' }, { status: 404 })
+  if (!owned?.length) return NextResponse.json({ error: 'Schedule not found（安排不存在）' }, { status: 404 })
 
   await supabaseAdmin('schedule_marks', {
     method: 'DELETE',

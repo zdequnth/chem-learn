@@ -41,9 +41,12 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { lessonId, questionType, count, topic, subject } = await request.json()
+  const { lessonId, questionType, count, topic, subject, lang } = await request.json()
   const subj = subject || 'Chemistry'
   const cfg = subjects[subj] || subjects['Chemistry']
+  // A Chinese-language course stays Chinese even in the English UI; every other
+  // subject follows the interface language so the teacher can read what they get.
+  const inEnglish = lang === 'en' && subj !== 'Chinese'
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 })
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' })
@@ -54,7 +57,9 @@ export async function POST(request: Request) {
 
   for (let i = 0; i < batches; i++) {
     const batchCount = Math.min(BATCH_SIZE, (count || 30) - i * BATCH_SIZE)
-    const batchPrompt = `你是一位经验丰富的${cfg.role}。请用中文生成 ${batchCount} 道单选题（4个选项）。${topic ? '课程主题：' + topic : ''}难度：中等偏上。${cfg.rules}每题配详细解析，选项有干扰性。解析必须以"正确答案：X"开头，然后才是详细解释。不要在选项内容前加"A. "等字母前缀。解析如需分段换行，用 \\n 表示。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"正确答案：B。详细解析...","difficulty":3}]}`
+    const answerPrefix = inEnglish ? 'Answer: X' : '正确答案：X'
+    const outputLang = inEnglish ? '英文' : '中文'
+    const batchPrompt = `你是一位经验丰富的${cfg.role}。请用${outputLang}生成 ${batchCount} 道单选题（4个选项）。${topic ? '课程主题：' + topic : ''}难度：中等偏上。${cfg.rules}每题配详细解析，选项有干扰性。解析必须以"${answerPrefix}"开头，然后才是详细解释。不要在选项内容前加"A. "等字母前缀。解析如需分段换行，用 \\n 表示。输出纯JSON：{"questions":[{"stem":"题目内容","options":[{"content":"选项文本","isCorrect":false}...],"explanation":"${answerPrefix}。详细解析...","difficulty":3}]}${inEnglish ? ' All question text, options and explanations must be in English.' : ''}`
     const questions = await generateBatch(client, batchPrompt)
     allQuestions.push(...questions)
   }

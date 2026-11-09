@@ -2,16 +2,17 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseSettingsInput } from '@/lib/schedule'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 // One row per teacher: term dates + the 13 period times. Replaced whole rather
 // than merged, so saving the dialog always leaves the same complete shape.
 export async function PUT(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { settings, error: parseError } = parseSettingsInput(await request.json().catch(() => null))
-  if (!settings) return NextResponse.json({ error: parseError }, { status: 400 })
+  if (!settings) return NextResponse.json({ error: bilingualError(parseError || '') }, { status: 400 })
 
   const fields = {
     term_start: settings.termStart,

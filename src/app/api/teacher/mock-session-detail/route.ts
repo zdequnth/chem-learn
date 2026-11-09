@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { buildReview, loadPaperForTeacher, loadSession, isAdminUser } from '@/lib/mock-source'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { NextResponse } from 'next/server'
 
 // One student's answers on one paper — what a teacher gets by clicking a score in
@@ -10,18 +11,18 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const sessionId = new URL(request.url).searchParams.get('sessionId')
-  if (!sessionId) return NextResponse.json({ error: '缺少sessionId' }, { status: 400 })
+  if (!sessionId) return NextResponse.json({ error: 'Missing sessionId（缺少 sessionId）' }, { status: 400 })
 
   const session = await loadSession(sessionId)
-  if (!session) return NextResponse.json({ error: '考试记录不存在' }, { status: 404 })
+  if (!session) return NextResponse.json({ error: 'Exam record not found（考试记录不存在）' }, { status: 404 })
   // ...and not just anyone's: the caller must be able to edit the paper's course.
-  if (session.status !== 'submitted') return NextResponse.json({ error: '这一场还没交卷' }, { status: 400 })
+  if (session.status !== 'submitted') return NextResponse.json({ error: 'This attempt has not been submitted yet（这一场还没交卷）' }, { status: 400 })
 
   const { error, status } = await loadPaperForTeacher(user.id, session.paper_id, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   const { data: profiles } = await supabaseAdmin('profiles', {
     query: `?id=eq.${session.student_id}&select=display_name`,

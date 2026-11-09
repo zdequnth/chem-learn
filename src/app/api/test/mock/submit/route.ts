@@ -7,13 +7,13 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { sessionId, reason } = await request.json()
-  if (!sessionId) return NextResponse.json({ error: '缺少sessionId' }, { status: 400 })
+  if (!sessionId) return NextResponse.json({ error: 'Missing sessionId（缺少 sessionId）' }, { status: 400 })
 
   const session = await loadSession(sessionId)
-  if (!session || session.student_id !== user.id) return NextResponse.json({ error: '考试不存在' }, { status: 404 })
+  if (!session || session.student_id !== user.id) return NextResponse.json({ error: 'Exam not found（考试不存在）' }, { status: 404 })
 
   // Idempotent — submitting twice (button + timer) is fine.
   const done = await finaliseSession(session, reason === 'timeout' ? 'timeout' : 'manual')

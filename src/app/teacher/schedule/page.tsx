@@ -17,6 +17,7 @@ import {
   type ScheduleItem, type ScheduleKind, type ScheduleSettings,
 } from '@/lib/schedule'
 import { shrinkImageFile } from '@/lib/shrink-image-file'
+import { useLang, tr, type Lang } from '@/lib/i18n'
 
 type Editor = {
   id?: string
@@ -40,14 +41,34 @@ type TimetableCell = { weekday: number; startPeriod: number; endPeriod: number; 
 type PlanStep = { date: string; startPeriod: number; endPeriod: number; title: string }
 type GoalForm = { title: string; horizon: GoalHorizon; dueDate: string; note: string }
 
-function dateLabel(date: string): string {
+const KIND_LABEL_EN: Record<ScheduleKind, string> = {
+  class: 'Class',
+  meeting: 'Meeting',
+  task: 'Task',
+  other: 'Other',
+}
+
+const HORIZON_LABEL_EN: Record<GoalHorizon, string> = {
+  week: 'This week',
+  month: 'This month',
+  term: 'This term',
+}
+
+const WEEKDAY_NAMES_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function dateLabel(date: string, lang: Lang): string {
   const d = parseYmd(date)
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+  return tr(
+    lang,
+    `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`,
+    `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
+  )
 }
 
 export default function SchedulePage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [weekStart, setWeekStart] = useState('')
   const [now, setNow] = useState<Date | null>(null)
@@ -109,7 +130,7 @@ export default function SchedulePage() {
       const res = await fetch(`/api/schedule?week=${week}`)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        alert(json.error || '计划表加载失败')
+        alert(json.error || tr(lang, '计划表加载失败', 'Could not load schedule'))
         return
       }
       setSettings(json.settings || DEFAULT_SETTINGS)
@@ -118,7 +139,7 @@ export default function SchedulePage() {
       for (const m of json.marks || []) next[markKey(m.itemId, m.date)] = m.status
       setMarks(next)
     } catch (e: any) {
-      alert('计划表加载失败：' + e.message)
+      alert(tr(lang, '计划表加载失败：', 'Could not load schedule: ') + e.message)
     } finally {
       setLoading(false)
     }
@@ -305,11 +326,11 @@ export default function SchedulePage() {
   const save = async () => {
     if (!editor || saving) return
     const title = editor.title.trim()
-    if (!title) return alert('请填写标题')
-    if (editor.repeat === 'once' && !isDateString(editor.eventDate)) return alert('请选择日期')
+    if (!title) return alert(tr(lang, '请填写标题', 'Please enter a title'))
+    if (editor.repeat === 'once' && !isDateString(editor.eventDate)) return alert(tr(lang, '请选择日期', 'Please choose a date'))
 
     const conflict = findConflict({ ...editor, title })
-    if (conflict && !confirm(`这个时段已经有「${conflict.title}」了，仍然保存吗？`)) return
+    if (conflict && !confirm(tr(lang, `这个时段已经有「${conflict.title}」了，仍然保存吗？`, `This time slot already has "${conflict.title}". Save anyway?`))) return
 
     const payload = {
       title,
@@ -332,11 +353,11 @@ export default function SchedulePage() {
         body: JSON.stringify(payload),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '保存失败')
+      if (!res.ok) return alert(json.error || tr(lang, '保存失败', 'Save failed'))
       setEditor(null)
       await load(weekStart)
     } catch (e: any) {
-      alert('保存失败：' + e.message)
+      alert(tr(lang, '保存失败：', 'Save failed: ') + e.message)
     } finally {
       setSaving(false)
     }
@@ -350,7 +371,7 @@ export default function SchedulePage() {
         body: JSON.stringify({ itemId, date, status }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '操作失败')
+      if (!res.ok) return alert(json.error || tr(lang, '操作失败', 'Action failed'))
       setMarks(prev => {
         const next = { ...prev }
         const key = markKey(itemId, date)
@@ -359,7 +380,7 @@ export default function SchedulePage() {
         return next
       })
     } catch (e: any) {
-      alert('操作失败：' + e.message)
+      alert(tr(lang, '操作失败：', 'Action failed: ') + e.message)
     }
   }
 
@@ -371,15 +392,15 @@ export default function SchedulePage() {
 
   const deleteSeries = async () => {
     if (!editor?.id) return
-    if (!confirm('删除整个系列？以后每周的这次安排都会一起删除。')) return
+    if (!confirm(tr(lang, '删除整个系列？以后每周的这次安排都会一起删除。', 'Delete the whole series? This slot will be removed from every future week.'))) return
     try {
       const res = await fetch(`/api/schedule/${editor.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '删除失败')
+      if (!res.ok) return alert(json.error || tr(lang, '删除失败', 'Delete failed'))
       setEditor(null)
       await load(weekStart)
     } catch (e: any) {
-      alert('删除失败：' + e.message)
+      alert(tr(lang, '删除失败：', 'Delete failed: ') + e.message)
     }
   }
 
@@ -394,7 +415,7 @@ export default function SchedulePage() {
 
   const saveSettings = async () => {
     if (!draft || saving) return
-    if (draft.periods.some(p => !p.start || !p.end)) return alert('请填写完整的节次时间')
+    if (draft.periods.some(p => !p.start || !p.end)) return alert(tr(lang, '请填写完整的节次时间', 'Please fill in all period times'))
     setSaving(true)
     try {
       const res = await fetch('/api/schedule/settings', {
@@ -403,11 +424,11 @@ export default function SchedulePage() {
         body: JSON.stringify(draft),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '保存失败')
+      if (!res.ok) return alert(json.error || tr(lang, '保存失败', 'Save failed'))
       setSettings(json.settings)
       setSettingsOpen(false)
     } catch (e: any) {
-      alert('保存失败：' + e.message)
+      alert(tr(lang, '保存失败：', 'Save failed: ') + e.message)
     } finally {
       setSaving(false)
     }
@@ -427,7 +448,7 @@ export default function SchedulePage() {
       fd.append('file', toSend)
       const up = await fetch('/api/upload-image', { method: 'POST', body: fd })
       const uj = await up.json().catch(() => ({}))
-      if (!up.ok || !uj.url) throw new Error(uj.error || '图片上传失败')
+      if (!up.ok || !uj.url) throw new Error(uj.error || tr(lang, '图片上传失败', 'Image upload failed'))
 
       const res = await fetch('/api/schedule/parse-timetable', {
         method: 'POST',
@@ -435,10 +456,10 @@ export default function SchedulePage() {
         body: JSON.stringify({ imageUrl: uj.url }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || '识别失败')
+      if (!res.ok) throw new Error(json.error || tr(lang, '识别失败', 'Recognition failed'))
 
       const cells: TimetableCell[] = Array.isArray(json.cells) ? json.cells : []
-      if (!cells.length) throw new Error('没有识别到课程')
+      if (!cells.length) throw new Error(tr(lang, '没有识别到课程', 'No classes were recognised'))
 
       // Match each distinct label once. Unmatched names still import as a
       // course (this timetable is what the teacher MUST teach), and get their
@@ -475,7 +496,7 @@ export default function SchedulePage() {
           eventDate: null,
           startPeriod: c.startPeriod,
           endPeriod: c.endPeriod,
-          note: '从课表照片导入',
+          note: tr(lang, '从课表照片导入', 'Imported from timetable photo'),
         }
       })
 
@@ -485,7 +506,7 @@ export default function SchedulePage() {
         body: JSON.stringify({ items }),
       })
       const createdJson = await created.json().catch(() => ({}))
-      if (!created.ok) throw new Error(createdJson.error || '导入失败')
+      if (!created.ok) throw new Error(createdJson.error || tr(lang, '导入失败', 'Import failed'))
 
       const made = Array.isArray(createdJson.items) ? createdJson.items : []
       setImportOpen(false)
@@ -497,7 +518,7 @@ export default function SchedulePage() {
         ids: made.map((i: any) => i.id).filter(Boolean),
       })
     } catch (e: any) {
-      setImportError(e.message || '识别失败')
+      setImportError(e.message || tr(lang, '识别失败', 'Recognition failed'))
     } finally {
       setImportBusy(false)
     }
@@ -506,7 +527,7 @@ export default function SchedulePage() {
   const undoImport = async () => {
     const r = importResult
     if (!r) return
-    if (!confirm(`撤销这次导入的 ${r.ids.length} 个时段？`)) return
+    if (!confirm(tr(lang, `撤销这次导入的 ${r.ids.length} 个时段？`, `Undo this import of ${r.ids.length} time slots?`))) return
     setImportResult(null)
     await Promise.all(r.ids.map(id =>
       fetch(`/api/schedule/${id}`, { method: 'DELETE' }).catch(() => null),
@@ -519,10 +540,10 @@ export default function SchedulePage() {
     try {
       const res = await fetch('/api/schedule/goals')
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '目标加载失败')
+      if (!res.ok) return alert(json.error || tr(lang, '目标加载失败', 'Could not load goals'))
       setGoals(json.goals || [])
     } catch (e: any) {
-      alert('目标加载失败：' + e.message)
+      alert(tr(lang, '目标加载失败：', 'Could not load goals: ') + e.message)
     } finally {
       setGoalsLoading(false)
     }
@@ -535,7 +556,7 @@ export default function SchedulePage() {
 
   const createGoal = async () => {
     if (!goalForm || goalBusy) return
-    if (!goalForm.title.trim()) return alert('请填写目标')
+    if (!goalForm.title.trim()) return alert(tr(lang, '请填写目标', 'Please enter a goal'))
     setGoalBusy(true)
     try {
       const res = await fetch('/api/schedule/goals', {
@@ -544,11 +565,11 @@ export default function SchedulePage() {
         body: JSON.stringify(goalForm),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '保存失败')
+      if (!res.ok) return alert(json.error || tr(lang, '保存失败', 'Save failed'))
       setGoalForm(null)
       await loadGoals()
     } catch (e: any) {
-      alert('保存失败：' + e.message)
+      alert(tr(lang, '保存失败：', 'Save failed: ') + e.message)
     } finally {
       setGoalBusy(false)
     }
@@ -562,26 +583,26 @@ export default function SchedulePage() {
         body: JSON.stringify(patch),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '操作失败')
+      if (!res.ok) return alert(json.error || tr(lang, '操作失败', 'Action failed'))
       await loadGoals()
     } catch (e: any) {
-      alert('操作失败：' + e.message)
+      alert(tr(lang, '操作失败：', 'Action failed: ') + e.message)
     }
   }
 
   const deleteGoal = async (goal: ScheduleGoal) => {
-    if (!confirm(`删除目标「${goal.title}」？已经排进计划表的步骤会保留。`)) return
+    if (!confirm(tr(lang, `删除目标「${goal.title}」？已经排进计划表的步骤会保留。`, `Delete the goal "${goal.title}"? Steps already added to the schedule will remain.`))) return
     try {
       const res = await fetch(`/api/schedule/goals/${goal.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '删除失败')
+      if (!res.ok) return alert(json.error || tr(lang, '删除失败', 'Delete failed'))
       if (planGoal?.id === goal.id) {
         setPlanGoal(null)
         setPlanSteps(null)
       }
       await loadGoals()
     } catch (e: any) {
-      alert('删除失败：' + e.message)
+      alert(tr(lang, '删除失败：', 'Delete failed: ') + e.message)
     }
   }
 
@@ -595,11 +616,11 @@ export default function SchedulePage() {
       const res = await fetch('/api/schedule/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goalId: goal.id, today: today || ymd(new Date()) }),
+        body: JSON.stringify({ goalId: goal.id, today: today || ymd(new Date()), lang }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        alert(json.error || 'AI 拆解失败')
+        alert(json.error || tr(lang, 'AI 拆解失败', 'AI breakdown failed'))
         setPlanGoal(null)
         return
       }
@@ -608,10 +629,10 @@ export default function SchedulePage() {
       setPlanDropped(Number(json.dropped) || 0)
       setPlanChecked(Object.fromEntries(steps.map((_, i) => [i, true])))
       if (!steps.length) {
-        alert('AI 没有给出可用安排。可以在目标里补充说明，或先清理一下日程再试。')
+        alert(tr(lang, 'AI 没有给出可用安排。可以在目标里补充说明，或先清理一下日程再试。', 'AI did not produce any usable slots. Add more detail to the goal, or clear some schedule space and try again.'))
       }
     } catch (e: any) {
-      alert('AI 拆解失败：' + e.message)
+      alert(tr(lang, 'AI 拆解失败：', 'AI breakdown failed: ') + e.message)
       setPlanGoal(null)
     } finally {
       setPlanBusy(false)
@@ -621,7 +642,7 @@ export default function SchedulePage() {
   const acceptPlan = async () => {
     if (!planGoal || !planSteps || planBusy) return
     const chosen = planSteps.filter((_, i) => planChecked[i] !== false)
-    if (!chosen.length) return alert('请至少勾选一个步骤')
+    if (!chosen.length) return alert(tr(lang, '请至少勾选一个步骤', 'Select at least one step'))
 
     setPlanBusy(true)
     try {
@@ -639,19 +660,19 @@ export default function SchedulePage() {
             eventDate: s.date,
             startPeriod: s.startPeriod,
             endPeriod: s.endPeriod,
-            note: 'AI 拆解',
+            note: tr(lang, 'AI 拆解', 'AI breakdown'),
           })),
         }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(json.error || '加入计划表失败')
+      if (!res.ok) return alert(json.error || tr(lang, '加入计划表失败', 'Could not add to schedule'))
       setPlanGoal(null)
       setPlanSteps(null)
       await load(weekStart)
       await loadGoals()
-      alert(`已把 ${json.items?.length ?? chosen.length} 个步骤加入计划表`)
+      alert(tr(lang, `已把 ${json.items?.length ?? chosen.length} 个步骤加入计划表`, `Added ${json.items?.length ?? chosen.length} steps to the schedule`))
     } catch (e: any) {
-      alert('加入计划表失败：' + e.message)
+      alert(tr(lang, '加入计划表失败：', 'Could not add to schedule: ') + e.message)
     } finally {
       setPlanBusy(false)
     }
@@ -678,29 +699,29 @@ export default function SchedulePage() {
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <CalendarDays className="w-6 h-6 text-emerald-600" /> 计划表
+              <CalendarDays className="w-6 h-6 text-emerald-600" /> {tr(lang, '计划表', 'Schedule')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {days.length ? `${dateLabel(days[0])} – ${dateLabel(days[6])}` : ''}
+              {days.length ? `${dateLabel(days[0], lang)} – ${dateLabel(days[6], lang)}` : ''}
               {weekNo !== null && (
                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${weekNo >= 1 && weekNo <= settings.termWeeks ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {weekNo < 1 ? '学期前' : `第 ${weekNo} 周`}
-                  {weekNo > settings.termWeeks ? '（学期已结束）' : ''}
+                  {weekNo < 1 ? tr(lang, '学期前', 'Before term') : tr(lang, `第 ${weekNo} 周`, `Week ${weekNo}`)}
+                  {weekNo > settings.termWeeks ? tr(lang, '（学期已结束）', ' (term ended)') : ''}
                 </span>
               )}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              拖动可选连续几节 · 点空白新建 · 点事件编辑 · 勾选即完成
+              {tr(lang, '拖动可选连续几节 · 点空白新建 · 点事件编辑 · 勾选即完成', 'Drag to select periods · click empty space to add · click an event to edit · tick to complete')}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-lg border bg-white">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} title="上一周"
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} title={tr(lang, '上一周', 'Previous week')}
                 className="p-2 hover:bg-gray-100 rounded-l-lg"><ChevronLeft className="w-4 h-4" /></button>
               <button onClick={() => now && setWeekStart(startOfWeek(ymd(now)))}
-                className="px-3 py-2 text-sm hover:bg-gray-100 border-x">回到本周</button>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} title="下一周"
+                className="px-3 py-2 text-sm hover:bg-gray-100 border-x">{tr(lang, '回到本周', 'This week')}</button>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} title={tr(lang, '下一周', 'Next week')}
                 className="p-2 hover:bg-gray-100 rounded-r-lg"><ChevronRight className="w-4 h-4" /></button>
             </div>
             <button
@@ -709,21 +730,21 @@ export default function SchedulePage() {
                 openCreate(date, 1, 1)
               }}
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">
-              <Plus className="w-4 h-4" /> 新建
+              <Plus className="w-4 h-4" /> {tr(lang, '新建', 'New')}
             </button>
             <button
               onClick={() => { resetImport(); setImportOpen(true) }}
               className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
-              <ImagePlus className="w-4 h-4" /> 课表导入
+              <ImagePlus className="w-4 h-4" /> {tr(lang, '课表导入', 'Import timetable')}
             </button>
             <button
               onClick={() => { setGoalsOpen(true); loadGoals() }}
               className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
-              <Target className="w-4 h-4" /> 目标规划
+              <Target className="w-4 h-4" /> {tr(lang, '目标规划', 'Goals')}
             </button>
             <button onClick={openSettings}
               className="flex items-center gap-1.5 px-3 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
-              <Settings2 className="w-4 h-4" /> 节次时间
+              <Settings2 className="w-4 h-4" /> {tr(lang, '节次时间', 'Period times')}
             </button>
           </div>
         </div>
@@ -743,7 +764,7 @@ export default function SchedulePage() {
 
               <div style={{ gridColumn: 1, gridRow: 1 }}
                 className="sticky left-0 top-0 z-50 bg-white border-b border-r flex items-center justify-center text-xs font-medium text-muted-foreground">
-                节次
+                {tr(lang, '节次', 'Period')}
               </div>
 
               {days.map((date, i) => {
@@ -752,10 +773,10 @@ export default function SchedulePage() {
                   <div key={`h-${date}`} style={{ gridColumn: i + 2, gridRow: 1 }}
                     className={`sticky top-0 z-40 border-b border-r px-2 flex flex-col justify-center ${isToday ? 'bg-emerald-50' : 'bg-white'}`}>
                     <span className={`text-sm font-semibold leading-tight ${isToday ? 'text-emerald-700' : ''}`}>
-                      {WEEKDAY_NAMES[i]}
+                      {tr(lang, WEEKDAY_NAMES[i], WEEKDAY_NAMES_EN[i])}
                       <span className="ml-1 text-xs font-normal text-muted-foreground">{monthDay(date)}</span>
                     </span>
-                    {isToday && <span className="text-[10px] text-emerald-600">今天</span>}
+                    {isToday && <span className="text-[10px] text-emerald-600">{tr(lang, '今天', 'Today')}</span>}
                   </div>
                 )
               })}
@@ -769,9 +790,9 @@ export default function SchedulePage() {
                   <Fragment key={`row-${period}`}>
                     <div style={{ gridColumn: 1, gridRow: period + 1 }}
                       className={`sticky left-0 z-20 border-b border-r px-2 flex flex-col items-center justify-center ${isBreak ? 'bg-amber-50' : 'bg-white'} ${isGroupStart ? 'border-t-2 border-t-slate-300' : ''}`}>
-                      <span className="text-xs font-semibold">第 {period} 节</span>
+                      <span className="text-xs font-semibold">{tr(lang, `第 ${period} 节`, `Period ${period}`)}</span>
                       <span className="text-[10px] text-muted-foreground">{time ? `${time.start}–${time.end}` : ''}</span>
-                      {isBreak && <span className="text-[10px] text-amber-700 leading-tight">午饭·午休</span>}
+                      {isBreak && <span className="text-[10px] text-amber-700 leading-tight">{tr(lang, '午饭·午休', 'Lunch break')}</span>}
                     </div>
 
                     {days.map((date, di) => {
@@ -819,13 +840,13 @@ export default function SchedulePage() {
                         </span>
                         <button
                           onClick={e => { e.stopPropagation(); setMark(it.id, date, done ? 'none' : 'done') }}
-                          title={done ? '撤销完成' : '标记完成'}
+                          title={done ? tr(lang, '撤销完成', 'Mark incomplete') : tr(lang, '标记完成', 'Mark complete')}
                           className="shrink-0 mt-0.5 text-muted-foreground hover:text-emerald-600">
                           {done ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Square className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                       <div className="text-[10px] text-muted-foreground truncate">
-                        {it.startPeriod}–{it.endPeriod} 节
+                        {tr(lang, `${it.startPeriod}–${it.endPeriod} 节`, `Period ${it.startPeriod}–${it.endPeriod}`)}
                         {className && it.classId && (
                           <>
                             {' · '}
@@ -865,7 +886,7 @@ export default function SchedulePage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">{editor.id ? '编辑安排' : '新建安排'}</h2>
+              <h2 className="text-lg font-semibold">{editor.id ? tr(lang, '编辑安排', 'Edit entry') : tr(lang, '新建安排', 'New entry')}</h2>
               <button onClick={() => setEditor(null)} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
             </div>
 
@@ -873,12 +894,12 @@ export default function SchedulePage() {
               <input autoFocus value={editor.title}
                 onChange={e => setEditor({ ...editor, title: e.target.value })}
                 onKeyDown={e => { if (e.key === 'Enter') save() }}
-                placeholder="例如：化学A-3班 / 教研会议 / 批改作业"
+                placeholder={tr(lang, '例如：化学A-3班 / 教研会议 / 批改作业', 'e.g. Chemistry A-3 / Department meeting / Marking')}
                 className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">类型</span>
+                  <span className="text-muted-foreground">{tr(lang, '类型', 'Type')}</span>
                   <select value={editor.kind}
                     onChange={e => {
                       const kind = e.target.value as ScheduleKind
@@ -893,11 +914,11 @@ export default function SchedulePage() {
                       })
                     }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                    {KINDS.map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+                    {KINDS.map(k => <option key={k} value={k}>{tr(lang, KIND_LABEL[k], KIND_LABEL_EN[k])}</option>)}
                   </select>
                 </label>
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">班级（可选）</span>
+                  <span className="text-muted-foreground">{tr(lang, '班级（可选）', 'Class (optional)')}</span>
                   <select value={editor.classId}
                     onChange={e => {
                       const id = e.target.value
@@ -909,38 +930,38 @@ export default function SchedulePage() {
                       })
                     }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="">不绑定班级</option>
+                    <option value="">{tr(lang, '不绑定班级', 'No class')}</option>
                     {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </label>
               </div>
 
               <div>
-                <div className="text-sm text-muted-foreground mb-1">重复</div>
+                <div className="text-sm text-muted-foreground mb-1">{tr(lang, '重复', 'Repeat')}</div>
                 <div className="flex gap-2">
                   <button onClick={() => setEditor({ ...editor, repeat: 'weekly' })}
                     className={`px-3 py-1.5 rounded-lg border text-sm ${editor.repeat === 'weekly' ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-white hover:bg-gray-50'}`}>
-                    每周重复
+                    {tr(lang, '每周重复', 'Weekly')}
                   </button>
                   <button onClick={() => setEditor({ ...editor, repeat: 'once' })}
                     className={`px-3 py-1.5 rounded-lg border text-sm ${editor.repeat === 'once' ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-white hover:bg-gray-50'}`}>
-                    仅这一次
+                    {tr(lang, '仅这一次', 'Just once')}
                   </button>
                 </div>
               </div>
 
               {editor.repeat === 'weekly' ? (
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">每周</span>
+                  <span className="text-muted-foreground">{tr(lang, '每周', 'Every')}</span>
                   <select value={editor.weekday}
                     onChange={e => setEditor({ ...editor, weekday: Number(e.target.value) })}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                    {WEEKDAY_NAMES.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                    {WEEKDAY_NAMES.map((name, i) => <option key={name} value={i + 1}>{tr(lang, name, WEEKDAY_NAMES_EN[i])}</option>)}
                   </select>
                 </label>
               ) : (
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">日期</span>
+                  <span className="text-muted-foreground">{tr(lang, '日期', 'Date')}</span>
                   <input type="date" value={editor.eventDate}
                     onChange={e => setEditor({ ...editor, eventDate: e.target.value })}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -949,7 +970,7 @@ export default function SchedulePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">开始节次</span>
+                  <span className="text-muted-foreground">{tr(lang, '开始节次', 'Start period')}</span>
                   <select value={editor.start}
                     onChange={e => {
                       const v = Number(e.target.value)
@@ -957,12 +978,12 @@ export default function SchedulePage() {
                     }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                     {Array.from({ length: 13 }, (_, i) => i + 1).map(p => (
-                      <option key={p} value={p}>第 {p} 节{p === BREAK_PERIOD ? '（午饭·午休）' : ''}</option>
+                      <option key={p} value={p}>{tr(lang, `第 ${p} 节${p === BREAK_PERIOD ? '（午饭·午休）' : ''}`, `Period ${p}${p === BREAK_PERIOD ? ' (lunch break)' : ''}`)}</option>
                     ))}
                   </select>
                 </label>
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">结束节次</span>
+                  <span className="text-muted-foreground">{tr(lang, '结束节次', 'End period')}</span>
                   <select value={editor.end}
                     onChange={e => {
                       const v = Number(e.target.value)
@@ -970,7 +991,7 @@ export default function SchedulePage() {
                     }}
                     className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                     {Array.from({ length: 13 }, (_, i) => i + 1).map(p => (
-                      <option key={p} value={p}>第 {p} 节{p === BREAK_PERIOD ? '（午饭·午休）' : ''}</option>
+                      <option key={p} value={p}>{tr(lang, `第 ${p} 节${p === BREAK_PERIOD ? '（午饭·午休）' : ''}`, `Period ${p}${p === BREAK_PERIOD ? ' (lunch break)' : ''}`)}</option>
                     ))}
                   </select>
                 </label>
@@ -978,7 +999,7 @@ export default function SchedulePage() {
               <div className="text-xs text-muted-foreground">{periodRange(editor.start, editor.end)}</div>
 
               <div>
-                <div className="text-sm text-muted-foreground mb-1">颜色</div>
+                <div className="text-sm text-muted-foreground mb-1">{tr(lang, '颜色', 'Colour')}</div>
                 <div className="flex flex-wrap gap-2">
                   {kindPalette(editor.kind).map(c => (
                     <button key={c} onClick={() => setEditor({ ...editor, color: c })}
@@ -990,28 +1011,28 @@ export default function SchedulePage() {
 
               <textarea value={editor.note} rows={2}
                 onChange={e => setEditor({ ...editor, note: e.target.value })}
-                placeholder="备注（可选）"
+                placeholder={tr(lang, '备注（可选）', 'Note (optional)')}
                 className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-5">
               <button onClick={save} disabled={saving}
                 className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-60">
-                {saving ? '保存中…' : '保存'}
+                {saving ? tr(lang, '保存中…', 'Saving…') : tr(lang, '保存', 'Save')}
               </button>
               <button onClick={() => setEditor(null)}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
+                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">{tr(lang, '取消', 'Cancel')}</button>
               <div className="flex-1" />
               {editor.id && editor.repeat === 'weekly' && (
                 <button onClick={skipOccurrence}
                   className="flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
-                  <SkipForward className="w-3.5 h-3.5" /> 跳过这一次
+                  <SkipForward className="w-3.5 h-3.5" /> {tr(lang, '跳过这一次', 'Skip this one')}
                 </button>
               )}
               {editor.id && (
                 <button onClick={deleteSeries}
                   className="flex items-center gap-1 px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50">
-                  <Trash2 className="w-3.5 h-3.5" /> 删除系列
+                  <Trash2 className="w-3.5 h-3.5" /> {tr(lang, '删除系列', 'Delete series')}
                 </button>
               )}
             </div>
@@ -1031,7 +1052,7 @@ export default function SchedulePage() {
           <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <ImagePlus className="w-5 h-5 text-emerald-600" /> 从课表照片导入
+                <ImagePlus className="w-5 h-5 text-emerald-600" /> {tr(lang, '从课表照片导入', 'Import from timetable photo')}
               </h2>
               <button onClick={() => { if (!importBusy) { setImportOpen(false); resetImport() } }}
                 className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
@@ -1041,17 +1062,17 @@ export default function SchedulePage() {
               {importBusy ? (
                 <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
-                  正在识别课表并自动匹配班级，通常需要 10–30 秒…
+                  {tr(lang, '正在识别课表并自动匹配班级，通常需要 10–30 秒…', 'Recognising the timetable and matching classes — usually 10–30 seconds…')}
                 </div>
               ) : (
                 <>
                   <ImagePlus className="w-9 h-9 mx-auto text-gray-300 mb-2" />
                   <p className="text-sm text-muted-foreground mb-3">
-                    选一张课表照片或截图。识别后会按名称自动匹配你的班级，
-                    <br />直接写入每个星期的计划表。
+                    {tr(lang, '选一张课表照片或截图。识别后会按名称自动匹配你的班级，', 'Choose a timetable photo or screenshot. Classes are matched by name,')}
+                    <br />{tr(lang, '直接写入每个星期的计划表。', 'then written straight into your weekly schedule.')}
                   </p>
                   <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer">
-                    选择图片
+                    {tr(lang, '选择图片', 'Choose image')}
                     <input type="file" accept="image/*" className="hidden"
                       onChange={e => {
                         const f = e.target.files?.[0]
@@ -1075,26 +1096,26 @@ export default function SchedulePage() {
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-semibold">课表已导入，请核对</h2>
+                <h2 className="text-lg font-semibold">{tr(lang, '课表已导入，请核对', 'Timetable imported — please check')}</h2>
                 <p className="text-sm text-muted-foreground mt-2">
-                  已按 AI 识别结果写入 <span className="font-medium text-foreground">{importResult.count}</span> 个时段
+                  {tr(lang, '已按 AI 识别结果写入 ', 'Added ')}<span className="font-medium text-foreground">{importResult.count}</span>{tr(lang, ' 个时段', ' time slots')}
                   {importResult.matched > 0 && (
-                    <>，其中 <span className="font-medium text-foreground">{importResult.matched}</span> 个自动匹配到了班级</>
-                  )}。
+                    <>{tr(lang, '，其中 ', ', of which ')}<span className="font-medium text-foreground">{importResult.matched}</span>{tr(lang, ' 个自动匹配到了班级', ' matched a class automatically')}</>
+                  )}{tr(lang, '。', '.')}
                 </p>
                 <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3">
-                  这是 AI 解析的结果，可能会有错漏。请逐格检查课程名称、星期和节次；有错可以直接点开修改或删除。
+                  {tr(lang, '这是 AI 解析的结果，可能会有错漏。请逐格检查课程名称、星期和节次；有错可以直接点开修改或删除。', 'This came from AI parsing and may contain mistakes. Check the class name, weekday and period of every cell; click any entry to fix or delete it.')}
                 </p>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={undoImport}
                 className="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50">
-                撤销本次导入
+                {tr(lang, '撤销本次导入', 'Undo this import')}
               </button>
               <button onClick={() => setImportResult(null)}
                 className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600">
-                知道了
+                {tr(lang, '知道了', 'Got it')}
               </button>
             </div>
           </div>
@@ -1106,7 +1127,7 @@ export default function SchedulePage() {
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-violet-600" /> 目标规划
+                <Target className="w-5 h-5 text-violet-600" /> {tr(lang, '目标规划', 'Goals')}
               </h2>
               <button onClick={() => { setGoalsOpen(false); setGoalForm(null); setPlanGoal(null); setPlanSteps(null) }}
                 className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
@@ -1115,19 +1136,19 @@ export default function SchedulePage() {
             {planGoal && (
               <div className="mb-4 rounded-xl border-2 border-violet-200 bg-violet-50/50 p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold">「{planGoal.title}」的 AI 拆解</h3>
+                  <h3 className="text-sm font-semibold">{tr(lang, `「${planGoal.title}」的 AI 拆解`, `AI breakdown of "${planGoal.title}"`)}</h3>
                   <button onClick={() => { setPlanGoal(null); setPlanSteps(null) }}
                     className="p-0.5 rounded hover:bg-white"><X className="w-3.5 h-3.5" /></button>
                 </div>
                 {planBusy && planSteps === null ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
-                    <Loader2 className="w-4 h-4 text-violet-500 animate-spin" /> AI 正在查看空档并安排步骤…
+                    <Loader2 className="w-4 h-4 text-violet-500 animate-spin" /> {tr(lang, 'AI 正在查看空档并安排步骤…', 'AI is finding free slots and planning steps…')}
                   </div>
                 ) : (
                   <>
                     {planDropped > 0 && (
                       <p className="text-xs text-amber-700 mb-2">
-                        有 {planDropped} 条建议与现有安排冲突，已自动跳过。
+                        {tr(lang, `有 ${planDropped} 条建议与现有安排冲突，已自动跳过。`, `${planDropped} suggestions conflicted with existing entries and were skipped.`)}
                       </p>
                     )}
                     <div className="space-y-1.5 max-h-64 overflow-y-auto">
@@ -1140,8 +1161,8 @@ export default function SchedulePage() {
                             className="mt-1" />
                           <span className="text-sm">
                             <span className="text-muted-foreground mr-1">
-                              {s.date} {WEEKDAY_NAMES[isoWeekday(s.date) - 1]} · 第 {s.startPeriod}
-                              {s.endPeriod !== s.startPeriod ? `-${s.endPeriod}` : ''} 节
+                              {s.date} {tr(lang, WEEKDAY_NAMES[isoWeekday(s.date) - 1], WEEKDAY_NAMES_EN[isoWeekday(s.date) - 1])} · {tr(lang, `第 ${s.startPeriod}`, `Period ${s.startPeriod}`)}
+                              {s.endPeriod !== s.startPeriod ? `-${s.endPeriod}` : ''}{tr(lang, ' 节', '')}
                             </span>
                             {s.title}
                           </span>
@@ -1151,10 +1172,10 @@ export default function SchedulePage() {
                     <div className="flex gap-2 mt-3">
                       <button onClick={acceptPlan} disabled={planBusy}
                         className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
-                        {planBusy ? '加入中…' : '加入计划表'}
+                        {planBusy ? tr(lang, '加入中…', 'Adding…') : tr(lang, '加入计划表', 'Add to schedule')}
                       </button>
                       <button onClick={() => { setPlanGoal(null); setPlanSteps(null) }}
-                        className="px-3 py-1.5 border rounded-lg text-sm hover:bg-white">取消</button>
+                        className="px-3 py-1.5 border rounded-lg text-sm hover:bg-white">{tr(lang, '取消', 'Cancel')}</button>
                     </div>
                   </>
                 )}
@@ -1163,13 +1184,13 @@ export default function SchedulePage() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <p className="text-sm text-muted-foreground">
-                按周 / 月 / 学期定目标，AI 拆成步骤并给出建议排期，你勾选后才写进计划表。
+                {tr(lang, '按周 / 月 / 学期定目标，AI 拆成步骤并给出建议排期，你勾选后才写进计划表。', 'Set weekly, monthly or term goals; AI breaks them into steps and suggests slots, which are only added after you tick them.')}
               </p>
               {!goalForm && (
                 <button
                   onClick={() => setGoalForm({ title: '', horizon: 'week', dueDate: defaultDue('week'), note: '' })}
                   className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700">
-                  <Plus className="w-3.5 h-3.5" /> 新建目标
+                  <Plus className="w-3.5 h-3.5" /> {tr(lang, '新建目标', 'New goal')}
                 </button>
               )}
             </div>
@@ -1178,24 +1199,24 @@ export default function SchedulePage() {
               <div className="rounded-xl border bg-gray-50 p-3 mb-4 space-y-2">
                 <input autoFocus value={goalForm.title}
                   onChange={e => setGoalForm({ ...goalForm, title: e.target.value })}
-                  placeholder="目标，例如：十月月考后完成第 4 章复习"
+                  placeholder={tr(lang, '目标，例如：十月月考后完成第 4 章复习', 'Goal, e.g. finish Chapter 4 revision after the October exam')}
                   className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500" />
                 <div className="grid grid-cols-2 gap-2">
                   <label className="block text-sm">
-                    <span className="text-muted-foreground">周期</span>
+                    <span className="text-muted-foreground">{tr(lang, '周期', 'Horizon')}</span>
                     <select value={goalForm.horizon}
                       onChange={e => {
                         const h = e.target.value as GoalHorizon
                         setGoalForm({ ...goalForm, horizon: h, dueDate: defaultDue(h) })
                       }}
                       className="mt-1 w-full px-2 py-1.5 border rounded-lg text-sm">
-                      <option value="week">本周</option>
-                      <option value="month">本月</option>
-                      <option value="term">本学期</option>
+                      <option value="week">{tr(lang, '本周', 'This week')}</option>
+                      <option value="month">{tr(lang, '本月', 'This month')}</option>
+                      <option value="term">{tr(lang, '本学期', 'This term')}</option>
                     </select>
                   </label>
                   <label className="block text-sm">
-                    <span className="text-muted-foreground">截止日期</span>
+                    <span className="text-muted-foreground">{tr(lang, '截止日期', 'Due date')}</span>
                     <input type="date" value={goalForm.dueDate}
                       onChange={e => setGoalForm({ ...goalForm, dueDate: e.target.value })}
                       className="mt-1 w-full px-2 py-1.5 border rounded-lg text-sm" />
@@ -1203,15 +1224,15 @@ export default function SchedulePage() {
                 </div>
                 <textarea value={goalForm.note} rows={2}
                   onChange={e => setGoalForm({ ...goalForm, note: e.target.value })}
-                  placeholder="补充说明（可选），例如：只安排工作日、每次不超过 2 节"
+                  placeholder={tr(lang, '补充说明（可选），例如：只安排工作日、每次不超过 2 节', 'Notes (optional), e.g. weekdays only, no more than 2 periods each time')}
                   className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
                 <div className="flex gap-2">
                   <button onClick={createGoal} disabled={goalBusy}
                     className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
-                    {goalBusy ? '保存中…' : '保存目标'}
+                    {goalBusy ? tr(lang, '保存中…', 'Saving…') : tr(lang, '保存目标', 'Save goal')}
                   </button>
                   <button onClick={() => setGoalForm(null)}
-                    className="px-3 py-1.5 border bg-white rounded-lg text-sm hover:bg-gray-100">取消</button>
+                    className="px-3 py-1.5 border bg-white rounded-lg text-sm hover:bg-gray-100">{tr(lang, '取消', 'Cancel')}</button>
                 </div>
               </div>
             )}
@@ -1222,7 +1243,7 @@ export default function SchedulePage() {
               </div>
             ) : goals.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
-                还没有目标。先建一个，然后让 AI 帮你拆到计划表里。
+                {tr(lang, '还没有目标。先建一个，然后让 AI 帮你拆到计划表里。', 'No goals yet. Create one, then let AI break it into your schedule.')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -1233,27 +1254,27 @@ export default function SchedulePage() {
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: kindColor('task', g.id) }} />
                       <span className={`font-medium ${g.status === 'done' ? 'line-through' : ''}`}>{g.title}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
-                        {HORIZON_LABEL[g.horizon]}
+                        {tr(lang, HORIZON_LABEL[g.horizon], HORIZON_LABEL_EN[g.horizon])}
                       </span>
                       {g.dueDate && (
-                        <span className="text-xs text-muted-foreground">截止 {g.dueDate}</span>
+                        <span className="text-xs text-muted-foreground">{tr(lang, `截止 ${g.dueDate}`, `Due ${g.dueDate}`)}</span>
                       )}
                       {!!g.itemCount && (
                         <span className="text-xs text-muted-foreground">
-                          步骤 {g.doneCount}/{g.itemCount} 完成
+                          {tr(lang, `步骤 ${g.doneCount}/${g.itemCount} 完成`, `${g.doneCount}/${g.itemCount} steps done`)}
                         </span>
                       )}
                       <div className="flex-1" />
                       <button onClick={() => runPlan(g)} disabled={planBusy}
                         className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-50 disabled:opacity-50">
-                        <Sparkles className="w-3.5 h-3.5" /> AI 拆解
+                        <Sparkles className="w-3.5 h-3.5" /> {tr(lang, 'AI 拆解', 'AI breakdown')}
                       </button>
                       <button onClick={() => patchGoal(g, { status: g.status === 'done' ? 'open' : 'done' })}
                         className="px-2.5 py-1.5 border rounded-lg text-xs hover:bg-gray-50">
-                        {g.status === 'done' ? '重新打开' : '标记完成'}
+                        {g.status === 'done' ? tr(lang, '重新打开', 'Reopen') : tr(lang, '标记完成', 'Mark done')}
                       </button>
                       <button onClick={() => deleteGoal(g)}
-                        className="p-1.5 border border-red-100 text-red-600 rounded-lg hover:bg-red-50" title="删除目标">
+                        className="p-1.5 border border-red-100 text-red-600 rounded-lg hover:bg-red-50" title={tr(lang, '删除目标', 'Delete goal')}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1272,19 +1293,19 @@ export default function SchedulePage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">节次时间与学期</h2>
+              <h2 className="text-lg font-semibold">{tr(lang, '节次时间与学期', 'Period times & term')}</h2>
               <button onClick={() => setSettingsOpen(false)} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <label className="block text-sm">
-                <span className="text-muted-foreground">第一周周一</span>
+                <span className="text-muted-foreground">{tr(lang, '第一周周一', 'Monday of week 1')}</span>
                 <input type="date" value={draft.termStart}
                   onChange={e => setDraft({ ...draft, termStart: e.target.value })}
                   className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
               </label>
               <label className="block text-sm">
-                <span className="text-muted-foreground">学期周数</span>
+                <span className="text-muted-foreground">{tr(lang, '学期周数', 'Term weeks')}</span>
                 <input type="number" min={1} max={60} value={draft.termWeeks}
                   onChange={e => setDraft({ ...draft, termWeeks: Number(e.target.value) })}
                   className="mt-1 w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -1295,7 +1316,7 @@ export default function SchedulePage() {
               {draft.periods.map((p, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className={`w-14 text-sm ${i + 1 === BREAK_PERIOD ? 'text-amber-700 font-medium' : ''}`}>
-                    第 {i + 1} 节
+                    {tr(lang, `第 ${i + 1} 节`, `Period ${i + 1}`)}
                   </span>
                   <input type="time" value={p.start}
                     onChange={e => {
@@ -1310,7 +1331,7 @@ export default function SchedulePage() {
                       setDraft({ ...draft, periods })
                     }}
                     className="w-28 px-2 py-1.5 border rounded-lg text-sm" />
-                  {i + 1 === BREAK_PERIOD && <span className="text-xs text-amber-700">午饭·午休</span>}
+                  {i + 1 === BREAK_PERIOD && <span className="text-xs text-amber-700">{tr(lang, '午饭·午休', 'Lunch break')}</span>}
                 </div>
               ))}
             </div>
@@ -1318,10 +1339,10 @@ export default function SchedulePage() {
             <div className="flex gap-2 mt-5">
               <button onClick={saveSettings} disabled={saving}
                 className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-60">
-                {saving ? '保存中…' : '保存'}
+                {saving ? tr(lang, '保存中…', 'Saving…') : tr(lang, '保存', 'Save')}
               </button>
               <button onClick={() => setSettingsOpen(false)}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
+                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">{tr(lang, '取消', 'Cancel')}</button>
             </div>
           </div>
         </div>

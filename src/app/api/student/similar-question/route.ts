@@ -80,17 +80,17 @@ ${optionsText ? `\n原题选项：\n${optionsText}\n` : ''}${correct ? `\n正确
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const questionId = searchParams.get('questionId')
-  if (!questionId) return NextResponse.json({ error: '缺少questionId' }, { status: 400 })
+  if (!questionId) return NextResponse.json({ error: 'Missing questionId（缺少 questionId）' }, { status: 400 })
 
   const { data: cur } = await supabaseAdmin('questions', {
     query: `?id=eq.${questionId}&select=id,lesson_id,knowledge_point_id,question_type,stem,answer_text`,
   })
   const q = cur?.[0]
-  if (!q) return NextResponse.json({ error: '题目不存在' }, { status: 404 })
+  if (!q) return NextResponse.json({ error: 'Question not found（题目不存在）' }, { status: 404 })
 
   const qtype = q.question_type || 'gate_test'
   // Mock questions point at a lesson of the bound gate course, but there are only

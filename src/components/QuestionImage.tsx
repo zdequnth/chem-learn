@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 /**
  * One size rule for every question figure in the app.
@@ -15,11 +16,12 @@ import { X } from 'lucide-react'
 export const QUESTION_IMAGE_CLASS = 'rounded-lg border bg-white max-w-full h-auto max-h-[70vh]'
 
 export default function QuestionImage({ src, alt = '', className = '' }: { src: string; alt?: string; className?: string }) {
+  const { lang } = useLang()
   const [zoom, setZoom] = useState(false)
   if (!src) return null
   return (
     <>
-      <button type="button" onClick={() => setZoom(true)} title="点一下放大"
+      <button type="button" onClick={() => setZoom(true)} title={tr(lang, '点一下放大', 'Click to enlarge')}
         className={`block cursor-zoom-in ${className}`}>
         <img src={src} alt={alt} className={QUESTION_IMAGE_CLASS} />
       </button>
@@ -30,7 +32,7 @@ export default function QuestionImage({ src, alt = '', className = '' }: { src: 
           <div className="flex justify-end p-3 shrink-0">
             <button type="button" onClick={() => setZoom(false)}
               className="flex items-center gap-1 text-sm text-white bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5">
-              <X className="w-4 h-4" /> 关闭
+              <X className="w-4 h-4" /> {tr(lang, '关闭', 'Close')}
             </button>
           </div>
           <div className="flex-1 overflow-auto p-4 flex justify-center items-start">

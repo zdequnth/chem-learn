@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { data: members } = await supabaseAdmin('class_members', {
     query: `?student_id=eq.${user.id}&select=class_id`,

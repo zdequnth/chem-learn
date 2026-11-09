@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { Lang } from '@/lib/i18n'
+import { tr, type Lang } from '@/lib/i18n'
 import { FORMULA_SUBJECTS, subjectByKey } from '@/lib/formula-sheets'
 import PeriodicTable from './PeriodicTable'
 
@@ -14,10 +14,10 @@ export default function FormulaSheet({ lang }: { lang: Lang }) {
 
   const sections = useMemo(() => {
     const list: { key: Section; label: string }[] = []
-    if (subject.periodic) list.push({ key: 'periodic', label: lang === 'zh' ? '元素周期表' : 'Periodic table' })
-    if (subject.constants.length) list.push({ key: 'constants', label: lang === 'zh' ? '常数' : 'Constants' })
-    if (subject.equations.length) list.push({ key: 'equations', label: lang === 'zh' ? '常用公式' : 'Equations' })
-    if (subject.ions.length) list.push({ key: 'ions', label: lang === 'zh' ? '常见离子' : 'Common ions' })
+    if (subject.periodic) list.push({ key: 'periodic', label: tr(lang, '元素周期表', 'Periodic table') })
+    if (subject.constants.length) list.push({ key: 'constants', label: tr(lang, '常数', 'Constants') })
+    if (subject.equations.length) list.push({ key: 'equations', label: tr(lang, '常用公式', 'Equations') })
+    if (subject.ions.length) list.push({ key: 'ions', label: tr(lang, '常见离子', 'Common ions') })
     return list
   }, [subject, lang])
 
@@ -69,8 +69,8 @@ export default function FormulaSheet({ lang }: { lang: Lang }) {
           <table className="w-full border-collapse text-[11px]">
             <thead>
               <tr className="text-left text-muted-foreground">
-                <th className="border-b py-1.5 pr-2 font-medium">{lang === 'zh' ? '量' : 'Quantity'}</th>
-                <th className="border-b py-1.5 font-medium">{lang === 'zh' ? '数值' : 'Value'}</th>
+                <th className="border-b py-1.5 pr-2 font-medium">{tr(lang, '量', 'Quantity')}</th>
+                <th className="border-b py-1.5 font-medium">{tr(lang, '数值', 'Value')}</th>
               </tr>
             </thead>
             <tbody>

@@ -6,8 +6,8 @@ import { LangProvider } from '@/lib/i18n'
 import StudyTools from '@/components/StudyTools'
 
 export const metadata: Metadata = {
-  title: 'SelfPass - 自主通关学习平台',
-  description: '游戏化精熟学习，一步一阶，自主通关',
+  title: 'SelfPass — 自主通关学习平台 / Self-Paced Mastery Learning',
+  description: '游戏化精熟学习，一步一阶，自主通关 / Gamified mastery learning, one step at a time',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

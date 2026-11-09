@@ -20,11 +20,11 @@ async function checkChapterAccess(userId: string, chapterId: string): Promise<bo
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   if (!await checkCourseAccess(user.id, body.course_id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
   const { data, error } = await supabaseAdmin('chapters', {
     method: 'POST', body, query: '?select=*',
@@ -36,15 +36,15 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   if (!await checkChapterAccess(user.id, id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
   const { error } = await supabaseAdmin('chapters', {
     method: 'PATCH', body, query: `?id=eq.${id}`,
@@ -56,14 +56,14 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   if (!await checkChapterAccess(user.id, id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
   const { error } = await supabaseAdmin('chapters', {
     method: 'DELETE', query: `?id=eq.${id}`,

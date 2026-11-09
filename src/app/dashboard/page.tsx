@@ -9,7 +9,7 @@ import Navbar from '@/components/Navbar'
 import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { Loader2 } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -42,7 +42,7 @@ export default function DashboardPage() {
     })
     const json = await res.json()
     if (json.error) { setJoinMsg('❌ ' + json.error) }
-    else { setJoinMsg('✅ 加入成功！'); setJoinCode('') }
+    else { setJoinMsg(tr(lang, '✅ 加入成功！', '✓ Joined!')); setJoinCode('') }
     setJoinBusy(false)
   }
 
@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
     const timeout = setTimeout(() => {
       if (!cancelled) {
-        setFetchError('加载超时，请刷新页面重试')
+        setFetchError(tr(lang, '加载超时，请刷新页面重试', 'Loading timed out. Please refresh the page and try again.'))
         setLoading(false)
         cancelled = true
       }
@@ -78,7 +78,7 @@ export default function DashboardPage() {
         }
       })
       .catch((e: any) => {
-        if (!cancelled) { setFetchError(e.message || '加载失败'); setCourses([]) }
+        if (!cancelled) { setFetchError(e.message || tr(lang, '加载失败', 'Load failed')); setCourses([]) }
       })
       .finally(() => {
         clearTimeout(timeout)
@@ -148,7 +148,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">加载中...</p>
+          <p className="text-muted-foreground">{t('loading', lang)}</p>
         </div>
       </div>
     )
@@ -162,7 +162,7 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-20">
         <div className="mb-8">
           <h1 className="text-2xl font-bold">
-            {isTeacher ? t('teacherDashboard', lang) : (lang === 'zh' ? `你好，${profile?.display_name || user.email || '同学'}` : `Hi, ${profile?.display_name || user.email || ''}`)}
+            {isTeacher ? t('teacherDashboard', lang) : tr(lang, `你好，${profile?.display_name || user.email || '同学'}`, `Hi, ${profile?.display_name || user.email || 'there'}`)}
           </h1>
           <p className="text-muted-foreground mt-1">
             {isTeacher ? t('manageCourses', lang) : t('studentDashboard', lang)}
@@ -174,11 +174,11 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <input value={joinCode} onChange={e => setJoinCode(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleJoinClass() }}
-                  placeholder="输入班级邀请码"
+                  placeholder={t('joinPlaceholder', lang)}
                   className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
                 <button onClick={handleJoinClass} disabled={joinBusy}
                   className="px-4 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                  {joinBusy ? '...' : '加入班级'}
+                  {joinBusy ? '...' : t('joinBtn', lang)}
                 </button>
                 {joinMsg && <span className="text-sm">{joinMsg}</span>}
               </div>
@@ -186,7 +186,7 @@ export default function DashboardPage() {
               {/* My classes with progress */}
               {myClasses.length > 0 && (
                 <>
-                <h3 className="text-lg font-semibold mb-3">已加入的班级与课程</h3>
+                <h3 className="text-lg font-semibold mb-3">{tr(lang, '已加入的班级与课程', 'My Classes & Courses')}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {myClasses.map((c: any) => {
                     // One card shape for both kinds — a vocabulary class differs by
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                           </span>
                           {(isVocab || isMock) && (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${t.badge}`}>
-                              {isVocab ? '背单词' : '模拟考'}
+                              {isVocab ? tr(lang, '背单词', 'Vocabulary') : tr(lang, '模拟考', 'Mock Exam')}
                             </span>
                           )}
                           {c.courseName && (
@@ -232,7 +232,7 @@ export default function DashboardPage() {
                             </>
                           )}
                           <span className={`ml-auto shrink-0 text-xs tabular-nums ${t.text}`}>
-                            {isVocab && v.due > 0 ? `待复习 ${v.due}` : ''}
+                            {isVocab && v.due > 0 ? tr(lang, `待复习 ${v.due}`, `${v.due} due`) : ''}
                           </span>
                         </div>
                         {/* 2 — progress bar + its number */}
@@ -242,7 +242,7 @@ export default function DashboardPage() {
                           </div>
                           <span className={`shrink-0 text-xs tabular-nums ${t.text}`}>
                             {isVocab
-                              ? (v.wordCount > 0 ? `已学 ${v.studied}/${v.wordCount} · 掌握 ${v.mastered}` : '—')
+                              ? (v.wordCount > 0 ? tr(lang, `已学 ${v.studied}/${v.wordCount} · 掌握 ${v.mastered}`, `Studied ${v.studied}/${v.wordCount} · Mastered ${v.mastered}`) : '—')
                               : (c.total > 0 ? `${c.percent}%` : '—')}
                           </span>
                         </div>
@@ -254,13 +254,13 @@ export default function DashboardPage() {
                           {isVocab && (
                             <Link href={`/vocab?course=${c.course_id}`}
                               className={`ml-auto shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-medium text-white transition-colors ${t.btn}`}>
-                              去背单词 →
+                              {tr(lang, '去背单词 →', 'Study words →')}
                             </Link>
                           )}
                           {isMock && (
                             <Link href={`/mock?course=${c.course_id}`}
                               className={`ml-auto shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-medium text-white transition-colors ${t.btn}`}>
-                              去模拟考 →
+                              {tr(lang, '去模拟考 →', 'Take a mock →')}
                             </Link>
                           )}
                         </div>
@@ -281,24 +281,24 @@ export default function DashboardPage() {
         ) : fetchError ? (
           <div className="text-center py-20">
             <div className="text-4xl mb-4">⚠️</div>
-            <h2 className="text-xl font-semibold mb-2">加载失败</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('loadError', lang)}</h2>
             <p className="text-muted-foreground mb-4 text-sm">{fetchError}</p>
             <button onClick={() => window.location.reload()} className="px-6 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
-              重新加载
+              {t('reload', lang)}
             </button>
           </div>
         ) : courses.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">📭</div>
             <h2 className="text-xl font-semibold mb-2">
-              {isTeacher ? '还没有课程' : '暂无可用课程'}
+              {isTeacher ? t('noCourses', lang) : t('noCourseStudent', lang)}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {isTeacher ? '创建第一门课程吧' : '请联系老师添加课程'}
+              {isTeacher ? t('noCoursesHint', lang) : t('noCourseStudentHint', lang)}
             </p>
             {isTeacher && (
               <Link href="/teacher/courses" className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-colors inline-block">
-                创建课程
+                {t('createCourse', lang)}
               </Link>
             )}
           </div>
@@ -307,7 +307,7 @@ export default function DashboardPage() {
           {/* Favorited courses */}
           {!isTeacher && [...courses].filter((c: any) => favorites.includes(c.id)).length > 0 && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">⭐ 我的收藏</h3>
+              <h3 className="text-lg font-semibold mb-3">{t('myFavorites', lang)}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...courses].filter((c: any) => favorites.includes(c.id)).map((course: any) => (
                   <Link key={course.id} href={`/courses/${course.id}`}
@@ -331,8 +331,8 @@ export default function DashboardPage() {
           {!isTeacher && (
             <div>
               <h3 className="text-lg font-semibold mb-3">
-                选择学科
-                <span className="ml-2 text-xs font-normal text-muted-foreground">所有已发布的课程，无论是否加入班级，均可在此学习</span>
+                {t('chooseSubject', lang)}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">{tr(lang, '所有已发布的课程，无论是否加入班级，均可在此学习', 'All published courses are available here, whether or not you have joined a class')}</span>
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
@@ -362,15 +362,15 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-card rounded-2xl border p-5 text-center">
                   <div className="text-3xl font-bold text-emerald-600">{courses.length}</div>
-                  <div className="text-sm text-muted-foreground mt-1">课程</div>
+                  <div className="text-sm text-muted-foreground mt-1">{tr(lang, '课程', 'Courses')}</div>
                 </div>
                 <div className="bg-card rounded-2xl border p-5 text-center">
                   <div className="text-3xl font-bold text-blue-600">{teacherClasses.length}</div>
-                  <div className="text-sm text-muted-foreground mt-1">班级</div>
+                  <div className="text-sm text-muted-foreground mt-1">{tr(lang, '班级', 'Classes')}</div>
                 </div>
                 <div className="bg-card rounded-2xl border p-5 text-center">
                   <div className="text-3xl font-bold text-purple-600">{totalStudents}</div>
-                  <div className="text-sm text-muted-foreground mt-1">学生（按班级合计）</div>
+                  <div className="text-sm text-muted-foreground mt-1">{tr(lang, '学生（按班级合计）', 'Students (class total)')}</div>
                 </div>
               </div>
 
@@ -378,24 +378,24 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Link href="/teacher/courses" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">📚</div>
-                  <div className="font-semibold group-hover:text-emerald-600">课程管理</div>
-                  <div className="text-xs text-muted-foreground mt-1">课程、章节、课时与题库</div>
+                  <div className="font-semibold group-hover:text-emerald-600">{t('courseMgmt', lang)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{tr(lang, '课程、章节、课时与题库', 'Courses, chapters, lessons & question bank')}</div>
                 </Link>
                 <Link href="/teacher/analytics" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">📊</div>
-                  <div className="font-semibold group-hover:text-emerald-600">学情分析</div>
-                  <div className="text-xs text-muted-foreground mt-1">薄弱知识点、高错题、尝试与用时</div>
+                  <div className="font-semibold group-hover:text-emerald-600">{t('analytics', lang)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{tr(lang, '薄弱知识点、高错题、尝试与用时', 'Weak knowledge points, common mistakes, attempts & time')}</div>
                 </Link>
                 <Link href="/teacher/classes" className="bg-card rounded-2xl border p-5 hover:shadow-md hover:border-emerald-200 transition-all group flex flex-col items-center text-center">
                   <div className="text-2xl mb-2">🏫</div>
-                  <div className="font-semibold group-hover:text-emerald-600">班级管理</div>
-                  <div className="text-xs text-muted-foreground mt-1">学生进度、邀请码</div>
+                  <div className="font-semibold group-hover:text-emerald-600">{tr(lang, '班级管理', 'Class Management')}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{tr(lang, '学生进度、邀请码', 'Student progress, invite codes')}</div>
                 </Link>
               </div>
 
               {/* Per-course entry, coloured by course kind */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">课程速览 · 按课程查看</h3>
+                <h3 className="text-lg font-semibold mb-3">{tr(lang, '课程速览 · 按课程查看', 'Course Overview · By Course')}</h3>
                 <div className="space-y-2">
                   {[...courses].map((course: any) => {
                     const theme = kindTheme(course.kind)
@@ -409,11 +409,11 @@ export default function DashboardPage() {
                             <div className="font-medium truncate flex items-center gap-2">
                               {course.name}
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${theme.pill}`}>
-                                {theme.label.replace('课程', '')}
+                                {k === 'vocab' ? tr(lang, '背单词', 'Vocabulary') : k === 'mock' ? tr(lang, '模拟考', 'Mock Exam') : tr(lang, '过关', 'Gate')}
                               </span>
                             </div>
                             <div className={`text-xs ${k !== 'gate' ? theme.text : 'text-muted-foreground'}`}>
-                              {course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? '已发布' : '未发布'}
+                              {course.grade_level ? course.grade_level + ' · ' : ''}{course.is_published ? t('published', lang) : t('unpublished', lang)}
                             </div>
                           </div>
                         </div>
@@ -421,17 +421,17 @@ export default function DashboardPage() {
                         {k === 'vocab' ? (
                           <Link href={`/teacher/vocab?course=${course.id}`}
                             className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium text-white transition-colors ${theme.solid}`}>
-                            词库与掌握情况 →
+                            {tr(lang, '词库与掌握情况 →', 'Word Bank & Mastery →')}
                           </Link>
                         ) : k === 'mock' ? (
                           <Link href={`/teacher/mock?course=${course.id}`}
                             className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium text-white transition-colors ${theme.solid}`}>
-                            试卷与成绩 →
+                            {tr(lang, '试卷与成绩 →', 'Papers & Scores →')}
                           </Link>
                         ) : (
                           <Link href={`/teacher/analytics?scope=course&courseId=${course.id}`}
                             className="shrink-0 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-600 rounded-lg font-medium hover:bg-emerald-100 transition-colors">
-                            查看学情 →
+                            {tr(lang, '查看学情 →', 'View Analytics →')}
                           </Link>
                         )}
                       </div>

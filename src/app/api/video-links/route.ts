@@ -27,11 +27,11 @@ async function checkVlAccess(userId: string, vlId: string): Promise<boolean> {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   if (!await checkKpAccess(user.id, body.knowledge_point_id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
   const { data, error } = await supabaseAdmin('video_links', {
     method: 'POST',
@@ -45,14 +45,14 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   if (!await checkVlAccess(user.id, id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
   const { error } = await supabaseAdmin('video_links', { method: 'DELETE', query: `?id=eq.${id}` })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

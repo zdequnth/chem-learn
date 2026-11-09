@@ -6,17 +6,17 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { sourceLessonId, targetChapterId } = await request.json()
-  if (!sourceLessonId || !targetChapterId) return NextResponse.json({ error: '缺少参数' }, { status: 400 })
+  if (!sourceLessonId || !targetChapterId) return NextResponse.json({ error: 'Missing parameters（缺少参数）' }, { status: 400 })
 
   // Get source lesson
   const { data: srcLesson } = await supabaseAdmin('lessons', {
     query: `?id=eq.${sourceLessonId}&select=*`,
   })
   const src = srcLesson?.[0]
-  if (!src) return NextResponse.json({ error: '源课时不存在' }, { status: 404 })
+  if (!src) return NextResponse.json({ error: 'Source lesson not found（源课时不存在）' }, { status: 404 })
 
   // Get target chapter's max sort_order
   const { data: targetLessons } = await supabaseAdmin('lessons', {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     query: '?select=id',
   })
   const newLessonId = (newL as any)?.[0]?.id
-  if (!newLessonId) return NextResponse.json({ error: '创建课时失败' }, { status: 500 })
+  if (!newLessonId) return NextResponse.json({ error: 'Failed to create lesson（创建课时失败）' }, { status: 500 })
 
   // 2. Copy knowledge points + video links + questions
   let kpCopies = 0, videoCopies = 0, questionCopies = 0

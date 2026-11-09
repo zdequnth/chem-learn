@@ -210,6 +210,11 @@ export function t(key: string, lang: Lang): string {
   return (translations as Record<string, Record<string, string>>)[key]?.[lang] || key
 }
 
+/** Inline bilingual text for newer UI that is not in the dictionary. */
+export function tr(lang: Lang, zh: string, en: string): string {
+  return lang === 'zh' ? zh : en
+}
+
 export function subjectName(key: string, lang: Lang): string {
   return subjectDict[key]?.[lang] || key
 }

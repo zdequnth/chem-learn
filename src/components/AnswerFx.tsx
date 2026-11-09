@@ -1,5 +1,7 @@
 'use client'
 
+import { useLang, tr } from '@/lib/i18n'
+
 // Lightweight, dependency-free feedback animation for the gate test.
 // Renders a full-screen, non-interactive overlay of CSS-animated particles and
 // unmounts as soon as the next question appears. Respects prefers-reduced-motion
@@ -19,6 +21,7 @@ function burst(count: number, minDist: number, maxDist: number) {
 }
 
 export default function AnswerFx({ kind, variant }: { kind: 'correct' | 'wrong'; variant: number }) {
+  const { lang } = useLang()
   if (kind === 'correct') {
     if (variant % 2 === 0) {
       // confetti burst
@@ -66,7 +69,7 @@ export default function AnswerFx({ kind, variant }: { kind: 'correct' | 'wrong';
     return (
       <div className="fx-layer" aria-hidden>
         <span className="fx-pop flex items-center gap-2 text-3xl sm:text-4xl font-semibold text-sky-500/90">
-          <span className="text-5xl">☁️</span> 再想想～
+          <span className="text-5xl">☁️</span> {tr(lang, '再想想～', 'Think again~')}
         </span>
       </div>
     )
@@ -86,7 +89,7 @@ export default function AnswerFx({ kind, variant }: { kind: 'correct' | 'wrong';
           } as React.CSSProperties}
         />
       ))}
-      <span className="fx-pop text-3xl font-semibold text-sky-500/90">再试一次 💪</span>
+      <span className="fx-pop text-3xl font-semibold text-sky-500/90">{tr(lang, '再试一次 💪', 'Try again 💪')}</span>
     </div>
   )
 }

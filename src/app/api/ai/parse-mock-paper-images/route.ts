@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { loadMockCourse, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { parseAnswerKey } from '@/lib/answer-key'
 import { stripOptionTable, collapseOptionTable } from '@/lib/question-text'
 import { normaliseMineruText } from '@/lib/mineru-text'
@@ -136,16 +137,16 @@ async function parsePage(client: OpenAI, prompt: string, images: { url: string }
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const {
     courseId, images, pageIndex: rawPageIndex,
     paperMode: rawPaperMode, answerText, answerPosition: rawAnswerPosition, answerImages,
   } = await request.json()
 
-  if (!courseId) return NextResponse.json({ error: '缺少courseId' }, { status: 400 })
+  if (!courseId) return NextResponse.json({ error: 'Missing courseId（缺少 courseId）' }, { status: 400 })
   const list: string[] = Array.isArray(images) ? images.filter((u: any) => typeof u === 'string') : []
-  if (list.length === 0) return NextResponse.json({ error: '没有收到页面图片' }, { status: 400 })
+  if (list.length === 0) return NextResponse.json({ error: 'No page images received（没有收到页面图片）' }, { status: 400 })
   const pageIndex = Math.min(Math.max(0, Number(rawPageIndex) || 0), list.length - 1)
   const paperMode: 'choice' | 'short' = rawPaperMode === 'short' ? 'short' : 'choice'
   const answerPosition: 'end' | 'inline' | 'none' =
@@ -154,15 +155,15 @@ export async function POST(request: Request) {
     : String(answerText ?? '').trim() ? 'end' : 'none'
 
   const { course, error, status } = await loadMockCourse(user.id, courseId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
   if (!course!.mock_source_course_id) {
-    return NextResponse.json({ error: '这门模拟考课程还没有绑定通关课程' }, { status: 400 })
+    return NextResponse.json({ error: 'This mock course is not bound to a gate course yet（这门模拟考课程还没有绑定通关课程）' }, { status: 400 })
   }
 
   const outline = await loadSourceOutline(course!.mock_source_course_id)
-  if (!outline) return NextResponse.json({ error: '绑定的通关课程不存在' }, { status: 400 })
+  if (!outline) return NextResponse.json({ error: 'The bound gate course does not exist（绑定的通关课程不存在）' }, { status: 400 })
   if (outline.lessons.length === 0) {
-    return NextResponse.json({ error: '绑定的通关课程还没有章节课时，无法标注对应关系' }, { status: 400 })
+    return NextResponse.json({ error: 'The bound gate course has no chapters/lessons yet, so mappings cannot be marked（绑定的通关课程还没有章节课时，无法标注对应关系）' }, { status: 400 })
   }
 
   // Only the requested page. Sending the next page too made the model emit
@@ -181,7 +182,7 @@ export async function POST(request: Request) {
     const img = await readStoredImage(url)
     if (img) loaded.push({ url: `data:${img.contentType};base64,${img.buf.toString('base64')}`, buf: img.buf, contentType: img.contentType })
   }
-  if (loaded.length === 0) return NextResponse.json({ error: '页面图片读不出来（可能已被删除）' }, { status: 400 })
+  if (loaded.length === 0) return NextResponse.json({ error: 'Page images could not be read (they may have been deleted)（页面图片读不出来（可能已被删除））' }, { status: 400 })
 
   // The box the model returns is in the page's own pixels, so it has to know them.
   const meta = await sharp(loaded[0].buf).metadata()

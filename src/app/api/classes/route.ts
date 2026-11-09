@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { data: classes } = await supabaseAdmin('classes', {
     query: `?teacher_id=eq.${user.id}&select=*`,
@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { data, error } = await supabaseAdmin('classes', {
@@ -55,11 +55,11 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { invite_code } = body
-  if (!invite_code) return NextResponse.json({ error: '缺少邀请码' }, { status: 400 })
+  if (!invite_code) return NextResponse.json({ error: 'Missing invite code（缺少邀请码）' }, { status: 400 })
 
   // Ensure profile exists (may have been deleted by DB reset)
   await supabaseAdmin('profiles', {
@@ -72,7 +72,7 @@ export async function PUT(request: Request) {
     query: `?invite_code=eq.${invite_code}&select=id`,
   })
   if (!classes || classes.length === 0) {
-    return NextResponse.json({ error: '邀请码无效' }, { status: 404 })
+    return NextResponse.json({ error: 'Invalid invite code（邀请码无效）' }, { status: 404 })
   }
 
   // Join class
@@ -83,7 +83,7 @@ export async function PUT(request: Request) {
   })
   if (error) {
     if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-      return NextResponse.json({ error: '你已经在这个班级里了' }, { status: 409 })
+      return NextResponse.json({ error: 'You are already in this class（你已经在这个班级里了）' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -94,12 +94,12 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   const update: any = {}
   if (body.name !== undefined) update.name = body.name
@@ -117,7 +117,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   const { error } = await supabaseAdmin('classes', { method: 'DELETE', query: `?id=eq.${id}` })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

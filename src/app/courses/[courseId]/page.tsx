@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import type { Course, Chapter, Lesson, StudentProgress } from '@/lib/types'
 import { ArrowLeft, Lock, CheckCircle, Play, Loader2 } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 interface LessonWithProgress extends Lesson {
   progress: StudentProgress | null
@@ -70,13 +70,13 @@ export default function CoursePage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回课程列表' : 'Back to Courses'}
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回课程列表', 'Back to Courses')}
         </Link>
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : !course ? (
-          <div className="text-center py-20"><p className="text-muted-foreground">{lang === 'zh' ? '课程不存在' : 'Course not found'}</p></div>
+          <div className="text-center py-20"><p className="text-muted-foreground">{tr(lang, '课程不存在', 'Course not found')}</p></div>
         ) : (
           <>
             <div className="bg-card rounded-2xl border p-6 mb-8">
@@ -156,7 +156,7 @@ export default function CoursePage() {
 
                           {isPassed && (
                             <div className="shrink-0 flex items-center gap-2">
-                              <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">{lang === 'zh' ? '🏅 已通过' : '🏅 Passed'}</span>
+                              <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">{tr(lang, '🏅 已通过', '🏅 Passed')}</span>
                               <span className="text-yellow-500 text-sm">
                                 {'★'.repeat(lesson.progress?.stars_earned || 0)}
                                 {'☆'.repeat(3 - (lesson.progress?.stars_earned || 0))}

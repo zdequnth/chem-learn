@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { ArrowLeft, Loader2, Edit3, Save, X, Users } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 interface StudentProgress {
   id: string
@@ -29,6 +30,7 @@ export default function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>()
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [cls, setCls] = useState<ClassDetail | null>(null)
   const [students, setStudents] = useState<StudentProgress[]>([])
@@ -52,11 +54,11 @@ export default function ClassDetailPage() {
     })
     const json = await res.json()
     if (json.error) { setAddStudentMsg('❌ ' + json.error) }
-    else { setAddStudentMsg('✅ 已添加 ' + json.student.display_name); setAddStudentName(''); fetchDetail() }
+    else { setAddStudentMsg(tr(lang, '✅ 已添加 ', '✅ Added ') + json.student.display_name); setAddStudentName(''); fetchDetail() }
   }
 
   const handleRemoveStudent = async (studentId: string) => {
-    if (!confirm('确定移除此学生？')) return
+    if (!confirm(tr(lang, '确定移除此学生？', 'Remove this student?'))) return
     await fetch(`/api/classes/detail?classId=${classId}&studentId=${studentId}`, { method: 'DELETE' })
     fetchDetail()
   }
@@ -106,13 +108,13 @@ export default function ClassDetailPage() {
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 pt-24 pb-20">
         <Link href="/teacher/classes" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> 返回班级列表
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回班级列表', 'Back to Classes')}
         </Link>
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : !cls ? (
-          <div className="text-center py-20"><p className="text-muted-foreground">班级不存在</p></div>
+          <div className="text-center py-20"><p className="text-muted-foreground">{tr(lang, '班级不存在', 'Class not found')}</p></div>
         ) : (
           <>
             {/* Header */}
@@ -122,14 +124,14 @@ export default function ClassDetailPage() {
                   <input value={editName} onChange={e => setEditName(e.target.value)}
                     className="w-full px-4 py-2 text-lg font-semibold border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                   <textarea value={editMessage} onChange={e => setEditMessage(e.target.value)}
-                    rows={3} placeholder="班级留言/公告"
+                    rows={3} placeholder={tr(lang, '班级留言/公告', 'Class message / announcement')}
                     className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
                   <div className="flex gap-2">
                     <button onClick={handleSave} disabled={saving}
                       className="flex items-center gap-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                      <Save className="w-4 h-4" /> 保存
+                      <Save className="w-4 h-4" /> {tr(lang, '保存', 'Save')}
                     </button>
-                    <button onClick={() => setEditing(false)} className="px-4 py-2 bg-gray-200 rounded-lg">取消</button>
+                    <button onClick={() => setEditing(false)} className="px-4 py-2 bg-gray-200 rounded-lg">{tr(lang, '取消', 'Cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -139,22 +141,22 @@ export default function ClassDetailPage() {
                     {isOwner && (
                       <button onClick={() => setEditing(true)}
                         className="text-sm text-muted-foreground hover:text-foreground">
-                        <Edit3 className="w-4 h-4 inline" /> 编辑
+                        <Edit3 className="w-4 h-4 inline" /> {tr(lang, '编辑', 'Edit')}
                       </button>
                     )}
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                    <span>邀请码：<code className="px-2 py-0.5 bg-gray-100 rounded font-mono">{cls.invite_code}</code></span>
-                    <span>{students.length} 名学生</span>
+                    <span>{tr(lang, '邀请码：', 'Invite code: ')}<code className="px-2 py-0.5 bg-gray-100 rounded font-mono">{cls.invite_code}</code></span>
+                    <span>{tr(lang, `${students.length} 名学生`, `${students.length} students`)}</span>
                   </div>
                   {isOwner && (
                     <div className="flex items-center gap-2 mb-2">
                       <input value={addStudentName} onChange={e => setAddStudentName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleAddStudent() }}
-                        placeholder="输入学生姓名添加"
+                        placeholder={tr(lang, '输入学生姓名添加', 'Enter student name to add')}
                         className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
                       <button onClick={handleAddStudent}
-                        className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">添加学生</button>
+                        className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">{tr(lang, '添加学生', 'Add Student')}</button>
                       {addStudentMsg && <span className="text-xs">{addStudentMsg}</span>}
                     </div>
                   )}
@@ -171,24 +173,24 @@ export default function ClassDetailPage() {
             <div className="bg-card rounded-2xl border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Users className="w-5 h-5" /> 学生进度（{students.length}人）
+                  <Users className="w-5 h-5" /> {tr(lang, `学生进度（${students.length}人）`, `Student Progress (${students.length})`)}
                 </h2>
                 {students.length > 0 && (
                   <div className="flex gap-1 text-xs">
                     <button onClick={() => setSortBy('name')}
                       className={`px-2 py-1 rounded ${sortBy === 'name' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
-                      姓名 ↑
+                      {tr(lang, '姓名 ↑', 'Name ↑')}
                     </button>
                     <button onClick={() => setSortBy('progress')}
                       className={`px-2 py-1 rounded ${sortBy === 'progress' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
-                      进度 ↓
+                      {tr(lang, '进度 ↓', 'Progress ↓')}
                     </button>
                   </div>
                 )}
               </div>
 
               {students.length === 0 ? (
-                <p className="text-center py-12 text-muted-foreground">还没有学生加入</p>
+                <p className="text-center py-12 text-muted-foreground">{tr(lang, '还没有学生加入', 'No students have joined yet')}</p>
               ) : (
                 <div className="space-y-2">
                   {[...students]

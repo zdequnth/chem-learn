@@ -2,23 +2,24 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseItemInput, rowToItem } from '@/lib/schedule'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 // Used by the timetable importer and by "accept AI plan": both create a batch of
 // rows in one go, after the teacher has already confirmed what they should be.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const raw = Array.isArray(body?.items) ? body.items : []
-  if (raw.length === 0) return NextResponse.json({ error: '没有要导入的安排' }, { status: 400 })
-  if (raw.length > 100) return NextResponse.json({ error: '一次最多导入 100 条' }, { status: 400 })
+  if (raw.length === 0) return NextResponse.json({ error: 'No schedules to import（没有要导入的安排）' }, { status: 400 })
+  if (raw.length > 100) return NextResponse.json({ error: 'At most 100 items can be imported at a time（一次最多导入 100 条）' }, { status: 400 })
 
   const inputs = []
   for (const [i, item] of raw.entries()) {
     const { input, error } = parseItemInput(item)
-    if (!input) return NextResponse.json({ error: `第 ${i + 1} 条：${error}` }, { status: 400 })
+    if (!input) return NextResponse.json({ error: `Item ${i + 1}（第 ${i + 1} 条）: ${bilingualError(error || '')}` }, { status: 400 })
     inputs.push(input)
   }
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       query: `?id=in.(${classIds.join(',')})&teacher_id=eq.${user.id}&select=id`,
     })
     if ((owned || []).length !== classIds.length) {
-      return NextResponse.json({ error: '有班级不存在或不属于你' }, { status: 400 })
+      return NextResponse.json({ error: 'One or more classes do not exist or do not belong to you（有班级不存在或不属于你）' }, { status: 400 })
     }
   }
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     const { data: owned } = await supabaseAdmin('schedule_goals', {
       query: `?id=eq.${body.goalId}&teacher_id=eq.${user.id}&select=id`,
     })
-    if (!owned?.length) return NextResponse.json({ error: '目标不存在' }, { status: 400 })
+    if (!owned?.length) return NextResponse.json({ error: 'Goal not found（目标不存在）' }, { status: 400 })
     goalId = body.goalId
   }
 

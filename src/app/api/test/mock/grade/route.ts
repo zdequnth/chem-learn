@@ -88,14 +88,14 @@ async function gradeBatch(
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { sessionId } = await request.json()
-  if (!sessionId) return NextResponse.json({ error: '缺少sessionId' }, { status: 400 })
+  if (!sessionId) return NextResponse.json({ error: 'Missing sessionId（缺少 sessionId）' }, { status: 400 })
 
   const session = await loadSession(sessionId)
-  if (!session || session.student_id !== user.id) return NextResponse.json({ error: '考试不存在' }, { status: 404 })
-  if (session.status !== 'submitted') return NextResponse.json({ error: '还没交卷' }, { status: 400 })
+  if (!session || session.student_id !== user.id) return NextResponse.json({ error: 'Exam not found（考试不存在）' }, { status: 404 })
+  if (session.status !== 'submitted') return NextResponse.json({ error: 'Not submitted yet（还没交卷）' }, { status: 400 })
 
   // Already finished (or a paper with no free-response questions at all).
   if (session.graded_at) {

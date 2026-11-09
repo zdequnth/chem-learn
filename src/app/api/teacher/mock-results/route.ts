@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { classesOfStudents, loadPaperForTeacher, loadSourceOutline, isAdminUser } from '@/lib/mock-source'
+import { bilingualError } from '@/app/api/_lib/error-message'
 import { NextResponse } from 'next/server'
 
 // Results of one mock paper: who sat it, how they did, and which QUESTIONS the
@@ -10,15 +11,15 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const params = new URL(request.url).searchParams
   const paperId = params.get('paperId')
   const classId = params.get('classId') || ''
-  if (!paperId) return NextResponse.json({ error: '缺少paperId' }, { status: 400 })
+  if (!paperId) return NextResponse.json({ error: 'Missing paperId（缺少 paperId）' }, { status: 400 })
 
   const { paper, course, error, status } = await loadPaperForTeacher(user.id, paperId, await isAdminUser())
-  if (error) return NextResponse.json({ error }, { status: status || 400 })
+  if (error) return NextResponse.json({ error: bilingualError(error) }, { status: status || 400 })
 
   // select=* — `is_published` only exists after migration 017, and naming a
   // missing column makes PostgREST reject the whole query.

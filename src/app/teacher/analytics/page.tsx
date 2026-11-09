@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { Loader2, ArrowLeft, ChevronDown, ChevronRight, Printer } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr, type Lang } from '@/lib/i18n'
 
 interface QStat {
   id: string; lessonId: string; lessonTitle: string; chapterTitle: string
@@ -48,10 +48,10 @@ function rateClass(rate: number) {
   return 'text-red-600'
 }
 
-function fmtSeconds(s: number | null) {
+function fmtSeconds(s: number | null, lang: Lang) {
   if (s === null || s === undefined) return '—'
-  if (s < 60) return `${s} 秒`
-  return `${Math.floor(s / 60)} 分 ${s % 60} 秒`
+  if (s < 60) return tr(lang, `${s} 秒`, `${s}s`)
+  return tr(lang, `${Math.floor(s / 60)} 分 ${s % 60} 秒`, `${Math.floor(s / 60)}m ${s % 60}s`)
 }
 
 function AnalyticsContent() {
@@ -117,7 +117,7 @@ function AnalyticsContent() {
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs text-muted-foreground">#{i + 1}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full ${q.solved ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-100 text-orange-700'}`}>
-          {lang === 'zh' ? `错过 ${q.wrongCount} 次，${q.solved ? '已答对' : '尚未答对'}` : `${q.wrongCount}×, ${q.solved ? 'later correct' : 'never correct'}`}
+          {tr(lang, `错过 ${q.wrongCount} 次，${q.solved ? '已答对' : '尚未答对'}`, `${q.wrongCount}×, ${q.solved ? 'later correct' : 'never correct'}`)}
         </span>
         <span className="text-xs text-muted-foreground truncate">{q.lessonTitle}</span>
       </div>
@@ -208,7 +208,7 @@ function AnalyticsContent() {
         setEmpty(!!j.empty)
         setEmptyReason(j.reason || '')
       })
-      .catch((e) => { if (e.name !== 'AbortError') setError('加载失败') })
+      .catch((e) => { if (e.name !== 'AbortError') setError(tr(lang, '加载失败', 'Load failed')) })
       .finally(() => setLoading(false))
     return () => ctrl.abort()
   }, [scope, courseId, classId, activeId])
@@ -242,7 +242,7 @@ function AnalyticsContent() {
   const wrongByChapter = (() => {
     const map = new Map<string, { chapter: string; order: number; items: QStat[] }>()
     for (const q of rankedQuestions) {
-      const key = q.chapterTitle || '（未分章）'
+      const key = q.chapterTitle || tr(lang, '（未分章）', '(No chapter)')
       let g = map.get(key)
       if (!g) { g = { chapter: key, order: q.chapterOrder ?? 0, items: [] }; map.set(key, g) }
       g.items.push(q)
@@ -277,11 +277,11 @@ function AnalyticsContent() {
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 pt-24 pb-20">
         <Link href="/dashboard" className="no-print inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回工作台' : 'Back'}
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回工作台', 'Back')}
         </Link>
         <h1 className="text-2xl font-bold mb-1">{t('analytics', lang)}</h1>
         <p className="text-muted-foreground mb-6 text-sm">
-          {lang === 'zh' ? '看清薄弱题目与知识点、学生的尝试次数与通关用时' : 'Spot weak questions/KPs, attempts and time to pass'}
+          {tr(lang, '看清薄弱题目与知识点、学生的尝试次数与通关用时', 'Spot weak questions/KPs, attempts and time to pass')}
         </p>
 
         {/* Scope switch */}
@@ -290,26 +290,26 @@ function AnalyticsContent() {
             {(['course', 'class'] as const).map((s) => (
               <button key={s} onClick={() => setScope(s)}
                 className={`px-4 py-2 text-sm font-medium transition-colors ${scope === s ? 'bg-emerald-500 text-white' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
-                {s === 'course' ? (lang === 'zh' ? '按课程' : 'By Course') : (lang === 'zh' ? '按班级' : 'By Class')}
+                {s === 'course' ? tr(lang, '按课程', 'By Course') : tr(lang, '按班级', 'By Class')}
               </button>
             ))}
           </div>
           {scope === 'course' ? (
             <select value={courseId} onChange={(e) => setCourseId(e.target.value)}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-              {courses.length === 0 && <option value="">{lang === 'zh' ? '暂无课程' : 'No courses'}</option>}
+              {courses.length === 0 && <option value="">{tr(lang, '暂无课程', 'No courses')}</option>}
               {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           ) : (
             <select value={classId} onChange={(e) => setClassId(e.target.value)}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-              {classes.length === 0 && <option value="">{lang === 'zh' ? '暂无班级' : 'No classes'}</option>}
+              {classes.length === 0 && <option value="">{tr(lang, '暂无班级', 'No classes')}</option>}
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
           {scopeName && !loading && !error && (
             <span className="text-sm text-muted-foreground">
-              {scopeName} · {lang === 'zh' ? `${studentCount} 名学生` : `${studentCount} students`}
+              {scopeName} · {tr(lang, `${studentCount} 名学生`, `${studentCount} students`)}
             </span>
           )}
         </div>
@@ -320,26 +320,26 @@ function AnalyticsContent() {
           <div className="text-center py-16 text-red-500">{error}</div>
         ) : empty ? (
           <div className="text-center py-16 text-muted-foreground">
-            {emptyReason || (lang === 'zh' ? '暂无学习数据' : 'No data yet')}
+            {emptyReason || tr(lang, '暂无学习数据', 'No data yet')}
           </div>
         ) : (
           <div className="space-y-8">
 
             {/* Panel 1: weak knowledge points */}
             <section className="no-print bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-1">🎯 {lang === 'zh' ? '薄弱知识点' : 'Weak Knowledge Points'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '按正确率从低到高，优先复习排在前面的' : 'Lowest correct-rate first'}</p>
+              <h2 className="text-lg font-semibold mb-1">🎯 {tr(lang, '薄弱知识点', 'Weak Knowledge Points')}</h2>
+              <p className="text-xs text-muted-foreground mb-4">{tr(lang, '按正确率从低到高，优先复习排在前面的', 'Lowest correct-rate first')}</p>
               {weakKps.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无足够数据（每题需至少 5 次作答才统计）' : 'Not enough data yet'}</p>
+                <p className="text-sm text-muted-foreground">{tr(lang, '暂无足够数据（每题需至少 5 次作答才统计）', 'Not enough data yet (each question needs at least 5 answers)')}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-muted-foreground border-b">
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '知识点' : 'KP'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '课时' : 'Lesson'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '正确率' : 'Rate'}</th>
-                        <th className="py-2 font-medium">{lang === 'zh' ? '作答数' : 'Answers'}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '知识点', 'KP')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '课时', 'Lesson')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '正确率', 'Rate')}</th>
+                        <th className="py-2 font-medium">{tr(lang, '作答数', 'Answers')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -362,21 +362,21 @@ function AnalyticsContent() {
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => setOpenWrong(v => !v)} className="keep-print flex items-center gap-2 text-left">
                   {openWrong ? <ChevronDown className="w-5 h-5 shrink-0 no-print" /> : <ChevronRight className="w-5 h-5 shrink-0 no-print" />}
-                  <span className="text-lg font-semibold">🌶️ {lang === 'zh' ? '高错题（教师版错题本）' : 'Most-missed Questions'}</span>
+                  <span className="text-lg font-semibold">🌶️ {tr(lang, '高错题（教师版错题本）', 'Most-missed Questions')}</span>
                   <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{rankedQuestions.length}</span>
                 </button>
                 {rankedQuestions.length > 0 && (
                   <button onClick={exportWrong}
                     className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 no-print">
-                    <Printer className="w-4 h-4" /> {lang === 'zh' ? '导出 PDF' : 'Export PDF'}
+                    <Printer className="w-4 h-4" /> {tr(lang, '导出 PDF', 'Export PDF')}
                   </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">{scopeName}{scopeName ? ' · ' : ''}{lang === 'zh' ? '按章节汇总，正确率从低到高排列；点右上角"导出 PDF"可打印' : 'Grouped by chapter, lowest correct-rate first'}</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">{scopeName}{scopeName ? ' · ' : ''}{tr(lang, '按章节汇总，正确率从低到高排列；点右上角"导出 PDF"可打印', 'Grouped by chapter, lowest correct-rate first; use "Export PDF" to print')}</p>
 
               {/* 正确率档位过滤 */}
               <div className="no-print flex flex-wrap items-center gap-2 mb-4">
-                <span className="text-xs text-muted-foreground">{lang === 'zh' ? '正确率：' : 'Rate:'}</span>
+                <span className="text-xs text-muted-foreground">{tr(lang, '正确率：', 'Rate:')}</span>
                 {([['80', '<80%'], ['50', '<50%'], ['30', '<30%']] as const).map(([v, label]) => (
                   <button key={v} onClick={() => setRateFilter(v)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${rateFilter === v ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
@@ -385,20 +385,20 @@ function AnalyticsContent() {
                 ))}
                 <button onClick={() => setRateFilter('none')}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${rateFilter === 'none' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
-                  {lang === 'zh' ? '— 无数据' : '— no data'}
+                  {tr(lang, '— 无数据', '— no data')}
                 </button>
                 <span className="text-xs text-muted-foreground">({rankedQuestions.length})</span>
               </div>
 
               <div className={`${openWrong ? '' : 'hidden'} print-expand space-y-6`}>
                 {rankedQuestions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无需要关注的错题（正确率低于 80% 的题会显示在这里）' : 'No questions below 80% correct'}</p>
+                  <p className="text-sm text-muted-foreground">{tr(lang, '暂无需要关注的错题（正确率低于 80% 的题会显示在这里）', 'No questions below 80% correct')}</p>
                 ) : (
                   wrongByChapter.map((g) => (
                     <div key={g.chapter} className="print-chapter-break">
                       <h3 className="text-md font-semibold mb-2 flex items-center gap-1">
                         <ChevronRight className="w-4 h-4" /> {g.chapter}
-                        <span className="text-sm text-muted-foreground font-normal">({g.items.length} 题)</span>
+                        <span className="text-sm text-muted-foreground font-normal">({tr(lang, `${g.items.length} 题`, `${g.items.length} questions`)})</span>
                       </h3>
                       <div className="space-y-2">
                         {g.items.map((q) => (
@@ -413,9 +413,9 @@ function AnalyticsContent() {
                                 <div className={`text-sm font-semibold ${q.rate === null ? 'text-muted-foreground' : rateClass(q.rate)}`}>
                                   {q.rate === null ? '—' : `${q.rate}%`}
                                 </div>
-                                <div className="text-xs text-muted-foreground">{q.attempts} {lang === 'zh' ? '次作答' : 'ans'}</div>
-                                {q.wrong > 0 && <div className="text-xs text-orange-500">{q.wrong} {lang === 'zh' ? '次答错' : 'wrong'}</div>}
-                                {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {lang === 'zh' ? '人答错' : 'ppl'}</div>}
+                                <div className="text-xs text-muted-foreground">{q.attempts} {tr(lang, '次作答', 'ans')}</div>
+                                {q.wrong > 0 && <div className="text-xs text-orange-500">{q.wrong} {tr(lang, '次答错', 'wrong')}</div>}
+                                {q.wrongStudents > 0 && <div className="text-xs text-red-500">{q.wrongStudents} {tr(lang, '人答错', 'wrong')}</div>}
                               </div>
                             </div>
                             {q.options.length > 0 && (
@@ -438,22 +438,22 @@ function AnalyticsContent() {
 
             {/* Panel 3: attempts & time */}
             <section className="no-print bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-1">⏱️ {lang === 'zh' ? '通关尝试与用时' : 'Attempts & Time'}</h2>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点课时查看每个学生的尝试次数与每次用时' : 'Pass rate = passed / all students; click a lesson for detail'}</p>
+              <h2 className="text-lg font-semibold mb-1">⏱️ {tr(lang, '通关尝试与用时', 'Attempts & Time')}</h2>
+              <p className="text-xs text-muted-foreground mb-4">{tr(lang, '通过率 = 该课时通过人数 ÷ 总人数（含尚未开始的）；点课时查看每个学生的尝试次数与每次用时', 'Pass rate = passed / all students; click a lesson for detail')}</p>
               {lessons.filter((l) => l.attempted > 0).length === 0 ? (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无通关记录' : 'No attempts yet'}</p>
+                <p className="text-sm text-muted-foreground">{tr(lang, '暂无通关记录', 'No attempts yet')}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-muted-foreground border-b">
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '课时' : 'Lesson'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '参与' : 'Tried'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '通过率' : 'Pass'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '首次通过率' : '1st-try'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '平均尝试' : 'Avg tries'}</th>
-                        <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '中位用时' : 'Median'}</th>
-                        <th className="py-2 font-medium">{lang === 'zh' ? '平均用时' : 'Avg'}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '课时', 'Lesson')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '参与', 'Tried')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '通过率', 'Pass')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '首次通过率', '1st-try')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '平均尝试', 'Avg tries')}</th>
+                        <th className="py-2 pr-4 font-medium">{tr(lang, '中位用时', 'Median')}</th>
+                        <th className="py-2 font-medium">{tr(lang, '平均用时', 'Avg')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -474,8 +474,8 @@ function AnalyticsContent() {
                               <td className="py-2 pr-4">{l.passRate === null ? '—' : `${l.passRate}%`}</td>
                               <td className="py-2 pr-4">{l.firstPassRate === null ? '—' : `${l.firstPassRate}%`}</td>
                               <td className="py-2 pr-4">{l.avgAttempts ?? '—'}</td>
-                              <td className="py-2 pr-4">{fmtSeconds(l.medianSeconds)}</td>
-                              <td className="py-2">{fmtSeconds(l.avgSeconds)}</td>
+                              <td className="py-2 pr-4">{fmtSeconds(l.medianSeconds, lang)}</td>
+                              <td className="py-2">{fmtSeconds(l.avgSeconds, lang)}</td>
                             </tr>
                           ))}
                         </Fragment>
@@ -490,15 +490,15 @@ function AnalyticsContent() {
                   {detailLoading ? (
                     <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-emerald-500 animate-spin" /></div>
                   ) : !detail || detail.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{lang === 'zh' ? '该课时暂无学生记录' : 'No records'}</p>
+                    <p className="text-sm text-muted-foreground">{tr(lang, '该课时暂无学生记录', 'No records')}</p>
                   ) : (
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-left text-muted-foreground border-b">
-                          <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '学生' : 'Student'}</th>
-                          <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '尝试次数' : 'Tries'}</th>
-                          <th className="py-2 pr-4 font-medium">{lang === 'zh' ? '结果' : 'Result'}</th>
-                          <th className="py-2 font-medium">{lang === 'zh' ? '每次用时' : 'Time per try'}</th>
+                          <th className="py-2 pr-4 font-medium">{tr(lang, '学生', 'Student')}</th>
+                          <th className="py-2 pr-4 font-medium">{tr(lang, '尝试次数', 'Tries')}</th>
+                          <th className="py-2 pr-4 font-medium">{tr(lang, '结果', 'Result')}</th>
+                          <th className="py-2 font-medium">{tr(lang, '每次用时', 'Time per try')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -508,8 +508,8 @@ function AnalyticsContent() {
                             <td className="py-2 pr-4">{d.attempts}</td>
                             <td className="py-2 pr-4">
                               {d.passed
-                                ? <span className="text-emerald-600">{lang === 'zh' ? '已通过' : 'Passed'}</span>
-                                : <span className="text-red-500">{lang === 'zh' ? '未通过' : 'Not passed'}</span>}
+                                ? <span className="text-emerald-600">{tr(lang, '已通过', 'Passed')}</span>
+                                : <span className="text-red-500">{tr(lang, '未通过', 'Not passed')}</span>}
                             </td>
                             <td className="py-2">
                               {d.attemptDetail.length > 0 ? (
@@ -517,13 +517,13 @@ function AnalyticsContent() {
                                   {d.attemptDetail.map((a, idx) => {
                                     const highlight = d.passed && idx === d.passIndex
                                     const reasons: string[] = []
-                                    if (a.focusLost >= 2) reasons.push(lang === 'zh' ? `切屏${a.focusLost}次` : `${a.focusLost} switches`)
-                                    if (highlight && a.secPerQ !== null && a.secPerQ < 8) reasons.push(lang === 'zh' ? `过快·平均${a.secPerQ}秒/题` : `fast ${a.secPerQ}s/q`)
+                                    if (a.focusLost >= 2) reasons.push(tr(lang, `切屏${a.focusLost}次`, `${a.focusLost} switches`))
+                                    if (highlight && a.secPerQ !== null && a.secPerQ < 8) reasons.push(tr(lang, `过快·平均${a.secPerQ}秒/题`, `fast ${a.secPerQ}s/q`))
                                     return (
                                       <button key={a.sessionId} onClick={() => openSession(a.sessionId)}
                                         className={`text-left hover:underline ${highlight ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
-                                        title={lang === 'zh' ? '查看这次测试的题目' : 'View questions'}>
-                                        {fmtSeconds(a.seconds)} · {lang === 'zh' ? `${a.correct}对${a.wrong}错` : `${a.correct}✓ ${a.wrong}✗`}
+                                        title={tr(lang, '查看这次测试的题目', 'View questions')}>
+                                        {fmtSeconds(a.seconds, lang)} · {tr(lang, `${a.correct}对${a.wrong}错`, `${a.correct}✓ ${a.wrong}✗`)}
                                         {reasons.length > 0 && <span className="text-amber-600 ml-1 font-medium">⚠️{reasons.join(' · ')}</span>}
                                       </button>
                                     )
@@ -543,30 +543,30 @@ function AnalyticsContent() {
             {/* Panel 4: student wrong books */}
             <section className="no-print bg-card rounded-2xl border p-6">
               <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-semibold">📕 {lang === 'zh' ? '学生错题本' : 'Student Wrong Books'}</h2>
+                <h2 className="text-lg font-semibold">📕 {tr(lang, '学生错题本', 'Student Wrong Books')}</h2>
                 {studentList.length > 0 && (
                   <div className="flex gap-1 text-xs">
                     <button onClick={() => setStudentSort('wrong')}
                       className={`px-2 py-1 rounded ${studentSort === 'wrong' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
-                      {lang === 'zh' ? '错题数 ↓' : 'Most'}
+                      {tr(lang, '错题数 ↓', 'Most')}
                     </button>
                     <button onClick={() => setStudentSort('name')}
                       className={`px-2 py-1 rounded ${studentSort === 'name' ? 'bg-emerald-100 text-emerald-700 font-medium' : 'text-muted-foreground hover:bg-gray-100'}`}>
-                      {lang === 'zh' ? '姓名 ↑' : 'Name'}
+                      {tr(lang, '姓名 ↑', 'Name')}
                     </button>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mb-4">{lang === 'zh' ? '点学生名字，查看他在本课程的全部错题' : 'Click a student to view their wrong questions'}</p>
+              <p className="text-xs text-muted-foreground mb-4">{tr(lang, '点学生名字，查看他在本课程的全部错题', 'Click a student to view their wrong questions')}</p>
               {studentList.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '暂无学生数据' : 'No students'}</p>
+                <p className="text-sm text-muted-foreground">{tr(lang, '暂无学生数据', 'No students')}</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {sortedStudents.map((s) => (
                     <button key={s.id} onClick={() => openStudentWrong(s.id, s.name)}
                       className="flex items-center justify-between gap-2 px-2.5 py-1.5 border rounded-lg text-sm text-left hover:bg-blue-50 hover:border-blue-300 transition-colors">
                       <span className="truncate">{s.name}</span>
-                      {s.wrongCount > 0 && <span className="text-xs text-orange-600 shrink-0">{s.wrongCount} 题</span>}
+                      {s.wrongCount > 0 && <span className="text-xs text-orange-600 shrink-0">{tr(lang, `${s.wrongCount} 题`, `${s.wrongCount} q`)}</span>}
                     </button>
                   ))}
                 </div>
@@ -586,17 +586,17 @@ function AnalyticsContent() {
                 {sessionModal.studentName} · {sessionModal.lessonTitle}
                 {sessionLoading && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />}
               </h3>
-              <button onClick={() => setSessionModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+              <button onClick={() => setSessionModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">{tr(lang, '关闭', 'Close')}</button>
             </div>
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-3">
               {sessionModal.questions.length === 0 && !sessionLoading && (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '这次测试暂无题目记录' : 'No records'}</p>
+                <p className="text-sm text-muted-foreground">{tr(lang, '这次测试暂无题目记录', 'No records')}</p>
               )}
               {sessionModal.questions.map((q, i) => (
                 <div key={i} className="border rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                      {q.isCorrect ? (lang === 'zh' ? '对' : 'ok') : (lang === 'zh' ? '错' : 'x')}
+                      {q.isCorrect ? tr(lang, '对', 'ok') : tr(lang, '错', 'x')}
                     </span>
                     <span className="text-xs text-muted-foreground">#{i + 1}</span>
                   </div>
@@ -610,7 +610,7 @@ function AnalyticsContent() {
                     ))}
                   </div>
                   {!q.isCorrect && q.selected && (
-                    <div className="text-xs text-red-500 mt-1">{lang === 'zh' ? '学生选了：' : 'Chose: '}<KatexHtml text={cleanOption(q.selected)} /></div>
+                    <div className="text-xs text-red-500 mt-1">{tr(lang, '学生选了：', 'Chose: ')}<KatexHtml text={cleanOption(q.selected)} /></div>
                   )}
                 </div>
               ))}
@@ -625,22 +625,22 @@ function AnalyticsContent() {
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-12">
             <div className="flex items-center justify-between px-6 py-3 border-b">
               <h3 className="font-semibold flex items-center gap-2">
-                {lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}
+                {tr(lang, `${wrongModal.studentName} 的错题本`, `${wrongModal.studentName} · wrong book`)}
                 {wrongLoading && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />}
               </h3>
               <div className="flex items-center gap-2">
                 {wrongModal.questions.length > 0 && (
                   <button onClick={exportStudentBook}
                     className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600">
-                    <Printer className="w-4 h-4" /> {lang === 'zh' ? '导出/打印' : 'Export'}
+                    <Printer className="w-4 h-4" /> {tr(lang, '导出/打印', 'Export')}
                   </button>
                 )}
-                <button onClick={() => setWrongModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">关闭</button>
+                <button onClick={() => setWrongModal(null)} className="px-3 py-1.5 bg-gray-200 rounded-lg text-sm">{tr(lang, '关闭', 'Close')}</button>
               </div>
             </div>
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-3">
               {wrongModal.questions.length === 0 && !wrongLoading && (
-                <p className="text-sm text-muted-foreground">{lang === 'zh' ? '该学生在这门课里暂无错题记录' : 'No wrong questions'}</p>
+                <p className="text-sm text-muted-foreground">{tr(lang, '该学生在这门课里暂无错题记录', 'No wrong questions')}</p>
               )}
               {wrongModal.questions.map((q, i) => wrongQuestionCard(q, i))}
             </div>
@@ -651,7 +651,7 @@ function AnalyticsContent() {
       {/* Off-screen copy that is the only thing printed for the student wrong book */}
       {wrongModal && wrongModal.questions.length > 0 && (
         <div className="print-book">
-          <h2 className="text-lg font-bold mb-3">{lang === 'zh' ? `${wrongModal.studentName} 的错题本` : `${wrongModal.studentName} · wrong book`}</h2>
+          <h2 className="text-lg font-bold mb-3">{tr(lang, `${wrongModal.studentName} 的错题本`, `${wrongModal.studentName} · wrong book`)}</h2>
           <div className="space-y-3">
             {wrongModal.questions.map((q, i) => wrongQuestionCard(q, i))}
           </div>

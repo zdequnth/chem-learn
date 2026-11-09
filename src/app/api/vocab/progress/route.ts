@@ -134,7 +134,7 @@ async function aggregate(courseIds: string[], studentId: string, perCourse: bool
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const courseId = searchParams.get('courseId')
@@ -178,18 +178,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { wordId, result, mode } = await request.json()
   if (!wordId || !['known', 'fuzzy', 'unknown'].includes(result)) {
-    return NextResponse.json({ error: '参数不对' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid parameters（参数不对）' }, { status: 400 })
   }
   // Absent/unknown mode → treat as non-objective, so a stale client cannot
   // inflate mastery by mistake.
   const objective = OBJECTIVE_MODES.has(String(mode))
 
   const { data: w } = await supabaseAdmin('vocab_words', { query: `?id=eq.${wordId}&select=id` })
-  if (!w?.[0]) return NextResponse.json({ error: '词条不存在' }, { status: 404 })
+  if (!w?.[0]) return NextResponse.json({ error: 'Word not found（词条不存在）' }, { status: 404 })
 
   // Read-then-write rather than PostgREST upsert: supabaseAdmin() hardcodes
   // `Prefer: return=representation` on POST, and an upsert would need

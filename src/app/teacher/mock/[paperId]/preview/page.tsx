@@ -10,6 +10,7 @@ import QuestionImage from '@/components/QuestionImage'
 import { kindTheme } from '@/lib/course-kind'
 import { groupsForPaper, groupIndexOf, partLabel } from '@/lib/mock-groups'
 import { ArrowLeft, Loader2, Eye, EyeOff, AlertTriangle, Edit3 } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const theme = kindTheme('mock')
@@ -35,6 +36,7 @@ interface PQ {
 function PreviewContent() {
   const { paperId } = useParams<{ paperId: string }>()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState('')
   const [showAnswers, setShowAnswers] = useState(true)
@@ -64,7 +66,7 @@ function PreviewContent() {
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 pt-24 pb-24">
         <Link href="/teacher/mock" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> 返回试卷管理
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回试卷管理', 'Back to papers')}
         </Link>
 
         {error ? (
@@ -77,14 +79,16 @@ function PreviewContent() {
               <div>
                 <h1 className="text-xl font-bold">{data.paper.title}</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  预览 · {questions.length} 题 · {data.paper.durationMinutes} 分钟
-                  {data.sourceCourseName && ` · 题目对应「${data.sourceCourseName}」的章节课时`}
+                  {tr(lang,
+                    `预览 · ${questions.length} 题 · ${data.paper.durationMinutes} 分钟`,
+                    `Preview · ${questions.length} questions · ${data.paper.durationMinutes} min`)}
+                  {data.sourceCourseName && tr(lang, ` · 题目对应「${data.sourceCourseName}」的章节课时`, ` · Questions map to chapters/lessons of ${data.sourceCourseName}`)}
                 </p>
               </div>
               <button onClick={() => setShowAnswers(v => !v)}
                 className={`ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${showAnswers ? theme.solid : 'hover:bg-accent'}`}>
                 {showAnswers ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                {showAnswers ? '正在显示答案' : '学生视角（无答案）'}
+                {showAnswers ? tr(lang, '正在显示答案', 'Showing answers') : tr(lang, '学生视角（无答案）', 'Student view (no answers)')}
               </button>
             </div>
 
@@ -92,16 +96,16 @@ function PreviewContent() {
               <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 {isShortPaper
-                  ? <>{flagged} 题还没有参考答案 —— 没有它 AI 判不了分。它们会标红。</>
-                  : <>{flagged} 题的正确答案不是恰好 1 个（可能是 AI 没标对，或多选了）。显示答案时它们会标红。</>}
+                  ? <>{tr(lang, `${flagged} 题还没有参考答案 —— 没有它 AI 判不了分。它们会标红。`, `${flagged} questions have no reference answer — AI cannot grade them without one. They are highlighted in red.`)}</>
+                  : <>{tr(lang, `${flagged} 题的正确答案不是恰好 1 个（可能是 AI 没标对，或多选了）。显示答案时它们会标红。`, `${flagged} questions do not have exactly one correct answer (AI may have mis-marked or selected several). They are highlighted in red when answers are shown.`)}</>}
               </div>
             )}
 
             {cur && (
               <div className="bg-card border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3 flex-wrap text-xs text-muted-foreground">
-                  <span>第 {idx + 1} / {questions.length} 题</span>
-                  <span>· 难度 {cur.difficulty}</span>
+                  <span>{tr(lang, `第 ${idx + 1} / ${questions.length} 题`, `Question ${idx + 1} / ${questions.length}`)}</span>
+                  <span>{tr(lang, `· 难度 ${cur.difficulty}`, `· Difficulty ${cur.difficulty}`)}</span>
                   {showAnswers && (cur.chapterTitle || cur.lessonTitle) && (
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                       {cur.chapterTitle}{cur.lessonRef ? ` › ${cur.lessonRef}` : ''} {cur.lessonTitle}
@@ -111,7 +115,7 @@ function PreviewContent() {
                       editor and hunting for the same question again. */}
                   <Link href={`/teacher/mock?course=${data.paper.courseId}&paper=${data.paper.id}&q=${idx}`}
                     className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-accent transition-colors">
-                    <Edit3 className="w-3.5 h-3.5" /> 编辑这道题
+                    <Edit3 className="w-3.5 h-3.5" /> {tr(lang, '编辑这道题', 'Edit question')}
                   </Link>
                 </div>
 
@@ -121,16 +125,16 @@ function PreviewContent() {
                 {cur.answerType === 'short' ? (
                   showAnswers ? (
                     <div className="px-3 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50">
-                      <div className="text-xs text-emerald-800 mb-1">参考答案（学生看到的判分依据）</div>
+                      <div className="text-xs text-emerald-800 mb-1">{tr(lang, '参考答案（学生看到的判分依据）', 'Reference answer (the marking basis shown to students)')}</div>
                       <div className="text-sm whitespace-pre-wrap">
                         {cur.answerText
                           ? <KatexHtml text={wrapBareLatex(cur.answerText)} />
-                          : <span className="text-rose-600">（还没填参考答案 —— AI 判不了这道题）</span>}
+                          : <span className="text-rose-600">{tr(lang, '（还没填参考答案 —— AI 判不了这道题）', '(No reference answer yet — AI cannot grade this question)')}</span>}
                       </div>
                     </div>
                   ) : (
                     <div className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-muted-foreground">
-                      学生在这里写一段文字作答（这里不显示参考答案）
+                      {tr(lang, '学生在这里写一段文字作答（这里不显示参考答案）', 'Students type their answer here (the reference answer is hidden)')}
                     </div>
                   )
                 ) : (
@@ -145,7 +149,7 @@ function PreviewContent() {
                           {LETTERS[oi]}
                         </span>
                         <span className="flex-1 text-sm">{cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}</span>
-                        {reveal && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
+                        {reveal && <span className="text-xs text-emerald-700 shrink-0">{tr(lang, '正确答案', 'Correct answer')}</span>}
                       </div>
                     )
                   })}
@@ -160,9 +164,9 @@ function PreviewContent() {
 
                 <div className="flex items-center justify-center gap-3 mt-6">
                   <button onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}
-                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">上一题</button>
+                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">{tr(lang, '上一题', 'Previous')}</button>
                   <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}
-                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">下一题</button>
+                    className="px-6 py-2 border rounded-lg text-sm hover:bg-accent disabled:opacity-40">{tr(lang, '下一题', 'Next')}</button>
                 </div>
               </div>
             )}
@@ -175,7 +179,7 @@ function PreviewContent() {
               <div className="space-y-1 mt-4">
                 {groups.map((g, gi) => (
                   <div key={gi} className="flex flex-wrap items-center gap-1.5">
-                    <span className="w-14 shrink-0 text-xs text-muted-foreground">第 {gi + 1} 题</span>
+                    <span className="w-14 shrink-0 text-xs text-muted-foreground">{tr(lang, `第 ${gi + 1} 题`, `Q${gi + 1}`)}</span>
                     {g.items.map((q, si) => {
                       const i = g.start + si
                       return (
@@ -204,8 +208,9 @@ function PreviewContent() {
             )}
 
             <p className="text-xs text-muted-foreground mt-4">
-              这是老师预览，不会产生任何考试记录。学生看到的是同一个排版，但**没有答案、没有解析**，
-              而且倒计时结束会自动交卷。
+              {tr(lang,
+                '这是老师预览，不会产生任何考试记录。学生看到的是同一个排版，但没有答案、没有解析，而且倒计时结束会自动交卷。',
+                'This is a teacher preview and creates no exam records. Students see the same layout, but without answers or explanations; the exam is submitted automatically when the timer ends.')}
             </p>
           </>
         )}

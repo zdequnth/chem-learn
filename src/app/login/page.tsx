@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/providers'
 import { createClient } from '@/lib/supabase/client'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 function LoginForm() {
   const router = useRouter()
@@ -35,14 +35,14 @@ function LoginForm() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) { setError('请输入邮箱'); return }
+    if (!email) { setError(tr(lang, '请输入邮箱', 'Please enter your email')); return }
     setError('')
     setBusy(true)
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://chem-learn-seven.vercel.app/auth/update-password',
     })
     if (err) { setError(err.message) }
-    else { setError('密码重置邮件已发送，请检查邮箱（含垃圾箱）') }
+    else { setError(tr(lang, '密码重置邮件已发送，请检查邮箱（含垃圾箱）', 'Reset email sent. Check your inbox (and spam).')) }
     setBusy(false)
   }
 
@@ -102,7 +102,7 @@ function LoginForm() {
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
                   placeholder={t('email', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
-                {error && <div className={`p-3 rounded-lg text-sm ${error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
+                {error && <div className={`p-3 rounded-lg text-sm ${error.includes('已发送') || error.includes('sent') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
                 <button type="submit" disabled={busy}
                   className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
                   {busy ? t('sending', lang) : t('sendReset', lang)}
@@ -130,7 +130,7 @@ function LoginForm() {
             {isSignup && (
               <>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} required
-                  placeholder={lang === 'zh' ? '中文名+英文名，如 张三Jack' : 'Full Name, e.g. Jack Zhang'} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                  placeholder={tr(lang, '中文名+英文名，如 张三Jack', 'Full Name, e.g. Jack Zhang')} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setRole('student')}
                     className={`flex-1 py-2 rounded-lg text-sm ${role === 'student' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' : 'bg-gray-50 text-gray-500'}`}>
@@ -151,7 +151,7 @@ function LoginForm() {
               placeholder={t('email', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
               placeholder={t('password', lang)} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
-            {error && <div className={`p-3 rounded-lg text-sm ${error.includes('成功') || error.includes('已发送') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
+            {error && <div className={`p-3 rounded-lg text-sm ${error.includes('成功') || error.includes('success') || error.includes('已发送') || error.includes('sent') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{error}</div>}
             <button type="submit" disabled={busy}
               className="w-full py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
               {busy ? t('registering', lang) : isSignup ? t('signup', lang) : t('login', lang)}

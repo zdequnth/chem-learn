@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/admin'
 import { NextResponse } from 'next/server'
 import { parseItemInput, rowToItem } from '@/lib/schedule'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,start_period,end_period,note'
 
@@ -16,20 +17,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const existing = await loadOwnedItem(user.id, id)
-  if (!existing) return NextResponse.json({ error: '安排不存在' }, { status: 404 })
+  if (!existing) return NextResponse.json({ error: 'Schedule not found（安排不存在）' }, { status: 404 })
 
   const body = await request.json().catch(() => ({}))
   const { input, error: parseError } = parseItemInput({ ...rowToItem(existing), ...body })
-  if (!input) return NextResponse.json({ error: parseError }, { status: 400 })
+  if (!input) return NextResponse.json({ error: bilingualError(parseError || '') }, { status: 400 })
 
   if (input.classId) {
     const { data: owned } = await supabaseAdmin('classes', {
       query: `?id=eq.${input.classId}&teacher_id=eq.${user.id}&select=id`,
     })
-    if (!owned?.length) return NextResponse.json({ error: '班级不存在' }, { status: 400 })
+    if (!owned?.length) return NextResponse.json({ error: 'Class not found（班级不存在）' }, { status: 400 })
   }
 
   const { data, error } = await supabaseAdmin('schedule_items', {
@@ -58,10 +59,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const existing = await loadOwnedItem(user.id, id)
-  if (!existing) return NextResponse.json({ error: '安排不存在' }, { status: 404 })
+  if (!existing) return NextResponse.json({ error: 'Schedule not found（安排不存在）' }, { status: 404 })
 
   const { error } = await supabaseAdmin('schedule_items', {
     method: 'DELETE',

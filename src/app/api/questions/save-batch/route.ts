@@ -19,7 +19,7 @@ async function checkLessonAccess(userId: string, lessonId: string): Promise<bool
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { questions } = body
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const lessonIds = [...new Set<string>((questions || []).map((q: any) => q.lesson_id))]
   for (const lid of lessonIds) {
     if (!await checkLessonAccess(user.id, lid)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
   }
 

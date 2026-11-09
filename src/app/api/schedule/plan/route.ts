@@ -37,17 +37,18 @@ function compressPeriods(nums: number[]): string {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const goalId = typeof body?.goalId === 'string' ? body.goalId : ''
-  if (!goalId) return NextResponse.json({ error: '缺少目标' }, { status: 400 })
+  if (!goalId) return NextResponse.json({ error: 'Missing goal（缺少目标）' }, { status: 400 })
+  const inEnglish = body?.lang === 'en'
   const today = isDateString(body?.today) ? body.today : ymd(new Date())
 
   const { data: goalRows } = await supabaseAdmin('schedule_goals', {
     query: `?id=eq.${goalId}&teacher_id=eq.${user.id}&select=*`,
   })
-  if (!goalRows?.length) return NextResponse.json({ error: '目标不存在' }, { status: 404 })
+  if (!goalRows?.length) return NextResponse.json({ error: 'Goal not found（目标不存在）' }, { status: 404 })
   const goal = rowToGoal(goalRows[0])
 
   const { data: settingRows } = await supabaseAdmin('schedule_settings', {
@@ -148,12 +149,13 @@ ${existingLines.length ? existingLines.join('\n') : '（无）'}
 4. 按截止日期把步骤均匀铺开：不要全塞在本周，也不要拖到最后一周才动。
 5. 同一天最多 2 个步骤、合计不超过 3 节；给老师留出机动时间。
 6. date 必须是 YYYY-MM-DD，且落在【可安排日期】范围内。
+${inEnglish ? '7. title 用英文书写（老师的界面是英文）。' : ''}
 
 只输出纯 JSON（不要 markdown 代码块，不要任何解释）：
 {"steps":[{"date":"${today}","startPeriod":3,"endPeriod":4,"title":"..."}]}`
 
   const apiKey = process.env.DEEPSEEK_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key 未配置' }, { status: 500 })
+  if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key is not configured（DeepSeek API key 未配置）' }, { status: 500 })
 
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: 50_000, maxRetries: 0 })
 
@@ -174,7 +176,7 @@ ${existingLines.length ? existingLines.join('\n') : '（无）'}
       parsed = JSON.parse(raw)
     } catch {
       const m = raw.match(/\{[\s\S]*\}/)
-      if (!m) throw new Error('AI 没有返回有效 JSON')
+      if (!m) throw new Error('AI did not return valid JSON（AI 没有返回有效 JSON）')
       parsed = JSON.parse(m[0])
     }
 
@@ -211,6 +213,6 @@ ${existingLines.length ? existingLines.join('\n') : '（无）'}
     accepted.sort((a, b) => a.date.localeCompare(b.date) || a.startPeriod - b.startPeriod)
     return NextResponse.json({ steps: accepted, dropped, window: { from: today, to: end } })
   } catch (e: any) {
-    return NextResponse.json({ error: 'AI 拆解失败：' + (e?.message || e) }, { status: 502 })
+    return NextResponse.json({ error: 'AI breakdown failed（AI 拆解失败）: ' + (e?.message || e) }, { status: 502 })
   }
 }

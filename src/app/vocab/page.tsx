@@ -6,7 +6,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import type { VocabResult, VocabDifficulty, VocabWordWithProgress } from '@/lib/types'
 import { Loader2, ArrowLeft, Volume2, Sparkles, X } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 type LessonRow = {
   id: string; title: string; chapterId: string; chapterTitle: string
@@ -20,8 +20,8 @@ type StudyMode = 'card' | 'list' | 'spell' | 'choice' | 'def'
 // Two kinds of practice, and they mean different things: 学习 is for reading and
 // never moves the mastery box; only 测试 counts. Each group has its own default
 // (卡片 / 选择) that you get by clicking the group name.
-const STUDY_MODES = [['card', '卡片'], ['list', '列表']] as const
-const TEST_MODES = [['spell', '拼写'], ['choice', '选择'], ['def', '释义']] as const
+const STUDY_MODES = [['card', '卡片', 'Card'], ['list', '列表', 'List']] as const
+const TEST_MODES = [['spell', '拼写', 'Spell'], ['choice', '选择', 'Choice'], ['def', '释义', 'Meaning']] as const
 const GROUP_DEFAULT: Record<'study' | 'test', StudyMode> = { study: 'card', test: 'choice' }
 
 // 「拓展阅读」 means "worth having seen", not "worth being tested on", so the test
@@ -144,11 +144,11 @@ function VocabContent() {
     <div className="flex items-center justify-center gap-2 flex-wrap">
       <button onClick={() => speak(text, 'gb')}
         className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
-        <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '英式' : 'UK'}
+        <Volume2 className="w-4 h-4" /> {tr(lang, '英式', 'UK')}
       </button>
       <button onClick={() => speak(text, 'us')}
         className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm hover:bg-accent transition-colors">
-        <Volume2 className="w-4 h-4" /> {lang === 'zh' ? '美式' : 'US'}
+        <Volume2 className="w-4 h-4" /> {tr(lang, '美式', 'US')}
       </button>
     </div>
   )
@@ -184,7 +184,7 @@ function VocabContent() {
     const words: VocabWordWithProgress[] = json.words || []
     const q = buildQueue(words, sessionMode)
     setBusy(false)
-    if (q.length === 0) { alert(lang === 'zh' ? '这个课时没有可学的词' : 'No words to study'); return }
+    if (q.length === 0) { alert(tr(lang, '这个课时没有可学的词', 'No words to study in this lesson')); return }
     requeued.current = new Set()
     testShuffled.current = false
     // The whole lesson is kept as the distractor pool, so a word re-shown after
@@ -379,7 +379,7 @@ function VocabContent() {
         <main className="max-w-2xl mx-auto px-4 pt-24 pb-20">
           <div className="flex items-center justify-between mb-3">
             <button onClick={endSession} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '结束' : 'End'}
+              <ArrowLeft className="w-4 h-4" /> {tr(lang, '结束', 'End')}
             </button>
           </div>
 
@@ -392,17 +392,17 @@ function VocabContent() {
               <div className="flex items-baseline justify-center gap-2 mb-1.5">
                 <button onClick={() => pickMode(GROUP_DEFAULT.study)}
                   className="text-lg font-bold text-sky-700 hover:underline">
-                  {lang === 'zh' ? '学习模式' : 'Study'}
+                  {tr(lang, '学习模式', 'Study')}
                 </button>
                 <span className="text-[11px] text-sky-700/70 whitespace-nowrap">
-                  {lang === 'zh' ? '只学习，不计成绩' : 'not graded'}
+                  {tr(lang, '只学习，不计成绩', 'not graded')}
                 </span>
               </div>
               <div className="flex flex-wrap justify-center gap-1.5">
-                {STUDY_MODES.map(([m, label]) => (
+                {STUDY_MODES.map(([m, zh, en]) => (
                   <button key={m} onClick={() => pickMode(m)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${mode === m ? 'bg-sky-600 border-sky-600 text-white font-semibold' : 'border-sky-300 text-sky-800 hover:bg-sky-100'}`}>
-                    {label}
+                    {tr(lang, zh, en)}
                   </button>
                 ))}
               </div>
@@ -412,17 +412,17 @@ function VocabContent() {
               <div className="flex items-baseline justify-center gap-2 mb-1.5">
                 <button onClick={() => pickMode(GROUP_DEFAULT.test)}
                   className="text-lg font-bold text-amber-700 hover:underline">
-                  {lang === 'zh' ? '测试模式' : 'Test'}
+                  {tr(lang, '测试模式', 'Test')}
                 </button>
                 <span className="text-[11px] text-amber-700/70 whitespace-nowrap">
-                  {lang === 'zh' ? '答对两次算掌握' : 'right twice = mastered'}
+                  {tr(lang, '答对两次算掌握', 'right twice = mastered')}
                 </span>
               </div>
               <div className="flex flex-wrap justify-center gap-1.5">
-                {TEST_MODES.map(([m, label]) => (
+                {TEST_MODES.map(([m, zh, en]) => (
                   <button key={m} onClick={() => pickMode(m)}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${mode === m ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:bg-amber-100'}`}>
-                    {label}
+                    {tr(lang, zh, en)}
                   </button>
                 ))}
               </div>
@@ -432,7 +432,7 @@ function VocabContent() {
           {mode === 'list' ? (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground mb-1">
-              {lang === 'zh' ? `本课时共 ${wordPool.length} 个词，顺着看一遍就行（不计成绩）。` : `All ${wordPool.length} words of this lesson.`}
+              {tr(lang, `本课时共 ${wordPool.length} 个词，顺着看一遍就行（不计成绩）。`, `All ${wordPool.length} words of this lesson — read through, not graded.`)}
             </p>
             {wordPool.map(w => (
               <div key={w.id} className="bg-card border rounded-xl p-3 flex items-start gap-3">
@@ -448,7 +448,7 @@ function VocabContent() {
                 </div>
                 {w.image_url && (
                   <button type="button" onClick={() => setZoom(w.image_url)}
-                    title={lang === 'zh' ? '点图放大' : 'Tap to enlarge'} className="shrink-0">
+                    title={tr(lang, '点图放大', 'Tap to enlarge')} className="shrink-0">
                     <img src={w.image_url} alt={w.term} loading="lazy"
                       className="w-20 h-20 object-contain rounded-lg border bg-white cursor-zoom-in" />
                   </button>
@@ -465,10 +465,10 @@ function VocabContent() {
           {blockedInTest ? (
           <div className="bg-card border rounded-2xl p-10 text-center">
             <p className="text-sm text-muted-foreground">
-              {lang === 'zh' ? '这里剩下的都是「拓展阅读」的词 —— 这类词测试模式不考（看过就行）。' : 'The words left are reading-only; tests skip them.'}
+              {tr(lang, '这里剩下的都是「拓展阅读」的词 —— 这类词测试模式不考（看过就行）。', 'The words left are reading-only; tests skip them.')}
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              {lang === 'zh' ? '换回「学习模式」继续看，或点左上角结束。' : 'Switch back to 学习模式, or end here.'}
+              {tr(lang, '换回「学习模式」继续看，或点左上角结束。', 'Switch back to Study mode, or end here.')}
             </p>
           </div>
           ) : (
@@ -487,14 +487,14 @@ function VocabContent() {
                 <div className="text-3xl font-bold">{word.term}</div>
                 {word.ipa && <div className="text-sm text-muted-foreground mt-1">{word.ipa}</div>}
                 {noVoice
-                  ? <div className="mt-3 text-xs text-amber-600">{lang === 'zh' ? '此设备没有英语语音库，无法朗读' : 'No English voice on this device'}</div>
+                  ? <div className="mt-3 text-xs text-amber-600">{tr(lang, '此设备没有英语语音库，无法朗读', 'No English voice on this device')}</div>
                   : <div className="mt-3">{speakButtons(word.term)}</div>}
               </div>
             )}
 
             {mode === 'spell' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '看中文写英文' : 'Spell the English term'}</div>
+                <div className="text-sm text-muted-foreground mb-2">{tr(lang, '看中文写英文', 'Spell the English term')}</div>
                 <div className="text-2xl font-semibold mb-1">{word.zh}</div>
                 {word.en_def && <div className="text-sm text-muted-foreground mb-4">{word.en_def}</div>}
                 <div className="mb-4">{speakButtons(word.term)}</div>
@@ -506,7 +506,7 @@ function VocabContent() {
                 {!flipped && (
                   <button onClick={submitSpelling} disabled={!answerInput.trim()}
                     className="mt-3 px-5 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-40">
-                    {lang === 'zh' ? '检查' : 'Check'}
+                    {tr(lang, '检查', 'Check')}
                   </button>
                 )}
               </div>
@@ -514,7 +514,7 @@ function VocabContent() {
 
             {mode === 'choice' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '选出正确的中文释义' : 'Pick the correct meaning'}</div>
+                <div className="text-sm text-muted-foreground mb-2">{tr(lang, '选出正确的中文释义', 'Pick the correct meaning')}</div>
                 <div className="text-3xl font-bold mb-1">{word.term}</div>
                 <div className="mb-4">{speakButtons(word.term)}</div>
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
@@ -535,7 +535,7 @@ function VocabContent() {
 
             {mode === 'def' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="text-sm text-muted-foreground mb-2">{lang === 'zh' ? '看英文释义，选出对应的英文单词' : 'Pick the word that matches the definition'}</div>
+                <div className="text-sm text-muted-foreground mb-2">{tr(lang, '看英文释义，选出对应的英文单词', 'Pick the word that matches the definition')}</div>
                 <div className="text-lg font-medium mb-1 max-w-md">{word.en_def || word.zh}</div>
                 {word.ipa && <div className="text-sm text-muted-foreground mb-4">{word.ipa}</div>}
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
@@ -558,7 +558,7 @@ function VocabContent() {
             {flipped && (
               <div className="mt-6 pt-5 border-t text-center">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-                  {lang === 'zh' ? '答案' : 'Answer'}
+                  {tr(lang, '答案', 'Answer')}
                 </div>
                 <div className="text-3xl font-bold">{word.term}</div>
                 <div className="text-xl font-semibold text-emerald-700 mt-1">{word.zh}</div>
@@ -570,7 +570,7 @@ function VocabContent() {
                     <img src={word.image_url} alt={word.term}
                       className="mx-auto max-h-72 w-auto rounded-xl border object-contain cursor-zoom-in" loading="lazy" />
                     <span className="block mt-1 text-xs text-muted-foreground group-hover:text-foreground">
-                      {lang === 'zh' ? '点图放大' : 'Tap to enlarge'}
+                      {tr(lang, '点图放大', 'Tap to enlarge')}
                     </span>
                   </button>
                 )}
@@ -589,7 +589,7 @@ function VocabContent() {
             {mode === 'card' && !flipped && (
               <button onClick={() => setFlipped(true)}
                 className="w-full py-4 border-2 border-dashed rounded-2xl text-sm font-medium text-muted-foreground hover:border-emerald-300 hover:text-foreground transition-colors">
-                {lang === 'zh' ? '翻卡看答案' : 'Flip to reveal'}
+                {tr(lang, '翻卡看答案', 'Flip to reveal')}
               </button>
             )}
 
@@ -610,7 +610,7 @@ function VocabContent() {
             {flipped && mode !== 'card' && (
               <button onClick={() => advance(word, lastOk === false)}
                 className="w-full py-4 bg-gray-900 text-white rounded-2xl text-sm font-medium hover:bg-black transition-colors">
-                {isLast ? (lang === 'zh' ? '完成' : 'Finish') : (lang === 'zh' ? '下一个' : 'Next')}
+                {tr(lang, isLast ? '完成' : '下一个', isLast ? 'Finish' : 'Next')}
               </button>
             )}
           </div>
@@ -618,7 +618,7 @@ function VocabContent() {
           )}
 
           <div className="text-center text-xs text-muted-foreground mt-4">
-            {lang === 'zh' ? `已完成 ${done} · 剩余 ${queue.length - pos + again.length}` : `Done ${done} · Left ${queue.length - pos + again.length}`}
+            {tr(lang, `已完成 ${done} · 剩余 ${queue.length - pos + again.length}`, `Done ${done} · Left ${queue.length - pos + again.length}`)}
           </div>
           </>
           )}
@@ -627,7 +627,7 @@ function VocabContent() {
         {/* full-screen image, for diagrams with small labels */}
         {zoom && (
           <div className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-3">
-            <button onClick={() => setZoom(null)} title="关闭"
+            <button onClick={() => setZoom(null)} title={tr(lang, '关闭', 'Close')}
               className="absolute top-4 right-4 p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white transition-colors">
               <X className="w-6 h-6" />
             </button>
@@ -647,10 +647,10 @@ function VocabContent() {
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-emerald-500" /> {lang === 'zh' ? '背单词' : 'Vocabulary'}
+            <Sparkles className="w-6 h-6 text-emerald-500" /> {tr(lang, '背单词', 'Vocabulary')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {lang === 'zh' ? '按课时学习化学专业词汇，进度自动保存，换设备也在。' : 'Learn chemistry terms by lesson; progress is saved to your account.'}
+            {tr(lang, '按课时学习化学专业词汇，进度自动保存，换设备也在。', 'Learn chemistry terms by lesson; progress is saved to your account.')}
           </p>
         </div>
 
@@ -658,7 +658,7 @@ function VocabContent() {
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : courses.length === 0 ? (
           <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-            {lang === 'zh' ? '还没有可学的词汇。等老师上传词库后就会出现在这里。' : 'No vocabulary available yet.'}
+            {tr(lang, '还没有可学的词汇。等老师上传词库后就会出现在这里。', 'No vocabulary available yet. It will appear here once your teacher uploads a word list.')}
           </div>
         ) : (
           <>
@@ -669,9 +669,9 @@ function VocabContent() {
               </select>
               {courses.find(c => c.id === selectedCourse) && (
                 <span className="text-sm text-muted-foreground">
-                  {(() => { const c = courses.find(x => x.id === selectedCourse)!; return lang === 'zh'
-                    ? `${c.wordCount} 词 · 已学 ${c.studied} · 掌握 ${c.mastered}`
-                    : `${c.wordCount} words · studied ${c.studied} · mastered ${c.mastered}` })()}
+                  {(() => { const c = courses.find(x => x.id === selectedCourse)!; return tr(lang,
+                    `${c.wordCount} 词 · 已学 ${c.studied} · 掌握 ${c.mastered}`,
+                    `${c.wordCount} words · studied ${c.studied} · mastered ${c.mastered}`) })()}
                 </span>
               )}
             </div>
@@ -679,7 +679,7 @@ function VocabContent() {
             <div className="flex gap-1 border rounded-xl p-1 mb-5 w-fit">
               <button onClick={() => setTab('study')}
                 className={`px-4 py-2 rounded-lg text-sm transition-colors ${tab === 'study' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
-                {lang === 'zh' ? '按课时学习' : 'Study'}
+                {tr(lang, '按课时学习', 'Study')}
               </button>
               <button onClick={() => setTab('review')}
                 className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5 ${tab === 'review' ? 'bg-emerald-500 text-white font-medium' : 'hover:bg-accent'}`}>
@@ -691,9 +691,9 @@ function VocabContent() {
             </div>
 
             <p className="text-xs text-muted-foreground mb-5">
-              {lang === 'zh'
-                ? '「已学」= 学过的词数；「掌握」= 在 拼写 / 选择 / 释义 里答对了两次的词。只点卡片的「认识」不算掌握。'
-                : '"Studied" = words you have opened; "Mastered" = words answered right twice in spelling / choice / definition. Tapping "known" on a flashcard does not count.'}
+              {tr(lang,
+                '「已学」= 学过的词数；「掌握」= 在 拼写 / 选择 / 释义 里答对了两次的词。只点卡片的「认识」不算掌握。',
+                '"Studied" = words you have opened; "Mastered" = words answered right twice in spelling / choice / definition. Tapping "known" on a flashcard does not count.')}
             </p>
 
             {busy && <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>}
@@ -701,7 +701,7 @@ function VocabContent() {
             {!busy && tab === 'study' && (
               grouped.length === 0 ? (
                 <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-                  {lang === 'zh' ? '这门课还没有词库。' : 'No words in this course yet.'}
+                  {tr(lang, '这门课还没有词库。', 'No words in this course yet.')}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -717,7 +717,7 @@ function VocabContent() {
                           </h2>
                           {chDone && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium shrink-0">
-                              {lang === 'zh' ? '✓ 已全部掌握' : '✓ all mastered'}
+                              {tr(lang, '✓ 已全部掌握', '✓ all mastered')}
                             </span>
                           )}
                           <span className="ml-auto shrink-0 text-muted-foreground">
@@ -747,17 +747,17 @@ function VocabContent() {
                                       {done && <span className="ml-2 text-emerald-700">✓</span>}
                                     </div>
                                     <div className="text-xs text-muted-foreground mt-0.5">
-                                      {l.wordCount} 词 · 已学 {l.studied} · 掌握 {pct}%
-                                      {l.due > 0 && <span className="text-red-600"> · 待复习 {l.due}</span>}
+                                      {tr(lang, `${l.wordCount} 词 · 已学 ${l.studied} · 掌握 ${pct}%`, `${l.wordCount} words · studied ${l.studied} · mastered ${pct}%`)}
+                                      {l.due > 0 && <span className="text-red-600"> · {tr(lang, `待复习 ${l.due}`, `${l.due} due`)}</span>}
                                     </div>
                                   </div>
                                   <button onClick={() => startSession(l.id, 'study')}
                                     className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium border bg-white/70 hover:bg-accent transition-colors">
                                     {done
-                                      ? (lang === 'zh' ? '复习' : 'Review')
+                                      ? tr(lang, '复习', 'Review')
                                       : l.studied > 0
-                                        ? (lang === 'zh' ? '继续' : 'Continue')
-                                        : (lang === 'zh' ? '开始' : 'Start')}
+                                        ? tr(lang, '继续', 'Continue')
+                                        : tr(lang, '开始', 'Start')}
                                   </button>
                                 </div>
                               )
@@ -774,7 +774,7 @@ function VocabContent() {
             {!busy && tab === 'review' && (
               reviewRows.length === 0 ? (
                 <div className="bg-card border rounded-2xl p-10 text-center text-muted-foreground">
-                  🎉 {lang === 'zh' ? '今天没有要复习的词，都记住啦。' : 'Nothing to review today.'}
+                  🎉 {tr(lang, '今天没有要复习的词，都记住啦。', 'Nothing to review today — all caught up.')}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -782,11 +782,11 @@ function VocabContent() {
                     <div key={l.id} className="bg-card border rounded-2xl p-4 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{l.title}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{l.chapterOrder + 1}. {l.chapterTitle} · 待复习 {l.due} 词</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{l.chapterOrder + 1}. {l.chapterTitle} · {tr(lang, `待复习 ${l.due} 词`, `${l.due} words due`)}</div>
                       </div>
                       <button onClick={() => startSession(l.id, 'review')}
                         className="shrink-0 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">
-                        {lang === 'zh' ? '复习' : 'Review'}
+                        {tr(lang, '复习', 'Review')}
                       </button>
                     </div>
                   ))}

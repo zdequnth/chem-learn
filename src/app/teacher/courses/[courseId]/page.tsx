@@ -10,16 +10,35 @@ import { KatexHtml, getPdfUrl } from '@/components/KatexSpan'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Plus, ChevronDown, ChevronRight, Edit3, Trash2, Loader2, ArrowUp, ArrowDown, Image, Save, X } from 'lucide-react'
+import { useLang, tr } from '@/lib/i18n'
 
 interface ChapterWithLessons extends Chapter {
   lessons: Lesson[]
   expanded: boolean
 }
 
+const KIND_TEXT: Record<string, { zh: string; en: string }> = {
+  gate: { zh: '过关课程', en: 'Gate Course' },
+  vocab: { zh: '背单词课程', en: 'Vocabulary Course' },
+  mock: { zh: '模拟考课程', en: 'Mock Exam Course' },
+}
+
+const SUBJECTS: { k: string; zh: string; en: string }[] = [
+  { k: 'Chinese', zh: '语文 📖', en: 'Chinese 📖' },
+  { k: 'Math', zh: '数学 📐', en: 'Math 📐' },
+  { k: 'English', zh: '英语 🌍', en: 'English 🌍' },
+  { k: 'Second foreign Language', zh: '二外 🗣️', en: '2nd Lang 🗣️' },
+  { k: 'Physics', zh: '物理 ⚛️', en: 'Physics ⚛️' },
+  { k: 'Chemistry', zh: '化学 🧪', en: 'Chemistry 🧪' },
+  { k: 'Biology', zh: '生物 🧬', en: 'Biology 🧬' },
+  { k: 'Humanities', zh: '人文 📜', en: 'Humanities 📜' },
+]
+
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>()
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [course, setCourse] = useState<Course | null>(null)
   const [chapters, setChapters] = useState<ChapterWithLessons[]>([])
@@ -119,7 +138,9 @@ export default function CourseDetailPage() {
     })
     const json = await res.json()
     setImportLessonBusy(false); setShowImportLesson(false)
-    alert(`导入完成：${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`)
+    alert(tr(lang,
+      `导入完成：${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`,
+      `Import complete: ${json.questions || 0} questions, ${json.knowledgePoints || 0} knowledge points`))
     fetchData()
   }
 
@@ -133,7 +154,9 @@ export default function CourseDetailPage() {
     const json = await res.json()
     setImportBusy(false)
     setShowImportChapter(false)
-    alert(`导入完成：${json.lessons || 0} 个课时，${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`)
+    alert(tr(lang,
+      `导入完成：${json.lessons || 0} 个课时，${json.questions || 0} 道题目，${json.knowledgePoints || 0} 个知识点`,
+      `Import complete: ${json.lessons || 0} lessons, ${json.questions || 0} questions, ${json.knowledgePoints || 0} knowledge points`))
     fetchData()
   }
 
@@ -148,7 +171,9 @@ export default function CourseDetailPage() {
     setBatchBusy(false)
     setShowBatchImport(false)
     setBatchMd('')
-    alert(`导入完成：${json.chapters || 0} 个章节，${json.lessons || 0} 个课时`)
+    alert(tr(lang,
+      `导入完成：${json.chapters || 0} 个章节，${json.lessons || 0} 个课时`,
+      `Import complete: ${json.chapters || 0} chapters, ${json.lessons || 0} lessons`))
     fetchData()
   }
 
@@ -202,7 +227,7 @@ export default function CourseDetailPage() {
     // A PDF previously saved as a [pdf:...]...[/pdf] tag becomes a resource
     const m = desc.match(/\[pdf(?::([^\]]*))?\]([\s\S]*?)\[\/pdf\]/)
     if (m) {
-      res.push({ type: 'pdf', title: m[1] || 'PDF 资料', url: (m[2] || '').trim(), note: '' })
+      res.push({ type: 'pdf', title: m[1] || tr(lang, 'PDF 资料', 'PDF Materials'), url: (m[2] || '').trim(), note: '' })
       desc = desc.replace(/\[pdf[\s\S]*?\[\/pdf\]/, '').trim()
     }
     setModalDesc(desc)
@@ -233,7 +258,7 @@ export default function CourseDetailPage() {
     for (const r of modalResources) {
       if (!r.url.trim()) continue
       await fetch('/api/video-links', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledge_point_id: modalKp.id, title: r.title || '链接', url: r.url.trim(), platform: platformFor(r), note: r.note.trim() || null, sort_order: order++ }),
+        body: JSON.stringify({ knowledge_point_id: modalKp.id, title: r.title || tr(lang, '链接', 'Link'), url: r.url.trim(), platform: platformFor(r), note: r.note.trim() || null, sort_order: order++ }),
       }).catch(() => {})
     }
     setModalKp(null); setModalSaving(false)
@@ -318,7 +343,7 @@ export default function CourseDetailPage() {
   }
 
   const handleDeleteChapter = async (id: string) => {
-    if (!confirm('确定删除此章节及其所有课时和题目？')) return
+    if (!confirm(tr(lang, '确定删除此章节及其所有课时和题目？', 'Delete this chapter and all its lessons and questions?'))) return
     await fetch(`/api/chapters?id=${id}`, { method: 'DELETE' })
     fetchData()
   }
@@ -365,7 +390,7 @@ export default function CourseDetailPage() {
   }
 
   const handleDeleteLesson = async (id: string) => {
-    if (!confirm('确定删除此课时？')) return
+    if (!confirm(tr(lang, '确定删除此课时？', 'Delete this lesson?'))) return
     await fetch(`/api/lessons?id=${id}`, { method: 'DELETE' })
     fetchData()
   }
@@ -424,7 +449,7 @@ export default function CourseDetailPage() {
     if (pdfUrl && created?.id) {
       await fetch('/api/video-links', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledge_point_id: created.id, title: 'PDF 资料', url: pdfUrl, platform: 'pdf' }),
+        body: JSON.stringify({ knowledge_point_id: created.id, title: tr(lang, 'PDF 资料', 'PDF Materials'), url: pdfUrl, platform: 'pdf' }),
       }).catch(() => {})
     }
     setNewKpTitle({ ...newKpTitle, [lessonId]: '' })
@@ -436,7 +461,7 @@ export default function CourseDetailPage() {
   }
 
   const handleDeleteKP = async (kpId: string, lessonId: string) => {
-    if (!confirm('确定删除此知识点？')) return
+    if (!confirm(tr(lang, '确定删除此知识点？', 'Delete this knowledge point?'))) return
     await fetch(`/api/knowledge-points?id=${kpId}`, { method: 'DELETE' })
     const res = await fetch(`/api/knowledge-points?lessonId=${lessonId}`)
     const json = await res.json()
@@ -450,7 +475,7 @@ export default function CourseDetailPage() {
     await fetch('/api/video-links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ knowledge_point_id: kpId, url, title: title || '视频链接', platform: url.includes('bilibili') ? 'bilibili' : url.includes('youtube') ? 'youtube' : 'other' }),
+      body: JSON.stringify({ knowledge_point_id: kpId, url, title: title || tr(lang, '视频链接', 'Video link'), platform: url.includes('bilibili') ? 'bilibili' : url.includes('youtube') ? 'youtube' : 'other' }),
     })
     setNewVlUrl({ ...newVlUrl, [`vl_${kpId}`]: '' })
     setNewVlTitle({ ...newVlTitle, [`vl_${kpId}`]: '' })
@@ -507,9 +532,9 @@ export default function CourseDetailPage() {
         const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
         const json = await res.json()
         if (json.url) {
-          setEditKpDesc(prev => prev + `\n![图片](${json.url})`)
+          setEditKpDesc(prev => prev + `\n![${tr(lang, '图片', 'Image')}](${json.url})`)
         } else {
-          alert(json.error || '图片上传失败')
+          alert(json.error || tr(lang, '图片上传失败', 'Image upload failed'))
         }
         break
       }
@@ -528,9 +553,9 @@ export default function CourseDetailPage() {
       const res = await fetch('/api/upload-image', { method: 'POST', body: formData })
       const json = await res.json()
       if (json.url) {
-        setEditKpDesc(prev => prev + `\n![图片](${json.url})`)
+        setEditKpDesc(prev => prev + `\n![${tr(lang, '图片', 'Image')}](${json.url})`)
       } else {
-        alert(json.error || '图片上传失败')
+        alert(json.error || tr(lang, '图片上传失败', 'Image upload failed'))
       }
     }
     input.click()
@@ -545,13 +570,13 @@ export default function CourseDetailPage() {
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 pt-24 pb-20">
         <Link href="/teacher/courses" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> 返回课程列表
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回课程列表', 'Back to Courses')}
         </Link>
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : !course ? (
-          <div className="text-center py-20"><p className="text-muted-foreground">课程不存在</p></div>
+          <div className="text-center py-20"><p className="text-muted-foreground">{tr(lang, '课程不存在', 'Course not found')}</p></div>
         ) : (
           <>
             {/* A vocabulary course uses this same editor for its chapters and
@@ -560,12 +585,12 @@ export default function CourseDetailPage() {
               <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
                 <span className="text-3xl">📖</span>
                 <div className="min-w-0">
-                  <div className="font-semibold text-amber-900">背单词课程</div>
-                  <div className="text-sm text-amber-800">这里管理章节和课时；单词本身在「词库」里维护。</div>
+                  <div className="font-semibold text-amber-900">{tr(lang, '背单词课程', 'Vocabulary Course')}</div>
+                  <div className="text-sm text-amber-800">{tr(lang, '这里管理章节和课时；单词本身在「词库」里维护。', 'Manage chapters and lessons here; the words themselves are maintained in Vocabulary.')}</div>
                 </div>
                 <Link href={`/teacher/vocab?course=${courseId}`}
                   className="ml-auto shrink-0 px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">
-                  去词库管理 →
+                  {tr(lang, '去词库管理 →', 'Manage Vocabulary →')}
                 </Link>
               </div>
             )}
@@ -575,14 +600,16 @@ export default function CourseDetailPage() {
               <div className="bg-violet-50 border border-violet-300 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
                 <span className="text-3xl">📝</span>
                 <div className="min-w-0">
-                  <div className="font-semibold text-violet-900">模拟考课程</div>
+                  <div className="font-semibold text-violet-900">{tr(lang, '模拟考课程', 'Mock Exam Course')}</div>
                   <div className="text-sm text-violet-800">
-                    这里只维护基本信息；题目和试卷在「试卷管理」里，每道题对应绑定通关课程的一个章节课时。
+                    {tr(lang,
+                      '这里只维护基本信息；题目和试卷在「试卷管理」里，每道题对应绑定通关课程的一个章节课时。',
+                      'Only basic information is managed here; questions and papers are under Paper Management, and each question maps to a chapter and lesson of the linked gate course.')}
                   </div>
                 </div>
                 <Link href={`/teacher/mock?course=${courseId}`}
                   className="ml-auto shrink-0 px-3 py-2 bg-violet-500 text-white rounded-lg text-sm font-medium hover:bg-violet-600 transition-colors">
-                  去试卷管理 →
+                  {tr(lang, '去试卷管理 →', 'Manage Papers →')}
                 </Link>
               </div>
             )}
@@ -592,18 +619,18 @@ export default function CourseDetailPage() {
                 <div className="space-y-3">
                   <select value={courseForm.subject} onChange={e => setCourseForm({ ...courseForm, subject: e.target.value })}
                     className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                    {[{k:'Chinese',n:'语文 📖'},{k:'Math',n:'数学 📐'},{k:'English',n:'英语 🌍'},{k:'Second foreign Language',n:'二外 🗣️'},{k:'Physics',n:'物理 ⚛️'},{k:'Chemistry',n:'化学 🧪'},{k:'Biology',n:'生物 🧬'},{k:'Humanities',n:'人文 📜'}].map(s => <option key={s.k} value={s.k}>{s.n}</option>)}
+                    {SUBJECTS.map(s => <option key={s.k} value={s.k}>{tr(lang, s.zh, s.en)}</option>)}
                   </select>
                   <input value={courseForm.name} onChange={e => setCourseForm({ ...courseForm, name: e.target.value })}
-                    placeholder="课程名称" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                    placeholder={tr(lang, '课程名称', 'Course Name')} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                   <input value={courseForm.grade_level} onChange={e => setCourseForm({ ...courseForm, grade_level: e.target.value })}
-                    placeholder="年级/级别" className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                    placeholder={tr(lang, '年级/级别', 'Grade / Level')} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                   <textarea value={courseForm.description} onChange={e => setCourseForm({ ...courseForm, description: e.target.value })}
-                    placeholder="描述" rows={2} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                    placeholder={tr(lang, '描述', 'Description')} rows={2} className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
                   <div className="flex gap-3">
                     <button onClick={handleSaveCourse} disabled={busy}
-                      className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">保存</button>
-                    <button onClick={() => setEditCourse(false)} className="px-4 py-2 bg-accent rounded-lg font-medium">取消</button>
+                      className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">{tr(lang, '保存', 'Save')}</button>
+                    <button onClick={() => setEditCourse(false)} className="px-4 py-2 bg-accent rounded-lg font-medium">{tr(lang, '取消', 'Cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -617,7 +644,7 @@ export default function CourseDetailPage() {
                         {course.name}
                         {(course as any).kind && (course as any).kind !== 'gate' && (
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium align-middle ${kindTheme((course as any).kind).pill}`}>
-                            {kindTheme((course as any).kind).label}
+                            {tr(lang, KIND_TEXT[(course as any).kind]?.zh ?? '过关课程', KIND_TEXT[(course as any).kind]?.en ?? 'Gate Course')}
                           </span>
                         )}
                       </h1>
@@ -625,7 +652,7 @@ export default function CourseDetailPage() {
                       {course.subject && <span className="text-sm px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full ml-1">{course.subject}</span>}
                     </div>
                   </div>
-                  {canEdit && <button onClick={() => setEditCourse(true)} className="text-sm text-muted-foreground hover:text-foreground"><Edit3 className="w-4 h-4 inline" /> 编辑</button>}
+                  {canEdit && <button onClick={() => setEditCourse(true)} className="text-sm text-muted-foreground hover:text-foreground"><Edit3 className="w-4 h-4 inline" /> {tr(lang, '编辑', 'Edit')}</button>}
                 </div>
               )}
             </div>
@@ -642,24 +669,24 @@ export default function CourseDetailPage() {
                 an empty chapter editor here would just invite pointless work. */}
             {(course as any).kind !== 'mock' && (
             <div className="bg-card rounded-2xl border p-6">
-              <h2 className="text-lg font-semibold mb-4">章节与课时 ({chapters.length} 章)</h2>
+              <h2 className="text-lg font-semibold mb-4">{tr(lang, `章节与课时 (${chapters.length} 章)`, `Chapters & Lessons (${chapters.length} chapters)`)}</h2>
 
               {canEdit && (
               <div className="flex gap-3 mb-6">
                 <input value={newChapterTitle} onChange={e => setNewChapterTitle(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAddChapter() }}
-                  placeholder="新章节名称" className="flex-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder={tr(lang, '新章节名称', 'New chapter name')} className="flex-1 px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                 <button onClick={handleAddChapter} disabled={busy}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> 添加</button>
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50"><Plus className="w-4 h-4" /> {tr(lang, '添加', 'Add')}</button>
                 <button onClick={() => setShowBatchImport(true)}
-                  className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">📄 批量导入</button>
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 text-sm">{tr(lang, '📄 批量导入', '📄 Batch Import')}</button>
                 <button onClick={openImportChapter}
-                  className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 text-sm">📥 导入章节</button>
+                  className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 text-sm">{tr(lang, '📥 导入章节', '📥 Import Chapter')}</button>
               </div>
               )}
 
               {chapters.length === 0 ? (
-                <p className="text-center py-12 text-muted-foreground">还没有章节</p>
+                <p className="text-center py-12 text-muted-foreground">{tr(lang, '还没有章节', 'No chapters yet')}</p>
               ) : (
                 <div className="space-y-3">
                   {chapters.map((ch, idx) => (
@@ -675,18 +702,18 @@ export default function CourseDetailPage() {
                           <span className="font-medium flex-1">{idx + 1}. {ch.title}</span>
                         )}
                         <button onClick={e => { e.stopPropagation(); startRenameChapter(ch) }}
-                          className="p-1 hover:bg-gray-200 rounded" title="重命名">
+                          className="p-1 hover:bg-gray-200 rounded" title={tr(lang, '重命名', 'Rename')}>
                           <Edit3 className="w-3 h-3 text-gray-400" />
                         </button>
-                        <span className="text-xs text-muted-foreground mr-2">{ch.lessons.length} 课时</span>
+                        <span className="text-xs text-muted-foreground mr-2">{tr(lang, `${ch.lessons.length} 课时`, `${ch.lessons.length} lessons`)}</span>
                         {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'up') }}
                           disabled={idx === 0}
-                          className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title="上移">
+                          className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title={tr(lang, '上移', 'Move Up')}>
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>}
                         {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveChapter(ch.id, 'down') }}
                           disabled={idx === chapters.length - 1}
-                          className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title="下移">
+                          className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" title={tr(lang, '下移', 'Move Down')}>
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>}
                         {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteChapter(ch.id) }}
@@ -707,26 +734,26 @@ export default function CourseDetailPage() {
                                 ) : (
                                   <span className="flex-1 text-sm">{l.title}</span>
                                 )}
-                                <span className="text-xs text-muted-foreground cursor-pointer shrink-0">知识点 ▸</span>
+                                <span className="text-xs text-muted-foreground cursor-pointer shrink-0">{tr(lang, '知识点 ▸', 'KP ▸')}</span>
                                 <Link href={`/teacher/questions?course=${courseId}&chapter=${ch.id}&lesson=${l.id}`}
                                   onClick={e => e.stopPropagation()}
-                                  className="text-xs text-purple-500 hover:text-purple-700 shrink-0" title="题库">📝</Link>
+                                  className="text-xs text-purple-500 hover:text-purple-700 shrink-0" title={tr(lang, '题库', 'Question bank')}>📝</Link>
                                 {canEdit && <button onClick={e => { e.stopPropagation(); toggleKeyLesson(l.id, !!(l as any).is_key) }}
-                                  className="p-0.5 hover:bg-red-50 rounded shrink-0" title="重点课时">
+                                  className="p-0.5 hover:bg-red-50 rounded shrink-0" title={tr(lang, '重点课时', 'Key lesson')}>
                                   <span className="text-xs">{((l as any).is_key) ? '❤️' : '🤍'}</span>
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); startRenameLesson(l) }}
-                                  className="p-0.5 hover:bg-gray-200 rounded shrink-0" title="重命名">
+                                  className="p-0.5 hover:bg-gray-200 rounded shrink-0" title={tr(lang, '重命名', 'Rename')}>
                                   <Edit3 className="w-3 h-3 text-gray-400" />
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'up') }}
                                   disabled={lIdx === 0}
-                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title="上移">
+                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title={tr(lang, '上移', 'Move Up')}>
                                   <ArrowUp className="w-3 h-3" />
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleMoveLesson(l.id, ch.id, 'down') }}
                                   disabled={lIdx === ch.lessons.length - 1}
-                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title="下移">
+                                  className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30 shrink-0" title={tr(lang, '下移', 'Move Down')}>
                                   <ArrowDown className="w-3 h-3" />
                                 </button>}
                                 {canEdit && <button onClick={e => { e.stopPropagation(); handleDeleteLesson(l.id) }}
@@ -735,7 +762,7 @@ export default function CourseDetailPage() {
                               {/* Knowledge Points */}
                               {expandedLesson === l.id && (
                                 <div className="ml-14 mr-4 mb-3 mt-2 p-3 bg-gray-50 rounded-lg border">
-                                  <div className="text-xs font-medium text-muted-foreground mb-2">知识点管理</div>
+                                  <div className="text-xs font-medium text-muted-foreground mb-2">{tr(lang, '知识点管理', 'Knowledge Point Management')}</div>
 
                                   {((kpData[l.id]?.kps) || []).map((kp: any) => (
                                     <div key={kp.id} className="mb-2 pl-2 border-l-2 border-blue-300">
@@ -759,7 +786,7 @@ export default function CourseDetailPage() {
                                       value={newKpTitle[l.id] || ''}
                                       onChange={e => setNewKpTitle({ ...newKpTitle, [l.id]: e.target.value })}
                                       onKeyDown={e => { if (e.key === 'Enter') handleAddKP(l.id) }}
-                                      placeholder="新知识点名称"
+                                      placeholder={tr(lang, '新知识点名称', 'New knowledge point name')}
                                       className="flex-1 px-2 py-1 text-xs border rounded"
                                     />
                                     <button onClick={() => handleAddKP(l.id)}
@@ -774,11 +801,11 @@ export default function CourseDetailPage() {
                             <input value={newLessonTitle[ch.id] || ''}
                               onChange={e => setNewLessonTitle({ ...newLessonTitle, [ch.id]: e.target.value })}
                               onKeyDown={e => { if (e.key === 'Enter') handleAddLesson(ch.id) }}
-                              placeholder="新课名称" className="flex-1 px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                              placeholder={tr(lang, '新课名称', 'New lesson name')} className="flex-1 px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
                             <button onClick={() => handleAddLesson(ch.id)} disabled={busy}
-                              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50">+ 课时</button>
+                              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50">{tr(lang, '+ 课时', '+ Lesson')}</button>
                             <button onClick={() => { setImportLessonTarget(ch.id); openImportLesson() }}
-                              className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600">📥 导入</button>
+                              className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600">{tr(lang, '📥 导入', '📥 Import')}</button>
                           </div>
                           )}
                         </div>
@@ -797,17 +824,17 @@ export default function CourseDetailPage() {
       {showImportChapter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入章节</h3>
+            <h3 className="text-lg font-semibold mb-3">{tr(lang, '📥 从其他课程导入章节', '📥 Import Chapters from Another Course')}</h3>
             <div className="space-y-3">
               <select value={importCourseId} onChange={e => loadImportChapters(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="">选择源课程</option>
+                <option value="">{tr(lang, '选择源课程', 'Select source course')}</option>
                 {importCourses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {importChapters.length > 0 && (
                 <select value={importChapterId} onChange={e => setImportChapterId(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="">选择要导入的章节</option>
+                  <option value="">{tr(lang, '选择要导入的章节', 'Select chapters to import')}</option>
                   {importChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
                 </select>
               )}
@@ -815,9 +842,9 @@ export default function CourseDetailPage() {
             <div className="flex gap-3 mt-4">
               <button onClick={handleImportChapter} disabled={!importChapterId || importBusy}
                 className="flex-1 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50">
-                {importBusy ? '导入中...' : '开始导入'}
+                {importBusy ? tr(lang, '导入中...', 'Importing...') : tr(lang, '开始导入', 'Start Import')}
               </button>
-              <button onClick={() => setShowImportChapter(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
+              <button onClick={() => setShowImportChapter(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">{tr(lang, '取消', 'Cancel')}</button>
             </div>
           </div>
         </div>
@@ -827,24 +854,24 @@ export default function CourseDetailPage() {
       {showImportLesson && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-3">📥 从其他课程导入课时</h3>
+            <h3 className="text-lg font-semibold mb-3">{tr(lang, '📥 从其他课程导入课时', '📥 Import Lessons from Another Course')}</h3>
             <div className="space-y-3">
               <select value={importLessonCourseId} onChange={e => loadImportLessonChapters(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="">选择源课程</option>
+                <option value="">{tr(lang, '选择源课程', 'Select source course')}</option>
                 {importCourses.filter((c: any) => c.id !== courseId).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {importLessonChapters.length > 0 && (
                 <select value={importLessonChapterId} onChange={e => loadImportChapterLessons(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="">选择源章节</option>
+                  <option value="">{tr(lang, '选择源章节', 'Select source chapter')}</option>
                   {importLessonChapters.map((ch: any) => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
                 </select>
               )}
               {importLessonLessons.length > 0 && (
                 <select value={importLessonId} onChange={e => setImportLessonId(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="">选择源课时</option>
+                  <option value="">{tr(lang, '选择源课时', 'Select source lesson')}</option>
                   {importLessonLessons.map((l: any) => <option key={l.id} value={l.id}>{l.title}</option>)}
                 </select>
               )}
@@ -852,9 +879,9 @@ export default function CourseDetailPage() {
             <div className="flex gap-3 mt-4">
               <button onClick={handleImportLesson} disabled={!importLessonId || importLessonBusy}
                 className="flex-1 py-2.5 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 disabled:opacity-50">
-                {importLessonBusy ? '导入中...' : '导入到此章节'}
+                {importLessonBusy ? tr(lang, '导入中...', 'Importing...') : tr(lang, '导入到此章节', 'Import into this Chapter')}
               </button>
-              <button onClick={() => setShowImportLesson(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
+              <button onClick={() => setShowImportLesson(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">{tr(lang, '取消', 'Cancel')}</button>
             </div>
           </div>
         </div>
@@ -864,17 +891,19 @@ export default function CourseDetailPage() {
       {showBatchImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
-            <h3 className="text-lg font-semibold mb-2">批量导入章节和课时</h3>
-            <p className="text-sm text-muted-foreground mb-3">按 Markdown 格式粘贴：# 章节名，## 课时名</p>
+            <h3 className="text-lg font-semibold mb-2">{tr(lang, '批量导入章节和课时', 'Batch Import Chapters & Lessons')}</h3>
+            <p className="text-sm text-muted-foreground mb-3">{tr(lang, '按 Markdown 格式粘贴：# 章节名，## 课时名', 'Paste in Markdown: # Chapter name, ## Lesson name')}</p>
             <textarea value={batchMd} onChange={e => setBatchMd(e.target.value)}
-              rows={10} placeholder={`# 酸碱中和\n## 指示剂\n## 滴定管的使用\n# 离子检验\n## 氯离子\n## 硫酸根离子`}
+              rows={10} placeholder={tr(lang,
+                `# 酸碱中和\n## 指示剂\n## 滴定管的使用\n# 离子检验\n## 氯离子\n## 硫酸根离子`,
+                `# Acid-Base Neutralization\n## Indicators\n## Using a Burette\n# Ion Tests\n## Chloride Ions\n## Sulfate Ions`)}
               className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm resize-none" />
             <div className="flex gap-3 mt-4">
               <button onClick={handleBatchImport} disabled={batchBusy || !batchMd.trim()}
                 className="flex-1 py-2.5 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50">
-                {batchBusy ? '导入中...' : '开始导入'}
+                {batchBusy ? tr(lang, '导入中...', 'Importing...') : tr(lang, '开始导入', 'Start Import')}
               </button>
-              <button onClick={() => setShowBatchImport(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">取消</button>
+              <button onClick={() => setShowBatchImport(false)} className="px-6 py-2.5 bg-gray-200 rounded-lg">{tr(lang, '取消', 'Cancel')}</button>
             </div>
           </div>
         </div>
@@ -884,68 +913,68 @@ export default function CourseDetailPage() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-12 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 mb-12">
             <div className="flex items-center justify-between px-6 py-3 border-b">
-              <h3 className="font-semibold">编辑知识点</h3>
+              <h3 className="font-semibold">{tr(lang, '编辑知识点', 'Edit Knowledge Point')}</h3>
               <div className="flex gap-2">
                 <button onClick={handleModalSave} disabled={modalSaving}
                   className="flex items-center gap-1 px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
-                  {modalSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} 完成
+                  {modalSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {tr(lang, '完成', 'Done')}
                 </button>
-                <button onClick={() => setModalKp(null)} className="px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300">取消</button>
+                <button onClick={() => setModalKp(null)} className="px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300">{tr(lang, '取消', 'Cancel')}</button>
               </div>
             </div>
             <div className="flex divide-x max-h-[75vh] overflow-y-auto">
               <div className="flex-1 p-6 space-y-4 min-w-0">
-                <div><label className="block text-sm font-medium mb-1">知识点名称</label>
+                <div><label className="block text-sm font-medium mb-1">{tr(lang, '知识点名称', 'Knowledge point name')}</label>
                   <input value={modalTitle} onChange={e => setModalTitle(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" /></div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">学习资源（视频 / 网页演示 / PDF，可加备注）</label>
+                  <label className="block text-sm font-medium mb-1">{tr(lang, '学习资源（视频 / 网页演示 / PDF，可加备注）', 'Learning resources (video / web demo / PDF, optional notes)')}</label>
                   {modalResources.map((r, i) => (
                     <div key={i} className="border rounded-lg p-2 mb-2">
                       <div className="flex items-center gap-2">
                         <select value={r.type} onChange={e => updateResource(i, { type: e.target.value })}
                           className="shrink-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
-                          <option value="video">🎬 视频</option>
-                          <option value="web">🌐 网页/演示</option>
+                          <option value="video">{tr(lang, '🎬 视频', '🎬 Video')}</option>
+                          <option value="web">{tr(lang, '🌐 网页/演示', '🌐 Web / Demo')}</option>
                           <option value="pdf">📄 PDF</option>
                         </select>
-                        <input value={r.title} onChange={e => updateResource(i, { title: e.target.value })} placeholder="标题"
+                        <input value={r.title} onChange={e => updateResource(i, { title: e.target.value })} placeholder={tr(lang, '标题', 'Title')}
                           className="w-32 shrink-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
-                        <input value={r.url} onChange={e => updateResource(i, { url: e.target.value })} placeholder="网址"
+                        <input value={r.url} onChange={e => updateResource(i, { url: e.target.value })} placeholder={tr(lang, '网址', 'URL')}
                           className="flex-1 min-w-0 px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
-                        <button onClick={() => setModalResources(modalResources.filter((_, j) => j !== i))} className="shrink-0 text-red-400 px-1" title="删除">✕</button>
+                        <button onClick={() => setModalResources(modalResources.filter((_, j) => j !== i))} className="shrink-0 text-red-400 px-1" title={tr(lang, '删除', 'Delete')}>✕</button>
                       </div>
-                      <input value={r.note} onChange={e => updateResource(i, { note: e.target.value })} placeholder="备注（可选）：简单介绍一下这个资源"
+                      <input value={r.note} onChange={e => updateResource(i, { note: e.target.value })} placeholder={tr(lang, '备注（可选）：简单介绍一下这个资源', 'Note (optional): a short description of this resource')}
                         className="w-full mt-1 px-2 py-1 text-xs border rounded outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
                   ))}
                   <div className="flex flex-wrap gap-2 mt-2">
                     <select value={modalVlType} onChange={e => setModalVlType(e.target.value)}
                       className="px-2 py-1 text-sm border rounded outline-none focus:ring-2 focus:ring-emerald-500">
-                      <option value="video">🎬 视频</option>
-                      <option value="web">🌐 网页/演示</option>
+                      <option value="video">{tr(lang, '🎬 视频', '🎬 Video')}</option>
+                      <option value="web">{tr(lang, '🌐 网页/演示', '🌐 Web / Demo')}</option>
                       <option value="pdf">📄 PDF</option>
                     </select>
-                    <input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)} placeholder="标题" className="w-28 px-2 py-1 text-sm border rounded" />
-                    <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addModalResource() }} placeholder="网址（B站/YouTube、PhET 等网页、PDF 链接）" className="flex-1 min-w-[10rem] px-2 py-1 text-sm border rounded" />
-                    <input value={modalVlNote} onChange={e => setModalVlNote(e.target.value)} placeholder="备注（可选）" className="w-40 px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlTitle} onChange={e => setModalVlTitle(e.target.value)} placeholder={tr(lang, '标题', 'Title')} className="w-28 px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlUrl} onChange={e => setModalVlUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addModalResource() }} placeholder={tr(lang, '网址（B站/YouTube、PhET 等网页、PDF 链接）', 'URL (Bilibili/YouTube, PhET and other pages, PDF links)')} className="flex-1 min-w-[10rem] px-2 py-1 text-sm border rounded" />
+                    <input value={modalVlNote} onChange={e => setModalVlNote(e.target.value)} placeholder={tr(lang, '备注（可选）', 'Note (optional)')} className="w-40 px-2 py-1 text-sm border rounded" />
                     <button onClick={addModalResource} className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
                   </div>
                 </div>
-                <div><label className="block text-sm font-medium mb-1">详细描述（Markdown / Ctrl+V 贴图）</label>
+                <div><label className="block text-sm font-medium mb-1">{tr(lang, '详细描述（Markdown / Ctrl+V 贴图）', 'Description (Markdown / Ctrl+V to paste an image)')}</label>
                   <div className="relative"><textarea value={modalDesc} onChange={e => setModalDesc(e.target.value)}
-                    onPaste={async (e) => { const items = e.clipboardData?.items; if (!items) return; for (const item of Array.from(items)) { if (item.type.startsWith('image/')) { e.preventDefault(); const file = item.getAsFile(); if (!file) continue; const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')'); break } } }}
-                    rows={12} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" placeholder="Markdown / Ctrl+V 贴图 / 换行分段" />
-                    <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![图片](' + j.url + ')') }; i.click() }}
-                      className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title="上传图片"><Image className="w-4 h-4 text-gray-500" /></button></div></div>
+                    onPaste={async (e) => { const items = e.clipboardData?.items; if (!items) return; for (const item of Array.from(items)) { if (item.type.startsWith('image/')) { e.preventDefault(); const file = item.getAsFile(); if (!file) continue; const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![' + tr(lang, '图片', 'Image') + '](' + j.url + ')'); break } } }}
+                    rows={12} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" placeholder={tr(lang, 'Markdown / Ctrl+V 贴图 / 换行分段', 'Markdown / Ctrl+V to paste an image / blank line between paragraphs')} />
+                    <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/upload-image', { method: 'POST', body: fd }); const j = await r.json(); if (j.url) setModalDesc(p => p + '\n![' + tr(lang, '图片', 'Image') + '](' + j.url + ')') }; i.click() }}
+                      className="absolute bottom-2 right-2 p-1.5 bg-gray-100 rounded hover:bg-gray-200" title={tr(lang, '上传图片', 'Upload image')}><Image className="w-4 h-4 text-gray-500" /></button></div></div>
               </div>
-              <div className="flex-1 p-6 bg-gray-50 min-w-0"><h4 className="text-sm font-medium text-muted-foreground mb-3">学生端预览</h4>
-                <div className="bg-white border rounded-xl p-4"><h3 className="font-semibold text-lg mb-3">{modalTitle || '(未命名)'}</h3>
+              <div className="flex-1 p-6 bg-gray-50 min-w-0"><h4 className="text-sm font-medium text-muted-foreground mb-3">{tr(lang, '学生端预览', 'Student Preview')}</h4>
+                <div className="bg-white border rounded-xl p-4"><h3 className="font-semibold text-lg mb-3">{modalTitle || tr(lang, '(未命名)', '(Unnamed)')}</h3>
                   {modalResources.length > 0 && (
                     <div className="mt-3 space-y-3">
                       {[
-                        { key: 'pdf', label: 'PDF 资料', icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600' },
-                        { key: 'video', label: '视频讲解', icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600' },
-                        { key: 'web', label: '网页演示', icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700' },
+                        { key: 'pdf', label: tr(lang, 'PDF 资料', 'PDF Materials'), icon: '📄', box: 'bg-red-50 border-red-200', head: 'text-red-800', link: 'text-red-600' },
+                        { key: 'video', label: tr(lang, '视频讲解', 'Video Lessons'), icon: '🎬', box: 'bg-blue-50 border-blue-200', head: 'text-blue-800', link: 'text-blue-600' },
+                        { key: 'web', label: tr(lang, '网页演示', 'Web Demo'), icon: '🌐', box: 'bg-emerald-50 border-emerald-200', head: 'text-emerald-800', link: 'text-emerald-700' },
                       ].map(g => {
                         const items = modalResources.filter(r => r.type === g.key)
                         if (items.length === 0) return null
@@ -955,7 +984,7 @@ export default function CourseDetailPage() {
                             <div className="space-y-2">
                               {items.map((r, i) => (
                                 <div key={i} className={`text-sm ${g.link}`}>
-                                  {r.title || r.url || '(未填网址)'}
+                                  {r.title || r.url || tr(lang, '(未填网址)', '(No URL)')}
                                   {r.note && <span className="block text-xs text-muted-foreground mt-0.5">{r.note}</span>}
                                 </div>
                               ))}
@@ -965,7 +994,7 @@ export default function CourseDetailPage() {
                       })}
                     </div>
                   )}
-                  {modalDesc ? <div className="mt-3 text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground mt-3">暂无描述</p>}
+                  {modalDesc ? <div className="mt-3 text-sm leading-relaxed"><KatexHtml text={modalDesc} /></div> : <p className="text-sm text-muted-foreground mt-3">{tr(lang, '暂无描述', 'No description')}</p>}
                 </div>
               </div>
             </div>

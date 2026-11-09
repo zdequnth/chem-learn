@@ -30,11 +30,11 @@ function cleanWord(raw: any) {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const lessonId = searchParams.get('lessonId')
-  if (!lessonId) return NextResponse.json({ error: '缺少lessonId' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ error: 'Missing lessonId（缺少 lessonId）' }, { status: 400 })
 
   const { data: words } = await supabaseAdmin('vocab_words', {
     query: `?lesson_id=eq.${lessonId}&order=sort_order.asc&select=*`,
@@ -62,14 +62,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const lessonId = body?.lesson_id
   const incoming = Array.isArray(body?.words) ? body.words : []
-  if (!lessonId) return NextResponse.json({ error: '缺少lesson_id' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ error: 'Missing lesson_id（缺少 lesson_id）' }, { status: 400 })
   if (!await checkLessonAccess(user.id, lessonId)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
 
   const { data: existing } = await supabaseAdmin('vocab_words', {
@@ -102,20 +102,20 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json()
   const { id } = body
-  if (!id) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   const { data: w } = await supabaseAdmin('vocab_words', { query: `?id=eq.${id}&select=lesson_id` })
-  if (!w?.[0]) return NextResponse.json({ error: '词条不存在' }, { status: 404 })
+  if (!w?.[0]) return NextResponse.json({ error: 'Word not found（词条不存在）' }, { status: 404 })
   if (!await checkLessonAccess(user.id, w[0].lesson_id)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
 
   const patch = { ...cleanWord(body), updated_at: new Date().toISOString() }
-  if (!patch.term || !patch.zh) return NextResponse.json({ error: '术语和中文释义不能为空' }, { status: 400 })
+  if (!patch.term || !patch.zh) return NextResponse.json({ error: 'Term and Chinese definition cannot be empty（术语和中文释义不能为空）' }, { status: 400 })
 
   const { error } = await supabaseAdmin('vocab_words', {
     method: 'PATCH', body: patch, query: `?id=eq.${id}`,
@@ -129,7 +129,7 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const lessonId = typeof body?.lessonId === 'string' ? body.lessonId : ''
@@ -140,13 +140,13 @@ export async function PATCH(request: Request) {
   })).filter((u: any) => u.id && Number.isInteger(u.sortOrder) && u.sortOrder >= 0)
 
   if (!lessonId || updates.length === 0 || updates.length !== raw.length || updates.length > 200) {
-    return NextResponse.json({ error: '缺少lessonId或顺序' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing lessonId or order（缺少 lessonId 或顺序）' }, { status: 400 })
   }
   if (new Set(updates.map((u: any) => u.id)).size !== updates.length) {
-    return NextResponse.json({ error: '顺序里有重复词条' }, { status: 400 })
+    return NextResponse.json({ error: 'Duplicate words in the order（顺序里有重复词条）' }, { status: 400 })
   }
   if (!await checkLessonAccess(user.id, lessonId)) {
-    return NextResponse.json({ error: '无权操作' }, { status: 403 })
+    return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
   }
 
   const ids = updates.map((u: any) => u.id)
@@ -154,7 +154,7 @@ export async function PATCH(request: Request) {
     query: `?lesson_id=eq.${lessonId}&id=in.(${ids.join(',')})&select=id`,
   })
   if ((existing || []).length !== ids.length) {
-    return NextResponse.json({ error: '顺序与课时里的词条不一致，请刷新后重试' }, { status: 400 })
+    return NextResponse.json({ error: 'The order does not match the words in this lesson. Please refresh and try again.（顺序与课时里的词条不一致，请刷新后重试）' }, { status: 400 })
   }
 
   for (const u of updates) {
@@ -172,7 +172,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -180,7 +180,7 @@ export async function DELETE(request: Request) {
 
   if (lessonId) {
     if (!await checkLessonAccess(user.id, lessonId)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
     const { error } = await supabaseAdmin('vocab_words', { method: 'DELETE', query: `?lesson_id=eq.${lessonId}` })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -190,12 +190,12 @@ export async function DELETE(request: Request) {
   if (id) {
     const { data: w } = await supabaseAdmin('vocab_words', { query: `?id=eq.${id}&select=lesson_id` })
     if (w?.[0] && !await checkLessonAccess(user.id, w[0].lesson_id)) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed（无权操作）' }, { status: 403 })
     }
     const { error } = await supabaseAdmin('vocab_words', { method: 'DELETE', query: `?id=eq.${id}` })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
-  return NextResponse.json({ error: '缺少id或lessonId' }, { status: 400 })
+  return NextResponse.json({ error: 'Missing id or lessonId（缺少 id 或 lessonId）' }, { status: 400 })
 }

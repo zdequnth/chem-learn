@@ -10,7 +10,7 @@ import type { Course, Chapter, Lesson } from '@/lib/types'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import QuestionImage from '@/components/QuestionImage'
 import { Loader2, Search, Edit3, CheckCircle, XCircle, X } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 import { shrinkImageFile } from '@/lib/shrink-image-file'
 
 function rateBadgeClass(rate: number | null) {
@@ -61,7 +61,7 @@ function QuestionsContent() {
       if (item.type.startsWith('image/')) {
         e.preventDefault()
         const file = item.getAsFile()
-        if (!file) { alert('无法读取图片'); continue }
+        if (!file) { alert(tr(lang, '无法读取图片', 'Could not read the image')); continue }
         // Big screenshots get shrunk in the browser first — a 17 MB paste would
         // otherwise be turned away, or exceed the upload limit anyway.
         const toSend = await shrinkImageFile(file)
@@ -75,10 +75,10 @@ function QuestionsContent() {
             if (field === 'stem') setManualForm(prev => ({ ...prev, imageUrl: json.url }))
             else setManualForm(prev => ({ ...prev, explanationImage: json.url }))
           } else {
-            alert('上传失败: ' + (json.error || '服务器无响应'))
+            alert(tr(lang, '上传失败: ', 'Upload failed: ') + (json.error || tr(lang, '服务器无响应', 'No response from the server')))
           }
         } catch (err: any) {
-          alert('上传异常: ' + err.message)
+          alert(tr(lang, '上传异常: ', 'Upload error: ') + err.message)
         }
         setUploadingImage(false)
       }
@@ -164,10 +164,10 @@ function QuestionsContent() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除此题？该题的历史作答记录也会一并删除。')) return
+    if (!confirm(tr(lang, '确定删除此题？该题的历史作答记录也会一并删除。', 'Delete this question? Its answer history will also be deleted.'))) return
     const res = await fetch(`/api/questions?id=${id}`, { method: 'DELETE' })
     const json = await res.json().catch(() => ({} as any))
-    if (!res.ok || json.error) { alert('删除失败：' + (json.error || ('HTTP ' + res.status))); return }
+    if (!res.ok || json.error) { alert(tr(lang, '删除失败：', 'Delete failed: ') + (json.error || ('HTTP ' + res.status))); return }
     refetchQuestions()
   }
 
@@ -203,15 +203,15 @@ function QuestionsContent() {
   }
 
   const handleSaveQuestion = async () => {
-    if (!manualForm.stem.trim() && !manualForm.imageUrl) return alert('请输入题目内容或粘贴图片')
+    if (!manualForm.stem.trim() && !manualForm.imageUrl) return alert(tr(lang, '请输入题目内容或粘贴图片', 'Enter the question text or paste an image'))
     const rows = manualForm.options.map(o => o.trim())
-    if (!rows[manualForm.correctIndex]) return alert('正确答案对应的选项不能为空')
+    if (!rows[manualForm.correctIndex]) return alert(tr(lang, '正确答案对应的选项不能为空', 'The correct answer option cannot be empty'))
     const options = rows.map((content, i) => ({ content, isCorrect: i === manualForm.correctIndex })).filter(o => o.content)
-    if (options.length < 2) return alert('至少填写 2 个选项')
+    if (options.length < 2) return alert(tr(lang, '至少填写 2 个选项', 'Enter at least 2 options'))
 
     setManualSaving(true)
     try {
-      const explanation = manualForm.explanation.trim() + (manualForm.explanationImage ? `\n![解析图](${manualForm.explanationImage})` : '')
+      const explanation = manualForm.explanation.trim() + (manualForm.explanationImage ? `\n![${tr(lang, '解析图', 'Explanation image')}](${manualForm.explanationImage})` : '')
       let json: any
       if (editQuestion) {
         const res = await fetch('/api/questions', {
@@ -227,8 +227,8 @@ function QuestionsContent() {
           }),
         })
         json = await res.json()
-        if (json.error) { alert('保存失败: ' + json.error); setManualSaving(false); return }
-        alert('已保存修改！')
+        if (json.error) { alert(tr(lang, '保存失败: ', 'Save failed: ') + json.error); setManualSaving(false); return }
+        alert(tr(lang, '已保存修改！', 'Changes saved!'))
       } else {
         const res = await fetch('/api/questions/save-batch', {
           method: 'POST',
@@ -248,11 +248,11 @@ function QuestionsContent() {
           }),
         })
         json = await res.json()
-        if (json.error) { alert('保存失败: ' + json.error); setManualSaving(false); return }
-        alert('保存成功！')
+        if (json.error) { alert(tr(lang, '保存失败: ', 'Save failed: ') + json.error); setManualSaving(false); return }
+        alert(tr(lang, '保存成功！', 'Saved successfully!'))
       }
     } catch (e: any) {
-      alert('异常: ' + (e?.message || '未知'))
+      alert(tr(lang, '异常: ', 'Error: ') + (e?.message || tr(lang, '未知', 'Unknown')))
       setManualSaving(false)
       return
     }
@@ -270,22 +270,24 @@ function QuestionsContent() {
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 pt-24 pb-20">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">题库管理</h1>
+          <h1 className="text-2xl font-bold">{tr(lang, '题库管理', 'Question Bank')}</h1>
           <div className="flex items-center gap-2">
             {selectedLesson && (
               <button onClick={() => { setEditQuestion(null); setManualForm(EMPTY_FORM); setShowManualAdd(true) }}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors">
-                ✏️ 手动添加
+                {tr(lang, '✏️ 手动添加', '✏️ Add Manually')}
               </button>
             )}
             {questions.length > 0 && (
               <button onClick={async () => {
-                if (!confirm(`确定删除此课时的全部 ${questions.length} 道题目？含历史作答记录，不可恢复！`)) return
+                if (!confirm(tr(lang,
+                  `确定删除此课时的全部 ${questions.length} 道题目？含历史作答记录，不可恢复！`,
+                  `Delete all ${questions.length} questions in this lesson? Answer history will also be removed and cannot be recovered!`))) return
                 await fetch(`/api/questions?lessonId=${selectedLesson}`, { method: 'DELETE' })
                 setQuestions([])
               }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">
-                🗑 清空 ({questions.length})
+                {tr(lang, `🗑 清空 (${questions.length})`, `🗑 Clear (${questions.length})`)}
               </button>
             )}
             <Link href={`/teacher/ai-generate?course=${selectedCourse}&chapter=${selectedChapter}&lesson=${selectedLesson}`} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition-colors">
@@ -302,17 +304,17 @@ function QuestionsContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">{lang==='zh'?'选择课程':'Select Course'}</option>
+              <option value="">{tr(lang, '选择课程', 'Select Course')}</option>
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">{lang==='zh'?'选择章节':'Select Chapter'}</option>
+              <option value="">{tr(lang, '选择章节', 'Select Chapter')}</option>
               {filteredChapters.map((c: any) => <option key={c.id} value={c.id}>{(c.sort_order ?? 0) + 1}. {c.title}</option>)}
             </select>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
               className="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">{lang==='zh'?'选择课时':'Select Lesson'}</option>
+              <option value="">{tr(lang, '选择课时', 'Select Lesson')}</option>
               {filteredLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </select>
           </div>
@@ -322,8 +324,8 @@ function QuestionsContent() {
         {selectedLesson ? (
           questions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>此课时还没有题目</p>
-              <Link href="/teacher/ai-generate" className="text-purple-600 hover:underline mt-2 inline-block">去 AI 生成</Link>
+              <p>{tr(lang, '此课时还没有题目', 'No questions in this lesson yet')}</p>
+              <Link href="/teacher/ai-generate" className="text-purple-600 hover:underline mt-2 inline-block">{tr(lang, '去 AI 生成', 'Generate with AI')}</Link>
             </div>
           ) : (
             <div className="space-y-3">
@@ -334,26 +336,26 @@ function QuestionsContent() {
                       <span className="text-xs font-medium text-muted-foreground">#{i + 1}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         q.question_type === 'gate_test' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                      }`}>{q.question_type === 'gate_test' ? '关卡' : 'BOSS'}</span>
-                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">难度 {q.difficulty}</span>
+                      }`}>{q.question_type === 'gate_test' ? tr(lang, '关卡', 'Gate') : 'BOSS'}</span>
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{tr(lang, `难度 ${q.difficulty}`, `Difficulty ${q.difficulty}`)}</span>
                       {rateById[q.id] && rateById[q.id].attempts > 0 && (
                         <span className={`text-xs px-2 py-0.5 rounded-full ${rateBadgeClass(rateById[q.id].rate)}`}>
-                          正确率 {rateById[q.id].rate === null ? '—' : `${rateById[q.id].rate}%`} · {rateById[q.id].attempts}次
+                          {tr(lang, '正确率 ', 'Accuracy ')}{rateById[q.id].rate === null ? '—' : `${rateById[q.id].rate}%`} · {rateById[q.id].attempts}{tr(lang, '次', ' attempts')}
                         </span>
                       )}
                       {q.is_ai_generated && <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full">AI</span>}
-                      {!q.is_approved && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">待批准</span>}
+                      {!q.is_approved && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">{tr(lang, '待批准', 'Pending approval')}</span>}
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => openEditQuestion(q)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400 transition-colors" title="编辑">
+                      <button onClick={() => openEditQuestion(q)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400 transition-colors" title={tr(lang, '编辑', 'Edit')}>
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleApprove(q.id, q.is_approved)}
                         className={`p-1.5 rounded-lg transition-colors ${q.is_approved ? 'hover:bg-amber-100 text-green-500' : 'hover:bg-green-100 text-amber-500'}`}
-                        title={q.is_approved ? '取消批准' : '批准'}>
+                        title={q.is_approved ? tr(lang, '取消批准', 'Unapprove') : tr(lang, '批准', 'Approve')}>
                         {q.is_approved ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                       </button>
-                      <button onClick={() => handleDelete(q.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="删除">
+                      <button onClick={() => handleDelete(q.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title={tr(lang, '删除', 'Delete')}>
                         <XCircle className="w-4 h-4" />
                       </button>
                     </div>
@@ -375,7 +377,7 @@ function QuestionsContent() {
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>请选择课程 → 章节 → 课时来查看题目</p>
+            <p>{tr(lang, '请选择课程 → 章节 → 课时来查看题目', 'Select a course → chapter → lesson to view questions')}</p>
           </div>
         )}
       </main>
@@ -385,34 +387,36 @@ function QuestionsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">{editQuestion ? '编辑题目' : '手动添加题目'}</h2>
-              <button onClick={closeModal} title="关闭"
+              <h2 className="text-lg font-semibold">{editQuestion ? tr(lang, '编辑题目', 'Edit Question') : tr(lang, '手动添加题目', 'Add Question Manually')}</h2>
+              <button onClick={closeModal} title={tr(lang, '关闭', 'Close')}
                 className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <select value={manualForm.question_type} onChange={e => setManualForm({ ...manualForm, question_type: e.target.value })}
                   className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option value="gate_test">关卡测试</option>
+                  <option value="gate_test">{tr(lang, '关卡测试', 'Gate Test')}</option>
                 </select>
                 <select value={manualForm.difficulty} onChange={e => setManualForm({ ...manualForm, difficulty: Number(e.target.value) })}
                   className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-                  {[1,2,3,4,5].map(d => <option key={d} value={d}>难度 {d}</option>)}
+                  {[1,2,3,4,5].map(d => <option key={d} value={d}>{tr(lang, `难度 ${d}`, `Difficulty ${d}`)}</option>)}
                 </select>
               </div>
               <textarea value={manualForm.stem} onChange={e => setManualForm({ ...manualForm, stem: e.target.value })}
                 onPaste={(e) => handlePasteImage(e, 'stem')}
-                placeholder={`题目内容（支持 LaTeX 化学式如 $H_2O$，可直接粘贴图片）${uploadingImage ? ' ⏳上传中...' : ''}`} rows={3}
+                placeholder={tr(lang,
+                  `题目内容（支持 LaTeX 化学式如 $H_2O$，可直接粘贴图片）${uploadingImage ? ' ⏳上传中...' : ''}`,
+                  `Question text (LaTeX formulas like $H_2O$ supported; paste images directly)${uploadingImage ? ' ⏳ Uploading...' : ''}`)} rows={3}
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {manualForm.imageUrl && (
                 <div className="mt-2 relative inline-block">
-                  <QuestionImage src={manualForm.imageUrl} alt="题目图片" />
+                  <QuestionImage src={manualForm.imageUrl} alt={tr(lang, '题目图片', 'Question image')} />
                   <button onClick={() => setManualForm({ ...manualForm, imageUrl: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-2">选项（点击圆圈标记正确答案）</label>
+                <label className="block text-sm font-medium mb-2">{tr(lang, '选项（点击圆圈标记正确答案）', 'Options (click the circle to mark the correct answer)')}</label>
                 {manualForm.options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-3 mb-2">
                     <button onClick={() => setManualForm({ ...manualForm, correctIndex: i })}
@@ -425,18 +429,18 @@ function QuestionsContent() {
                     <input value={opt} onChange={e => {
                       const newOpts = [...manualForm.options]; newOpts[i] = e.target.value
                       setManualForm({ ...manualForm, options: newOpts })
-                    }} placeholder={`选项 ${String.fromCharCode(65 + i)}`}
+                    }} placeholder={tr(lang, `选项 ${String.fromCharCode(65 + i)}`, `Option ${String.fromCharCode(65 + i)}`)}
                       className="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
                   </div>
                 ))}
               </div>
               <textarea value={manualForm.explanation} onChange={e => setManualForm({ ...manualForm, explanation: e.target.value })}
                 onPaste={(e) => handlePasteImage(e, 'explanation')}
-                placeholder="解析（支持粘贴图片）" rows={3}
+                placeholder={tr(lang, '解析（支持粘贴图片）', 'Explanation (you can paste an image)')} rows={3}
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {manualForm.explanationImage && (
                 <div className="mt-2 relative inline-block">
-                  <QuestionImage src={manualForm.explanationImage} alt="解析图片" />
+                  <QuestionImage src={manualForm.explanationImage} alt={tr(lang, '解析图片', 'Explanation image')} />
                   <button onClick={() => setManualForm({ ...manualForm, explanationImage: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
@@ -444,10 +448,10 @@ function QuestionsContent() {
               <div className="flex gap-3">
                 <button onClick={handleSaveQuestion} disabled={manualSaving}
                   className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                  {manualSaving ? '保存中...' : (editQuestion ? '保存修改' : '保存题目')}
+                  {manualSaving ? tr(lang, '保存中...', 'Saving...') : (editQuestion ? tr(lang, '保存修改', 'Save Changes') : tr(lang, '保存题目', 'Save Question'))}
                 </button>
                 <button onClick={closeModal}
-                  className="flex-1 py-2.5 bg-accent rounded-lg font-medium">取消</button>
+                  className="flex-1 py-2.5 bg-accent rounded-lg font-medium">{tr(lang, '取消', 'Cancel')}</button>
               </div>
             </div>
           </div>

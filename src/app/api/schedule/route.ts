@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS, addDays, isDateString, parseItemInput,
   rowToItem, type ScheduleMark, type ScheduleSettings,
 } from '@/lib/schedule'
+import { bilingualError } from '@/app/api/_lib/error-message'
 
 // goal_id is deliberately absent: the calendar must keep working on a database
 // where migration 029 has not been applied yet. A row without it maps to null.
@@ -16,7 +17,7 @@ const ITEM_FIELDS = 'id,title,kind,class_id,color,repeat,weekday,event_date,star
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const week = new URL(request.url).searchParams.get('week')
 
@@ -52,17 +53,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { input, error: parseError } = parseItemInput(await request.json().catch(() => null))
-  if (!input) return NextResponse.json({ error: parseError }, { status: 400 })
+  if (!input) return NextResponse.json({ error: bilingualError(parseError || '') }, { status: 400 })
 
   if (input.classId) {
     // Never let a plan point at somebody else's class.
     const { data: owned } = await supabaseAdmin('classes', {
       query: `?id=eq.${input.classId}&teacher_id=eq.${user.id}&select=id`,
     })
-    if (!owned?.length) return NextResponse.json({ error: '班级不存在' }, { status: 400 })
+    if (!owned?.length) return NextResponse.json({ error: 'Class not found（班级不存在）' }, { status: 400 })
   }
 
   const { data, error } = await supabaseAdmin('schedule_items', {

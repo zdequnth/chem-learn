@@ -61,15 +61,15 @@ function parseMarkdownQuestions(text: string) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { text } = await request.json()
-  if (!text?.trim()) return NextResponse.json({ error: '请输入题目内容' }, { status: 400 })
+  if (!text?.trim()) return NextResponse.json({ error: 'Please enter question content（请输入题目内容）' }, { status: 400 })
 
   const questions = parseMarkdownQuestions(text)
   if (questions.length === 0) {
     return NextResponse.json(
-      { error: '快速解析没找到题目：请确认是"编号 + A/B/C/D 选项 + Answer + Explanation"的格式；否则请改用 AI 解析。' },
+      { error: 'Quick parsing found no questions. Please confirm the format is "number + A/B/C/D options + Answer + Explanation"; otherwise use AI parsing.（快速解析没找到题目：请确认是"编号 + A/B/C/D 选项 + Answer + Explanation"的格式；否则请改用 AI 解析。）' },
       { status: 400 }
     )
   }

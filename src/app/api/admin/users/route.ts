@@ -5,14 +5,14 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   // Check real role from DB (not JWT which may be stale)
   const { data: profile } = await supabaseAdmin('profiles', {
     query: `?id=eq.${user.id}&select=role`,
   })
   if (!profile || profile[0]?.role !== 'admin') {
-    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+    return NextResponse.json({ error: 'Access denied（无权访问）' }, { status: 403 })
   }
 
   const { data: profiles } = await supabaseAdmin('profiles', {
@@ -24,18 +24,18 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const { data: profile } = await supabaseAdmin('profiles', {
     query: `?id=eq.${user.id}&select=role`,
   })
   if (!profile || profile[0]?.role !== 'admin') {
-    return NextResponse.json({ error: '无权访问' }, { status: 403 })
+    return NextResponse.json({ error: 'Access denied（无权访问）' }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
   const userId = searchParams.get('id')
-  if (!userId) return NextResponse.json({ error: '缺少id' }, { status: 400 })
+  if (!userId) return NextResponse.json({ error: 'Missing id（缺少 id）' }, { status: 400 })
 
   const body = await request.json()
   await supabaseAdmin('profiles', {

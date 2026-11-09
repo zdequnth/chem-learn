@@ -10,6 +10,7 @@ import QuestionImage from '@/components/QuestionImage'
 import type { Course, Chapter, Lesson } from '@/lib/types'
 import { ArrowLeft, Loader2, CheckCircle, Save, X, Sparkles, Edit3 } from 'lucide-react'
 import { shrinkImageFile } from '@/lib/shrink-image-file'
+import { useLang, tr } from '@/lib/i18n'
 
 interface ParsedQuestion {
   stem: string
@@ -48,6 +49,7 @@ function ImportForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, profile, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [courses, setCourses] = useState<Course[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -119,7 +121,7 @@ function ImportForm() {
         body: JSON.stringify({ text: markdownText.trim(), ...courseNames }),
       })
       const json = await res.json()
-      if (json.error) { alert('解析失败：' + json.error); return }
+      if (json.error) { alert(tr(lang, '解析失败：', 'Parsing failed: ') + json.error); return }
 
       const raw = Array.isArray(json.questions) ? json.questions : []
       const kept: ParsedQuestion[] = []
@@ -133,15 +135,19 @@ function ImportForm() {
 
       const msgs: string[] = []
       if (Array.isArray(json.failed) && json.failed.length > 0) {
-        const snippet = typeof json.failed[0] === 'string' ? `「${json.failed[0].slice(0, 50)}…」` : ''
-        msgs.push(`有 ${json.failed.length} 段题目未能解析，已跳过${snippet ? `（从${snippet}开始）` : ''}。可把该段附近删掉或改一下再试。`)
+        const snippet = typeof json.failed[0] === 'string' ? `${json.failed[0].slice(0, 50)}…` : ''
+        msgs.push(tr(lang,
+          `有 ${json.failed.length} 段题目未能解析，已跳过${snippet ? `（从${snippet}开始）` : ''}。可把该段附近删掉或改一下再试。`,
+          `${json.failed.length} question block(s) could not be parsed and were skipped${snippet ? ` (starting from ${snippet})` : ''}. Try deleting or editing around that block and parse again.`))
       }
       if (skipped > 0) {
-        msgs.push(`解析到 ${raw.length} 道，其中 ${skipped} 道格式异常，已自动跳过。`)
+        msgs.push(tr(lang,
+          `解析到 ${raw.length} 道，其中 ${skipped} 道格式异常，已自动跳过。`,
+          `Parsed ${raw.length} questions; ${skipped} had format issues and were skipped automatically.`))
       }
       if (msgs.length > 0) alert(msgs.join('\n'))
     } catch {
-      alert('解析失败，请稍后重试。若反复失败，可能是题目数量过多，建议分两次导入。')
+      alert(tr(lang, '解析失败，请稍后重试。若反复失败，可能是题目数量过多，建议分两次导入。', 'Parsing failed. Please try again later. If it keeps failing, there may be too many questions; try importing in two batches.'))
     } finally {
       setParsing(false)
     }
@@ -176,7 +182,7 @@ function ImportForm() {
       if (item.type.startsWith('image/')) {
         e.preventDefault()
         const file = item.getAsFile()
-        if (!file) { alert('无法读取图片'); continue }
+        if (!file) { alert(tr(lang, '无法读取图片', 'Could not read the image')); continue }
         // Big screenshots get shrunk in the browser first — a 17 MB paste would
         // otherwise be turned away, or exceed the upload limit anyway.
         const toSend = await shrinkImageFile(file)
@@ -190,10 +196,10 @@ function ImportForm() {
             if (field === 'stem') setEditForm(prev => ({ ...prev, imageUrl: json.url }))
             else setEditForm(prev => ({ ...prev, explanationImage: json.url }))
           } else {
-            alert('上传失败: ' + (json.error || '服务器无响应'))
+            alert(tr(lang, '上传失败: ', 'Upload failed: ') + (json.error || tr(lang, '服务器无响应', 'No response from the server')))
           }
         } catch (err: any) {
-          alert('上传异常: ' + err.message)
+          alert(tr(lang, '上传异常: ', 'Upload error: ') + err.message)
         }
         setUploadingImage(false)
       }
@@ -202,11 +208,11 @@ function ImportForm() {
 
   const saveEdit = () => {
     if (editIndex === null) return
-    if (!editForm.stem.trim() && !editForm.imageUrl) return alert('请输入题目内容或粘贴题目图片')
+    if (!editForm.stem.trim() && !editForm.imageUrl) return alert(tr(lang, '请输入题目内容或粘贴题目图片', 'Enter the question text or paste a question image'))
     const rows = editForm.options.map(o => o.trim())
-    if (!rows[editForm.correctIndex]) return alert('正确答案对应的选项不能为空')
+    if (!rows[editForm.correctIndex]) return alert(tr(lang, '正确答案对应的选项不能为空', 'The correct answer option cannot be empty'))
     const options = rows.map((content, idx) => ({ content, isCorrect: idx === editForm.correctIndex })).filter(o => o.content)
-    if (options.length < 2) return alert('至少需要 2 个选项')
+    if (options.length < 2) return alert(tr(lang, '至少需要 2 个选项', 'At least 2 options are required'))
     setQuestions(prev => prev.map((q, idx) => idx === editIndex ? {
       ...q,
       stem: editForm.stem.trim(),
@@ -228,7 +234,7 @@ function ImportForm() {
       body: JSON.stringify({
         questions: questions.map(q => ({
           stem: q.stem,
-          explanation: (q.explanation || '') + (q.explanationImage ? `\n![解析图](${q.explanationImage})` : ''),
+          explanation: (q.explanation || '') + (q.explanationImage ? `\n![${tr(lang, '解析图', 'Explanation image')}](${q.explanationImage})` : ''),
           difficulty: q.difficulty || 3,
           question_type: 'gate_test',
           lesson_id: selectedLesson,
@@ -241,7 +247,7 @@ function ImportForm() {
     })
     const json = await res.json()
     setSaved(true)
-    alert(`已保存 ${json.saved || 0} 道题目！`)
+    alert(tr(lang, `已保存 ${json.saved || 0} 道题目！`, `Saved ${json.saved || 0} questions!`))
     setSaving(false)
   }
 
@@ -254,55 +260,57 @@ function ImportForm() {
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 pt-24 pb-20">
         <Link href="/teacher/questions" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> 返回题库
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回题库', 'Back to Question Bank')}
         </Link>
 
-        <h1 className="text-2xl font-bold mb-2">📄 导入题目</h1>
-        <p className="text-muted-foreground mb-6 text-sm">粘贴 Markdown 格式的题目文本，解析为结构化题目（快速解析用规则、数量精准；AI 解析适合格式不规整的文本）</p>
+        <h1 className="text-2xl font-bold mb-2">{tr(lang, '📄 导入题目', '📄 Import Questions')}</h1>
+        <p className="text-muted-foreground mb-6 text-sm">{tr(lang, '粘贴 Markdown 格式的题目文本，解析为结构化题目（快速解析用规则、数量精准；AI 解析适合格式不规整的文本）', 'Paste questions in Markdown and parse them into structured questions (Quick Parse uses rules for an exact count; AI Parse handles irregular formats)')}</p>
 
         {/* Config */}
         <div className="bg-card rounded-2xl border p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <select value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}
               className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">选择课程</option>
+              <option value="">{tr(lang, '选择课程', 'Select Course')}</option>
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedCourse}
               className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">选择章节</option>
+              <option value="">{tr(lang, '选择章节', 'Select Chapter')}</option>
               {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
             <select value={selectedLesson} onChange={e => setSelectedLesson(e.target.value)} disabled={!selectedChapter}
               className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
-              <option value="">选择目标课时</option>
+              <option value="">{tr(lang, '选择目标课时', 'Select Target Lesson')}</option>
               {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </select>
           </div>
 
-          <label className="block text-sm font-medium mb-1">题目内容（Markdown）</label>
+          <label className="block text-sm font-medium mb-1">{tr(lang, '题目内容（Markdown）', 'Question Content (Markdown)')}</label>
           <textarea value={markdownText} onChange={e => setMarkdownText(e.target.value)}
-            placeholder={`粘贴题目，格式参考：\n\n1. 下列物质中属于电解质的是？\nA. 蔗糖\nB. 氯化钠\nC. 乙醇\nD. 葡萄糖\n答案：B\n解析：氯化钠在水中完全电离，是强电解质。\n\n---\n\n2. 实验室制取Cl₂的化学方程式？\n...`}
+            placeholder={tr(lang,
+              `粘贴题目，格式参考：\n\n1. 下列物质中属于电解质的是？\nA. 蔗糖\nB. 氯化钠\nC. 乙醇\nD. 葡萄糖\n答案：B\n解析：氯化钠在水中完全电离，是强电解质。\n\n---\n\n2. 实验室制取Cl₂的化学方程式？\n...`,
+              `Paste questions, format example:\n\n1. Which of the following substances is an electrolyte?\nA. Sucrose\nB. Sodium chloride\nC. Ethanol\nD. Glucose\nAnswer: B\nExplanation: Sodium chloride fully dissociates in water and is a strong electrolyte.\n\n---\n\n2. What is the chemical equation for preparing Cl₂ in the lab?\n...`)}
             rows={12} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono text-sm" />
           <div className="flex flex-wrap items-center gap-2 mt-4 text-sm">
-            <span className="text-muted-foreground">解析方式：</span>
+            <span className="text-muted-foreground">{tr(lang, '解析方式：', 'Parsing mode: ')}</span>
             <button onClick={() => setMode('rule')}
               className={`px-3 py-1.5 rounded-lg border font-medium ${mode === 'rule' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
-              ⚡ 快速解析（规则·不用 AI）
+              {tr(lang, '⚡ 快速解析（规则·不用 AI）', '⚡ Quick Parse (rules, no AI)')}
             </button>
             <button onClick={() => setMode('ai')}
               className={`px-3 py-1.5 rounded-lg border font-medium ${mode === 'ai' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-muted-foreground hover:bg-accent'}`}>
-              🤖 AI 解析
+              {tr(lang, '🤖 AI 解析', '🤖 AI Parse')}
             </button>
             <span className="text-xs text-muted-foreground">
               {mode === 'rule'
-                ? '按"编号 + A/B/C/D 选项 + Answer + Explanation"模板拆分，数量精准、不花 AI；格式不规整请用 AI'
-                : 'AI 自由拆分，格式较灵活，但偶尔会漏题/多题'}
+                ? tr(lang, '按"编号 + A/B/C/D 选项 + Answer + Explanation"模板拆分，数量精准、不花 AI；格式不规整请用 AI', 'Splits by the "number + A/B/C/D options + Answer + Explanation" template: exact count, no AI cost. Use AI for irregular formats.')
+                : tr(lang, 'AI 自由拆分，格式较灵活，但偶尔会漏题/多题', 'AI splits freely and handles irregular formats, but may occasionally miss or duplicate questions.')}
             </span>
           </div>
           <button onClick={handleParse} disabled={!selectedLesson || !markdownText.trim() || parsing}
             className="w-full mt-3 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2">
-            {parsing ? <><Loader2 className="w-5 h-5 animate-spin" /> 解析中...</> : <><Sparkles className="w-5 h-5" /> {mode === 'rule' ? '开始快速解析' : '开始 AI 解析'}</>}
+            {parsing ? <><Loader2 className="w-5 h-5 animate-spin" /> {tr(lang, '解析中...', 'Parsing...')}</> : <><Sparkles className="w-5 h-5" /> {mode === 'rule' ? tr(lang, '开始快速解析', 'Start Quick Parse') : tr(lang, '开始 AI 解析', 'Start AI Parse')}</>}
           </button>
         </div>
 
@@ -310,31 +318,31 @@ function ImportForm() {
         {questions.length > 0 && (
           <div className="bg-card rounded-2xl border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">审核预览 ({questions.length} 题)</h2>
+              <h2 className="text-lg font-semibold">{tr(lang, `审核预览 (${questions.length} 题)`, `Review Preview (${questions.length} questions)`)}</h2>
               <button onClick={handleSaveAll} disabled={saving || saved}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">
-                {saved ? <><CheckCircle className="w-4 h-4" /> 已保存</>
-                 : saving ? <><Loader2 className="w-4 h-4 animate-spin" /> 保存中...</>
-                 : <><Save className="w-4 h-4" /> 全部保存到题库</>}
+                {saved ? <><CheckCircle className="w-4 h-4" /> {tr(lang, '已保存', 'Saved')}</>
+                 : saving ? <><Loader2 className="w-4 h-4 animate-spin" /> {tr(lang, '保存中...', 'Saving...')}</>
+                 : <><Save className="w-4 h-4" /> {tr(lang, '全部保存到题库', 'Save All to Question Bank')}</>}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">审核每道题：点 ✏️ 修改题干/选项/答案或粘贴图片，点 ✕ 删除，剩下的点"全部保存"一键入库。</p>
+            <p className="text-xs text-muted-foreground mb-4">{tr(lang, '审核每道题：点 ✏️ 修改题干/选项/答案或粘贴图片，点 ✕ 删除，剩下的点"全部保存"一键入库。', 'Review each question: click ✏️ to edit the stem, options, or answer or to paste an image; click ✕ to delete; then click "Save All" to add the rest to the bank.')}</p>
             <div className="space-y-3">
               {questions.map((q, i) => (
                 <div key={i} className="border rounded-xl p-4 relative">
                   <div className="absolute top-3 right-3 flex items-center gap-1">
-                    <button onClick={() => openEdit(i)} title="编辑"
+                    <button onClick={() => openEdit(i)} title={tr(lang, '编辑', 'Edit')}
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleDeleteQuestion(i)} title="删除"
+                    <button onClick={() => handleDeleteQuestion(i)} title={tr(lang, '删除', 'Delete')}
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="flex items-center gap-2 mb-2 pr-20">
                     <span className="text-xs font-medium text-muted-foreground">#{i + 1}</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">难度 {q.difficulty}</span>
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">{tr(lang, `难度 ${q.difficulty}`, `Difficulty ${q.difficulty}`)}</span>
                   </div>
                   {q.imageUrl && <QuestionImage src={q.imageUrl} className="mb-2" />}
                   <p className="text-sm mb-2"><KatexHtml text={q.stem} /></p>
@@ -359,28 +367,30 @@ function ImportForm() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">编辑第 {editIndex + 1} 题</h2>
-              <button onClick={() => setEditIndex(null)} title="关闭"
+              <h2 className="text-lg font-semibold">{tr(lang, `编辑第 ${editIndex + 1} 题`, `Edit Question ${editIndex + 1}`)}</h2>
+              <button onClick={() => setEditIndex(null)} title={tr(lang, '关闭', 'Close')}
                 className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <select value={editForm.difficulty} onChange={e => setEditForm({ ...editForm, difficulty: Number(e.target.value) })}
                 className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500">
-                {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>难度 {d}</option>)}
+                {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>{tr(lang, `难度 ${d}`, `Difficulty ${d}`)}</option>)}
               </select>
               <textarea value={editForm.stem} onChange={e => setEditForm({ ...editForm, stem: e.target.value })}
                 onPaste={(e) => handlePasteImage(e, 'stem')}
-                placeholder={`题目内容（支持 LaTeX，可直接粘贴图片）${uploadingImage ? ' ⏳上传中...' : ''}`} rows={3}
+                placeholder={tr(lang,
+                  `题目内容（支持 LaTeX，可直接粘贴图片）${uploadingImage ? ' ⏳上传中...' : ''}`,
+                  `Question text (LaTeX supported; paste images directly)${uploadingImage ? ' ⏳ Uploading...' : ''}`)} rows={3}
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {editForm.imageUrl && (
                 <div className="relative inline-block">
-                  <QuestionImage src={editForm.imageUrl} alt="题目图片" />
+                  <QuestionImage src={editForm.imageUrl} alt={tr(lang, '题目图片', 'Question image')} />
                   <button onClick={() => setEditForm({ ...editForm, imageUrl: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-2">选项（点击圆圈标记正确答案）</label>
+                <label className="block text-sm font-medium mb-2">{tr(lang, '选项（点击圆圈标记正确答案）', 'Options (click the circle to mark the correct answer)')}</label>
                 {editForm.options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-3 mb-2">
                     <button onClick={() => setEditForm({ ...editForm, correctIndex: i })}
@@ -389,26 +399,26 @@ function ImportForm() {
                     </button>
                     <span className="text-sm text-muted-foreground w-4">{String.fromCharCode(65 + i)}.</span>
                     <input value={opt} onChange={e => { const n = [...editForm.options]; n[i] = e.target.value; setEditForm({ ...editForm, options: n }) }}
-                      placeholder={`选项 ${String.fromCharCode(65 + i)}`}
+                      placeholder={tr(lang, `选项 ${String.fromCharCode(65 + i)}`, `Option ${String.fromCharCode(65 + i)}`)}
                       className="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
                   </div>
                 ))}
               </div>
               <textarea value={editForm.explanation} onChange={e => setEditForm({ ...editForm, explanation: e.target.value })}
                 onPaste={(e) => handlePasteImage(e, 'explanation')}
-                placeholder="解析（支持粘贴图片）" rows={3}
+                placeholder={tr(lang, '解析（支持粘贴图片）', 'Explanation (you can paste an image)')} rows={3}
                 className="w-full px-4 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               {editForm.explanationImage && (
                 <div className="relative inline-block">
-                  <QuestionImage src={editForm.explanationImage} alt="解析图片" />
+                  <QuestionImage src={editForm.explanationImage} alt={tr(lang, '解析图片', 'Explanation image')} />
                   <button onClick={() => setEditForm({ ...editForm, explanationImage: '' })}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
               )}
               <div className="flex gap-3">
                 <button onClick={saveEdit} disabled={uploadingImage}
-                  className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">保存修改</button>
-                <button onClick={() => setEditIndex(null)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium">取消</button>
+                  className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50">{tr(lang, '保存修改', 'Save Changes')}</button>
+                <button onClick={() => setEditIndex(null)} className="flex-1 py-2.5 bg-accent rounded-lg font-medium">{tr(lang, '取消', 'Cancel')}</button>
               </div>
             </div>
           </div>

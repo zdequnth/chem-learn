@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Lang } from '@/lib/i18n'
+import { tr, type Lang } from '@/lib/i18n'
 
 // A small recursive-descent evaluator. No eval(), so pasted text cannot run
 // code; unknown characters simply produce "Error".
@@ -183,7 +183,7 @@ export default function ScientificCalculator({ lang }: { lang: Lang }) {
       try {
         setResult(format(evaluate(expr, deg)))
       } catch {
-        setResult(lang === 'zh' ? '错误' : 'Error')
+        setResult(tr(lang, '错误', 'Error'))
       }
       setJustEvaluated(true)
       return
@@ -204,7 +204,7 @@ export default function ScientificCalculator({ lang }: { lang: Lang }) {
     <div className="p-3">
       <div className="mb-2 rounded-lg border bg-muted/30 p-2">
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{lang === 'zh' ? '科学计算器' : 'Scientific calculator'}</span>
+          <span>{tr(lang, '科学计算器', 'Scientific calculator')}</span>
           <button
             type="button"
             onClick={() => setDeg(d => !d)}
@@ -244,7 +244,7 @@ export default function ScientificCalculator({ lang }: { lang: Lang }) {
         ))}
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground">
-        {lang === 'zh' ? '支持 + − × ÷、括号、幂、sin/cos/tan、log/ln、√、π、e。' : 'Supports + − × ÷, brackets, powers, sin/cos/tan, log/ln, √, π and e.'}
+        {tr(lang, '支持 + − × ÷、括号、幂、sin/cos/tan、log/ln、√、π、e。', 'Supports + − × ÷, brackets, powers, sin/cos/tan, log/ln, √, π and e.')}
       </p>
     </div>
   )

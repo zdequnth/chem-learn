@@ -6,12 +6,8 @@ import Link from 'next/link'
 import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { ArrowLeft, Loader2 } from 'lucide-react'
+import { useLang, tr, subjectName } from '@/lib/i18n'
 
-const subjectNames: Record<string, string> = {
-  Chinese: '语文', Math: '数学', English: '英语',
-  'Second foreign Language': '二外', Physics: '物理', Chemistry: '化学',
-  Biology: '生物', Humanities: '人文',
-}
 const subjectIcons: Record<string, string> = {
   Chinese: '📖', Math: '📐', English: '🌍', 'Second foreign Language': '🗣️',
   Physics: '⚛️', Chemistry: '🧪', Biology: '🧬', Humanities: '📜',
@@ -21,6 +17,7 @@ export default function SubjectCoursesPage() {
   const params = useParams()
   const subject = decodeURIComponent((params?.subject as string) || '')
   const { user, loading: authLoading } = useAuth()
+  const { lang } = useLang()
 
   const [courses, setCourses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,20 +54,20 @@ export default function SubjectCoursesPage() {
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-20">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> 返回仪表盘
+          <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回仪表盘', 'Back to Dashboard')}
         </Link>
         <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
           <span>{subjectIcons[subject] || '📚'}</span>
-          {subjectNames[subject] || subject}
+          {subjectName(subject, lang)}
         </h1>
-        <p className="text-muted-foreground mb-8">{courses.length} 门课程</p>
+        <p className="text-muted-foreground mb-8">{tr(lang, `${courses.length} 门课程`, `${courses.length} course${courses.length === 1 ? '' : 's'}`)}</p>
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
         ) : courses.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-4xl mb-4">📭</div>
-            <p className="text-muted-foreground">该学科暂无已发布课程</p>
+            <p className="text-muted-foreground">{tr(lang, '该学科暂无已发布课程', 'No published courses for this subject yet')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

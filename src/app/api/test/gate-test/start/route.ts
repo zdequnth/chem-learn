@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       const s = lastSession[0]
       if (s.locked_until && new Date(s.locked_until) > new Date()) {
         return NextResponse.json({
-          error: '测试已锁定',
+          error: 'Test is locked（测试已锁定）',
           lockedUntil: s.locked_until,
           minutesRemaining: Math.ceil((new Date(s.locked_until).getTime() - Date.now()) / 60000),
         }, { status: 403 })
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     // Check lesson is unlocked for first attempt
     if (progStatus !== 'unlocked' && progStatus !== 'in_progress') {
-      return NextResponse.json({ error: '此课时尚未解锁，请先完成上一个课时的测试' }, { status: 403 })
+      return NextResponse.json({ error: 'This lesson is not unlocked yet. Please complete the previous lesson\'s test first.（此课时尚未解锁，请先完成上一个课时的测试）' }, { status: 403 })
     }
   }
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     query: `?lesson_id=eq.${lessonId}&question_type=eq.gate_test&is_approved=eq.true&select=id`,
   })
   if (!qCount || qCount.length === 0) {
-    return NextResponse.json({ error: '没有可用的关卡测试题目' }, { status: 400 })
+    return NextResponse.json({ error: 'No gate-test questions are available（没有可用的关卡测试题目）' }, { status: 400 })
   }
 
   // Create session

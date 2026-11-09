@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { KatexHtml, cleanOption } from '@/components/KatexSpan'
 import { ArrowLeft, CheckCircle, XCircle, Loader2, Star, Sprout } from 'lucide-react'
-import { useLang, t } from '@/lib/i18n'
+import { useLang, t, tr } from '@/lib/i18n'
 
 interface WqQuestion {
   id: string; wbId: string; stem: string; explanation: string
@@ -106,10 +106,10 @@ function WrongTestForm() {
     setAiGenerating(question.id); setAiResult('')
     const res = await fetch('/api/ai/generate-kp-from-question', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stem: question.stem, explanation: question.explanation }),
+      body: JSON.stringify({ stem: question.stem, explanation: question.explanation, lang }),
     })
     const json = await res.json()
-    setAiResult(json.result || json.error || '生成失败')
+    setAiResult(json.result || json.error || tr(lang, '生成失败', 'Generation failed'))
     setAiGenerating(null)
   }
 
@@ -179,7 +179,7 @@ function WrongTestForm() {
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-muted-foreground">错题重测 · 第 {currentIdx + 1}/{questions.length} 题</span>
+              <span className="text-sm text-muted-foreground">{tr(lang, `错题重测 · 第 ${currentIdx + 1}/${questions.length} 题`, `Wrong Question Retest · Question ${currentIdx + 1}/${questions.length}`)}</span>
               <span className="text-xs text-muted-foreground">✓{stats.correct} 🌶️{stats.wrong}</span>
             </div>
 
@@ -211,15 +211,15 @@ function WrongTestForm() {
 
             {isAnswered && !isCorrect && explanation && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
-                <div className="font-medium text-amber-800 mb-1">正确答案：{question.options.findIndex(o => o.id === correctOptionId) >= 0 ? String.fromCharCode(65 + question.options.findIndex(o => o.id === correctOptionId)!) : '?'}</div>
+                <div className="font-medium text-amber-800 mb-1">{tr(lang, '正确答案：', 'Correct answer: ')}{question.options.findIndex(o => o.id === correctOptionId) >= 0 ? String.fromCharCode(65 + question.options.findIndex(o => o.id === correctOptionId)!) : '?'}</div>
                 <p className="text-sm text-amber-700"><KatexHtml text={explanation} /></p>
                 <button onClick={handleGenerateKP} disabled={aiGenerating === question.id}
                   className="mt-3 flex items-center gap-1 px-3 py-1.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 disabled:opacity-50">
-                  🧠 {aiGenerating === question.id ? 'AI 生成中...' : 'AI 生成知识点'}
+                  🧠 {tr(lang, aiGenerating === question.id ? 'AI 生成中...' : 'AI 生成知识点', aiGenerating === question.id ? 'AI generating...' : 'AI generate knowledge point')}
                 </button>
                 {aiResult && (
                   <div className="mt-3 bg-white border rounded-lg p-3">
-                    <div className="text-xs font-medium text-purple-700 mb-1">AI 知识点总结</div>
+                    <div className="text-xs font-medium text-purple-700 mb-1">{tr(lang, 'AI 知识点总结', 'AI Knowledge Point Summary')}</div>
                     <div className="text-sm"><KatexHtml text={aiResult} /></div>
                   </div>
                 )}
@@ -230,17 +230,17 @@ function WrongTestForm() {
               {!isAnswered ? (
                 <button onClick={handleSubmit} disabled={!selectedOption}
                   className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 disabled:opacity-50">
-                  提交答案
+                  {tr(lang, '提交答案', 'Submit')}
                 </button>
               ) : isCorrect ? (
                 <button onClick={handleNext}
                   className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600">
-                  下一题
+                  {tr(lang, '下一题', 'Next')}
                 </button>
               ) : (
                 <button onClick={handleNext}
                   className="px-8 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600">
-                  下一题
+                  {tr(lang, '下一题', 'Next')}
                 </button>
               )}
             </div>

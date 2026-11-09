@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ cour
   const { courseId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const role = (user.user_metadata as any)?.role
 
@@ -52,7 +52,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ cour
   const { courseId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Please sign in（请先登录）' }, { status: 401 })
 
   const role = (user.user_metadata as any)?.role
   const { data: course } = await supabaseAdmin('courses', { query: `?id=eq.${courseId}&select=owner_id` })
@@ -62,7 +62,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ cour
       query: `?course_id=eq.${courseId}&teacher_id=eq.${user.id}&select=id`,
     })
     if (!cc || cc.length === 0) {
-      return NextResponse.json({ error: '无权编辑' }, { status: 403 })
+      return NextResponse.json({ error: 'Not allowed to edit（无权编辑）' }, { status: 403 })
     }
   }
 

@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers'
 import Navbar from '@/components/Navbar'
 import { kindTheme } from '@/lib/course-kind'
 import { ArrowLeft, Loader2, Clock, FileText, Play, RotateCcw, BarChart3, Check } from 'lucide-react'
-import { useLang } from '@/lib/i18n'
+import { useLang, tr } from '@/lib/i18n'
 
 interface PaperRow {
   id: string
@@ -67,18 +67,18 @@ function MockListContent() {
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-24">
         <div className="mb-6">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-2 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回仪表盘' : 'Back'}
+            <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回仪表盘', 'Back to Dashboard')}
           </Link>
-          <h1 className="text-2xl font-bold flex items-center gap-2">{theme.emoji} {lang === 'zh' ? '模拟考' : 'Mock Exams'}</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2">{theme.emoji} {tr(lang, '模拟考', 'Mock Exams')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {lang === 'zh' ? '限时做完整套题：倒计时内自由作答、可以回头改答案，交卷后才看分数和错题。' : 'Timed full papers. No feedback until you hand in.'}
+            {tr(lang, '限时做完整套题：倒计时内自由作答、可以回头改答案，交卷后才看分数和错题。', 'Timed full papers. Work freely, revisit and change answers, then see your score and wrong questions only after handing in.')}
           </p>
         </div>
 
         {!loading && groups.length === 0 ? (
           <div className="bg-card border rounded-2xl p-10 text-center">
             <div className="text-5xl mb-3">📝</div>
-            <p className="text-muted-foreground">{lang === 'zh' ? '还没有可用的模拟考课程。等老师建好并发布后再来。' : 'No mock exam available yet.'}</p>
+            <p className="text-muted-foreground">{tr(lang, '还没有可用的模拟考课程。等老师建好并发布后再来。', 'No mock exams available yet. Check back after your teacher publishes one.')}</p>
           </div>
         ) : loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
@@ -88,7 +88,7 @@ function MockListContent() {
               <div key={g.id}>
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                   <span>{theme.emoji}</span> {g.name}
-                  <span className="text-xs font-normal text-muted-foreground">{g.papers.length} 套卷子</span>
+                  <span className="text-xs font-normal text-muted-foreground">{tr(lang, `${g.papers.length} 套卷子`, `${g.papers.length} papers`)}</span>
                 </h2>
                 <div className="space-y-3">
                 {g.papers.map(p => {
@@ -101,15 +101,15 @@ function MockListContent() {
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{p.title}</div>
                         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {p.durationMinutes} 分钟</span>
-                          <span>{p.questionCount} 题</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {tr(lang, `${p.durationMinutes} 分钟`, `${p.durationMinutes} min`)}</span>
+                          <span>{tr(lang, `${p.questionCount} 题`, `${p.questionCount} questions`)}</span>
                           {done && (
                             <span className="flex items-center gap-1 text-emerald-700">
-                              <BarChart3 className="w-3 h-3" /> 上次 {Number(r!.percentage ?? 0)}%
+                              <BarChart3 className="w-3 h-3" /> {tr(lang, `上次 ${Number(r!.percentage ?? 0)}%`, `Last ${Number(r!.percentage ?? 0)}%`)}
                             </span>
                           )}
                           {done && (p.wrongCount ?? 0) > 0 && (
-                            <span className="text-rose-600">还有 {p.wrongCount} 题没答对</span>
+                            <span className="text-rose-600">{tr(lang, `还有 ${p.wrongCount} 题没答对`, `${p.wrongCount} not yet correct`)}</span>
                           )}
                         </div>
                       </div>
@@ -117,7 +117,7 @@ function MockListContent() {
                         {done && (
                           <Link href={`/mock/${p.id}?review=1`}
                             className="px-3 py-2 text-xs rounded-lg border font-medium hover:bg-accent transition-colors">
-                            {lang === 'zh' ? '看解析' : 'Review'}
+                            {tr(lang, '看解析', 'Review')}
                           </Link>
                         )}
                         {/* Once every question has been answered correctly there is
@@ -128,14 +128,14 @@ function MockListContent() {
                             announced itself as 错题重测. */}
                         {done && (p.wrongCount ?? 0) === 0 ? (
                           <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
-                            <Check className="w-4 h-4" /> 所有题目全部答对，无错题
+                            <Check className="w-4 h-4" /> {tr(lang, '所有题目全部答对，无错题', 'All questions correct — nothing to retest')}
                           </span>
                         ) : (
                           <Link href={live || !done ? `/mock/${p.id}` : `/mock/${p.id}?mode=retry`}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
-                            {live ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? '继续考试' : 'Resume'}</>
-                                  : done ? <><RotateCcw className="w-4 h-4" /> {lang === 'zh' ? `错题重测 (${p.wrongCount})` : `Retest (${p.wrongCount})`}</>
-                                  : <><Play className="w-4 h-4" /> {lang === 'zh' ? '开始考试' : 'Start'}</>}
+                            {live ? <><RotateCcw className="w-4 h-4" /> {tr(lang, '继续考试', 'Resume')}</>
+                                  : done ? <><RotateCcw className="w-4 h-4" /> {tr(lang, `错题重测 (${p.wrongCount})`, `Retest (${p.wrongCount})`)}</>
+                                  : <><Play className="w-4 h-4" /> {tr(lang, '开始考试', 'Start')}</>}
                           </Link>
                         )}
                       </div>

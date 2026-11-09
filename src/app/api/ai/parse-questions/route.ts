@@ -125,7 +125,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { text, lessonTitle, chapterTitle, courseName } = await request.json()
-  if (!text?.trim()) return NextResponse.json({ error: '请输入题目内容' }, { status: 400 })
+  if (!text?.trim()) return NextResponse.json({ error: 'Please enter question content（请输入题目内容）' }, { status: 400 })
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 })
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
 
   if (allQuestions.length === 0) {
     return NextResponse.json(
-      { error: 'AI解析失败，请检查题目格式', raw: failed[0] || '' },
+      { error: 'AI parsing failed. Please check the question format.（AI 解析失败，请检查题目格式）', raw: failed[0] || '' },
       { status: 500 }
     )
   }

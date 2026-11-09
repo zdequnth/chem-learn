@@ -13,7 +13,7 @@ import type { Course } from '@/lib/types'
 import { kindTheme } from '@/lib/course-kind'
 import { pdfToPageFiles } from '@/lib/pdf-to-images'
 import { ArrowLeft, Loader2, Plus, Sparkles, Trash2, ArrowUp, ArrowDown, Image as ImageIcon, X, Save, FileText, Shuffle, BarChart3, Eye, Edit3, CloudUpload } from 'lucide-react'
-import { useLang } from '@/lib/i18n'
+import { useLang, tr } from '@/lib/i18n'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
@@ -21,13 +21,13 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 // one way, so mistaking which kind you are in is the most expensive slip here.
 const PAPER_MODE = {
   choice: {
-    emoji: '🔤', label: '选择题卷',
+    emoji: '🔤', label: '选择题卷', labelEn: 'Multiple choice',
     pill: 'bg-sky-100 text-sky-800 border-sky-200',
     solid: 'bg-sky-600 border-sky-600 text-white',
     box: 'border-sky-300 bg-sky-50',
   },
   short: {
-    emoji: '✍️', label: '简答题卷',
+    emoji: '✍️', label: '简答题卷', labelEn: 'Short answer',
     pill: 'bg-amber-100 text-amber-900 border-amber-200',
     solid: 'bg-amber-600 border-amber-600 text-white',
     box: 'border-amber-300 bg-amber-50',
@@ -61,7 +61,7 @@ interface PaperRow { id: string; title: string; mode: 'choice' | 'short'; durati
 
 // How a PDF becomes pasteable text. One line, because the button below is the
 // route most teachers should be taking now.
-function MineruHelp({ lang }: { lang: string }) {
+function MineruHelp({ lang }: { lang: 'zh' | 'en' }) {
   if (lang !== 'zh') {
     return (
       <p className="mb-3 text-xs text-muted-foreground">
@@ -71,8 +71,8 @@ function MineruHelp({ lang }: { lang: string }) {
   }
   return (
     <p className="mb-3 text-xs text-blue-800">
-      📄 用 <a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>（免费）把 PDF 转成文本：打开 → 传 PDF → 全选复制粘到下面。
-      <span className="text-blue-700/70">复杂版面偶尔会错位，粘完逐题扫一眼。</span>
+      📄 {tr(lang,'用 ', 'Use ')}<a href="https://mineru.net" target="_blank" rel="noopener noreferrer" className="underline font-semibold">mineru.net</a>{tr(lang,'（免费）把 PDF 转成文本：打开 → 传 PDF → 全选复制粘到下面。', ' (free) to convert the PDF to text: open it, upload the PDF, select all and paste below.')}
+      <span className="text-blue-700/70">{tr(lang,'复杂版面偶尔会错位，粘完逐题扫一眼。', 'Complex layouts can occasionally shift; skim each question after pasting.')}</span>
     </p>
   )
 }
@@ -196,7 +196,7 @@ function MockAdminContent() {
     setBusy('load'); setOpen(true); setPaperId(id); setTitle(titleHint); setDuration(durationHint)
     try {
       const j = await fetch(`/api/mock/papers/${id}`).then(r => r.json())
-      if (j.error) { alert('读取失败：' + j.error); return }
+      if (j.error) { alert(tr(lang, '读取失败：', 'Could not load: ') + j.error); return }
       setTitle(j.paper.title); setDuration(j.paper.durationMinutes); setPublished(!!j.paper.isPublished)
       setSessionsHeld(Number(j.paper.sessionCount) || 0)
       setMode(j.paper.mode === 'short' ? 'short' : 'choice')
@@ -248,7 +248,7 @@ function MockAdminContent() {
     setNewOpen(true)
   }
   const confirmNewPaper = () => {
-    if (!title.trim()) return alert('请填试卷标题')
+    if (!title.trim()) return alert(tr(lang, '请填试卷标题', 'Please enter a paper title'))
     setNewOpen(false)
     setOpen(true)
     setPaperId(null); setQuestions([]); setImportText(''); setDirty(false); setPublished(false)
@@ -261,13 +261,13 @@ function MockAdminContent() {
     // marks the whole class wrong on that question. Publishing is the last place
     // to catch it, so it takes an explicit confirmation.
     if (next && paperMode === 'short' &&
-      !confirm('简答题的参考答案就是判分标准 —— 写错的话，全班这道题都会判错。\n\n确定已经逐题核对过参考答案了吗？')) return
+      !confirm(tr(lang, '简答题的参考答案就是判分标准 —— 写错的话，全班这道题都会判错。\n\n确定已经逐题核对过参考答案了吗？', 'For short-answer papers the reference answers are the marking scheme — a wrong one marks the whole class wrong on that question.\n\nHave you checked every reference answer?'))) return
     const r = await fetch(`/api/mock/papers/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isPublished: next }),
     })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok || j.error) return alert('操作失败：' + (j.error || r.status))
+    if (!r.ok || j.error) return alert(tr(lang, '操作失败：', 'Action failed: ') + (j.error || r.status))
     if (paperId === id) setPublished(next)
     loadPapers(courseId)
   }
@@ -283,7 +283,7 @@ function MockAdminContent() {
         const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
         const j = await r.json()
         if (j.url) added.push(j.url)
-        else alert('第 ' + (pageImages.length + added.length + 1) + ' 页上传失败：' + (j.error || r.status))
+        else alert(tr(lang, '第 ' + (pageImages.length + added.length + 1) + ' 页上传失败：', 'Page ' + (pageImages.length + added.length + 1) + ' upload failed: ') + (j.error || r.status))
       } finally { setUploadingIdx(null) }
     }
     if (added.length) setPageImages(prev => [...prev, ...added])
@@ -304,12 +304,12 @@ function MockAdminContent() {
         const pages = await pdfToPageFiles(file, {
           onProgress: (done, total) => setPdfProgress(`${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`),
         })
-        if (pages.length === 0) { alert(`「${file.name}」没有可读的页面`); continue }
-        setPdfProgress('上传中…')
+        if (pages.length === 0) { alert(tr(lang, `「${file.name}」没有可读的页面`, `"${file.name}" has no readable pages`)); continue }
+        setPdfProgress(tr(lang, '上传中…', 'Uploading…'))
         await uploadPageImages(pages)
       }
     } catch (e: any) {
-      alert('PDF 转换失败：' + (e?.message || e) + '\n（也可以先把 PDF 转成图片再传）')
+      alert(tr(lang, 'PDF 转换失败：', 'PDF conversion failed: ') + (e?.message || e) + tr(lang, '\n（也可以先把 PDF 转成图片再传）', '\n(You can also convert the PDF to images and upload those)'))
     } finally { setPdfBusy(false); setPdfProgress('') }
   }
 
@@ -323,8 +323,8 @@ function MockAdminContent() {
         const r = await fetch('/api/upload-image', { method: 'POST', body: fd })
         const j = await r.json()
         if (j.url) added.push(j.url)
-        else alert('答案图上传失败：' + (j.error || r.status))
-      } catch { alert('答案图上传失败（网络）') }
+        else alert(tr(lang, '答案图上传失败：', 'Answer image upload failed: ') + (j.error || r.status))
+      } catch { alert(tr(lang, '答案图上传失败（网络）', 'Answer image upload failed (network)')) }
     }
     if (added.length) setAnswerImages(prev => [...prev, ...added])
   }
@@ -339,14 +339,14 @@ function MockAdminContent() {
     try {
       for (const [k, file] of files.entries()) {
         const pages = await pdfToPageFiles(file, {
-          onProgress: (done, total) => setAnswerPdfProgress(`转图片 ${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`),
+          onProgress: (done, total) => setAnswerPdfProgress(tr(lang, `转图片 ${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`, `Converting ${files.length > 1 ? `${k + 1}/${files.length} · ` : ''}${done}/${total}`)),
         })
-        if (pages.length === 0) { alert(`「${file.name}」没有可读的页面`); continue }
-        setAnswerPdfProgress('上传中…')
+        if (pages.length === 0) { alert(tr(lang, `「${file.name}」没有可读的页面`, `"${file.name}" has no readable pages`)); continue }
+        setAnswerPdfProgress(tr(lang, '上传中…', 'Uploading…'))
         await uploadAnswerFiles(pages)
       }
     } catch (e: any) {
-      alert('PDF 转换失败：' + (e?.message || e) + '\n（也可以先把 PDF 转成图片再传）')
+      alert(tr(lang, 'PDF 转换失败：', 'PDF conversion failed: ') + (e?.message || e) + tr(lang, '\n（也可以先把 PDF 转成图片再传）', '\n(You can also convert the PDF to images and upload those)'))
     } finally { setAnswerPdfBusy(false); setAnswerPdfProgress('') }
   }
 
@@ -388,7 +388,7 @@ function MockAdminContent() {
   // MinerU path hands over its markdown straight from the fetch.
   const handleParse = async (textOverride?: string) => {
     const src = textOverride ?? importText
-    if (!src.trim()) return alert('先粘贴试卷文本')
+    if (!src.trim()) return alert(tr(lang, '先粘贴试卷文本', 'Paste the paper text first'))
     if (!courseId) return
     setBusy('parse'); setProgress(null); setParseCheck(null)
     let total = 1
@@ -409,7 +409,7 @@ function MockAdminContent() {
       const raw = await res.text()
       let j: any = {}
       try { j = raw ? JSON.parse(raw) : {} }
-      catch { throw new Error(`第 ${i + 1} 批没有正常返回（HTTP ${res.status}）`) }
+      catch { throw new Error(tr(lang, `第 ${i + 1} 批没有正常返回（HTTP ${res.status}）`, `Batch ${i + 1} did not return properly (HTTP ${res.status})`)) }
       if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
 
       total = Math.max(total, j.totalBatches || 1)
@@ -456,18 +456,18 @@ function MockAdminContent() {
       if (expectedAll.size > 0) {
         const issues = [...issuesByBatch.entries()]
           .sort((a, b) => a[0] - b[0])
-          .flatMap(([i, arr]) => arr.map((s) => `第 ${i + 1} 批：${s}`))
+          .flatMap(([i, arr]) => arr.map((s) => tr(lang, `第 ${i + 1} 批：${s}`, `Batch ${i + 1}: ${s}`)))
         setParseCheck({ expected: expectedAll.size, parsed: parsedCount, issues })
       } else {
         setParseCheck(null)
       }
       const lost = total - succeeded.size
       if (lost > 0) {
-        const why = [...reasons.entries()].slice(0, 4).map(([i, r]) => `· 第 ${i + 1} 批：${r}`).join('\n')
-        alert(`解析完成，但有 ${lost} 批没成功，题目没全。\n\n${why}\n\n再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`)
+        const why = [...reasons.entries()].slice(0, 4).map(([i, r]) => tr(lang, `· 第 ${i + 1} 批：${r}`, `· Batch ${i + 1}: ${r}`)).join('\n')
+        alert(tr(lang, `解析完成，但有 ${lost} 批没成功，题目没全。\n\n${why}\n\n再点一次「AI 解析」会从头重跑，已解析的题要手工去重。`, `Parsing finished, but ${lost} batches failed, so some questions are missing.\n\n${why}\n\nClicking "Parse" again starts over; de-duplicate the questions already parsed by hand.`))
       }
     } catch (e: any) {
-      alert('解析出错：' + (e?.message || e))
+      alert(tr(lang, '解析出错：', 'Parse error: ') + (e?.message || e))
     } finally { setBusy(''); setProgress(null) }
   }
 
@@ -482,12 +482,14 @@ function MockAdminContent() {
     try { j = raw ? JSON.parse(raw) : {} }
     catch {
       // A 502/504 means the platform killed the function and answered with HTML.
-      throw new Error(res.status === 504 ? '这一页处理超时（页面太复杂或图太多）' : `没有正常返回（HTTP ${res.status}）`)
+      throw new Error(res.status === 504
+        ? tr(lang, '这一页处理超时（页面太复杂或图太多）', 'This page timed out (too complex or too many images)')
+        : tr(lang, `没有正常返回（HTTP ${res.status}）`, `Did not return properly (HTTP ${res.status})`))
     }
     if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
     // The route answers 200 even when the model call itself failed, so this is
     // the only way to tell "the model found nothing" from "it never ran".
-    if (Array.isArray(j.failed) && j.failed.length > 0) throw new Error('AI 这一页没返回结果（多半是模型调用超时或失败）')
+    if (Array.isArray(j.failed) && j.failed.length > 0) throw new Error(tr(lang, 'AI 这一页没返回结果（多半是模型调用超时或失败）', 'AI returned no result for this page (likely a model timeout or failure)'))
     const batch: DraftQuestion[] = (j.questions || []).map(toDraft)
     if (batch.length) { setQuestions(prev => [...prev, ...batch]); setDirty(true) }
   }
@@ -515,9 +517,9 @@ function MockAdminContent() {
     setFailedPages(failed)
     if (failed.length > 0) {
       alert(
-        `有 ${failed.length} 页没成功，这几页的题目没进来：\n\n`
-        + failed.map((i) => `第 ${i + 1} 页 — ${errs.get(i) || '未知原因'}`).join('\n')
-        + `\n\n下面会出现「重跑这几页」的按钮，不用把整份重来。`,
+        tr(lang, `有 ${failed.length} 页没成功，这几页的题目没进来：`, `${failed.length} pages failed, so their questions were not added:`) + '\n\n'
+        + failed.map((i) => tr(lang, `第 ${i + 1} 页 — ${errs.get(i) || '未知原因'}`, `Page ${i + 1} — ${errs.get(i) || 'unknown reason'}`)).join('\n')
+        + tr(lang, `\n\n下面会出现「重跑这几页」的按钮，不用把整份重来。`, '\n\nA "Retry these pages" button will appear below; there is no need to redo the whole paper.'),
       )
     }
   }
@@ -534,17 +536,17 @@ function MockAdminContent() {
   const handleMineruPdf = async (file: File) => {
     if (!courseId) return
     setMineruBusy(true)
-    setMineruStage('准备上传…')
+    setMineruStage(tr(lang, '准备上传…', 'Preparing upload…'))
     try {
       const uRes = await fetch('/api/mineru/upload-url', { method: 'POST' })
       const uj = await uRes.json().catch(() => ({}))
       if (!uRes.ok || !uj.uploadUrl) throw new Error(uj.error || `HTTP ${uRes.status}`)
 
-      setMineruStage('上传 PDF…')
+      setMineruStage(tr(lang, '上传 PDF…', 'Uploading PDF…'))
       const put = await fetch(uj.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: file })
-      if (!put.ok) throw new Error('上传到存储失败（HTTP ' + put.status + '）')
+      if (!put.ok) throw new Error(tr(lang, '上传到存储失败（HTTP ' + put.status + '）', `Upload to storage failed (HTTP ${put.status})`))
 
-      setMineruStage('提交给 MinerU…')
+      setMineruStage(tr(lang, '提交给 MinerU…', 'Submitting to MinerU…'))
       const sRes = await fetch('/api/mineru/submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId, path: uj.path }),
@@ -557,20 +559,20 @@ function MockAdminContent() {
       let md = ''
       while (Date.now() - t0 < 6 * 60 * 1000) {
         await new Promise((r) => setTimeout(r, 4000))
-        setMineruStage(`MinerU 正在解析… ${Math.round((Date.now() - t0) / 1000)}s`)
+        setMineruStage(tr(lang, `MinerU 正在解析… ${Math.round((Date.now() - t0) / 1000)}s`, `MinerU is parsing… ${Math.round((Date.now() - t0) / 1000)}s`))
         const rRes = await fetch(`/api/mineru/result?taskId=${encodeURIComponent(sj.taskId)}&path=${encodeURIComponent(uj.path)}`)
         const rj = await rRes.json().catch(() => ({}))
         if (!rRes.ok || (rj.error && rj.state !== 'failed')) throw new Error(rj.error || `HTTP ${rRes.status}`)
-        if (rj.state === 'failed') throw new Error(rj.error || 'MinerU 解析失败')
+        if (rj.state === 'failed') throw new Error(rj.error || tr(lang, 'MinerU 解析失败', 'MinerU parsing failed'))
         if (rj.state === 'done') { md = rj.markdown || ''; break }
       }
-      if (!md) throw new Error('MinerU 解析超时（6 分钟）')
+      if (!md) throw new Error(tr(lang, 'MinerU 解析超时（6 分钟）', 'MinerU timed out (6 minutes)'))
 
       setImportText(md)
-      setMineruStage('文本已就绪，正在拆题…')
+      setMineruStage(tr(lang, '文本已就绪，正在拆题…', 'Text ready; splitting questions…'))
       await handleParse(md)
     } catch (e: any) {
-      alert('MinerU 解析失败：' + (e?.message || e) + '\n\n可以改用下面的「本地转成图片」备用方式。')
+      alert(tr(lang, 'MinerU 解析失败：', 'MinerU parsing failed: ') + (e?.message || e) + tr(lang, '\n\n可以改用下面的「本地转成图片」备用方式。', '\n\nYou can use the "convert locally to images" fallback below instead.'))
     } finally {
       setMineruBusy(false); setMineruStage('')
     }
@@ -580,7 +582,7 @@ function MockAdminContent() {
    * Read the paper off page screenshots, one page per request.
    */
   const handleParseImages = async () => {
-    if (pageImages.length === 0) return alert('先选一个 PDF，或粘贴/选择试卷页面图片')
+    if (pageImages.length === 0) return alert(tr(lang, '先选一个 PDF，或粘贴/选择试卷页面图片', 'Choose a PDF first, or paste/select page images'))
     if (!courseId) return
     await runPages(pageImages.map((_, i) => i))
   }
@@ -597,7 +599,7 @@ function MockAdminContent() {
   }
   const removeQ = (i: number) => {
     const q = questions[i]
-    if (q.id && !confirm('这道题已经存进试卷了，删除后学生学习记录也会一起删掉。确定？')) return
+    if (q.id && !confirm(tr(lang, '这道题已经存进试卷了，删除后学生学习记录也会一起删掉。确定？', 'This question is already saved in the paper. Deleting it also deletes students\' records for it. Continue?'))) return
     setQuestions(prev => prev.filter((_, k) => k !== i)); setDirty(true)
   }
   const addQuestion = () => {
@@ -643,7 +645,7 @@ function MockAdminContent() {
   }
   const removeOption = (qi: number, oi: number) => {
     const q = questions[qi]
-    if (q.options.length <= 2) return alert('至少要有两个选项')
+    if (q.options.length <= 2) return alert(tr(lang, '至少要有两个选项', 'There must be at least two options'))
     patchQ(qi, { options: q.options.filter((_, k) => k !== oi) })
   }
 
@@ -656,7 +658,7 @@ function MockAdminContent() {
       // Append — a question can carry several figures. Overwriting here is what
       // used to make the second paste replace the first.
       if (j.url) setQuestions(list => list.map((q, k) => (k === i ? { ...q, images: [...q.images, j.url] } : q)))
-      else alert('上传失败：' + (j.error || r.status))
+      else alert(tr(lang, '上传失败：', 'Upload failed: ') + (j.error || r.status))
     } finally { setUploadingIdx(null) }
     setDirty(true)
   }
@@ -672,10 +674,10 @@ function MockAdminContent() {
   // Both save paths need the questions settled first.
   const buildSavePayload = () => {
     if (!courseId) return null
-    if (!title.trim()) { alert('请填试卷标题'); return null }
-    if (questions.length === 0) { alert('还没有题目'); return null }
+    if (!title.trim()) { alert(tr(lang, '请填试卷标题', 'Please enter a paper title')); return null }
+    if (questions.length === 0) { alert(tr(lang, '还没有题目', 'There are no questions yet')); return null }
     const noLesson = questions.findIndex(q => !q.lessonId)
-    if (noLesson >= 0) { alert(`第 ${noLesson + 1} 题还没有选所属章节课时`); return null }
+    if (noLesson >= 0) { alert(tr(lang, `第 ${noLesson + 1} 题还没有选所属章节课时`, `Question ${noLesson + 1} has no chapter/lesson assigned`)); return null }
     return questions.map(q => ({
       stem: q.stem, explanation: q.explanation, difficulty: q.difficulty,
       images: q.images, lessonId: q.lessonId,
@@ -690,9 +692,9 @@ function MockAdminContent() {
       body: JSON.stringify({ courseId, title, mode, durationMinutes: duration, questions: payload }),
     })
     const j = await res.json()
-    if (!res.ok || j.error) { alert('保存失败：' + (j.error || res.status)); return }
-    const renamed = j.title && j.title !== title ? `\n（标题已改为「${j.title}」—— 同一门课下不能有两份重名的卷子）` : ''
-    alert(`已另存为新试卷：${j.saved} 道题` + renamed + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
+    if (!res.ok || j.error) { alert(tr(lang, '保存失败：', 'Save failed: ') + (j.error || res.status)); return }
+    const renamed = j.title && j.title !== title ? tr(lang, `\n（标题已改为「${j.title}」—— 同一门课下不能有两份重名的卷子）`, `\n(Title changed to "${j.title}" — a course cannot have two papers with the same name)`) : ''
+    alert(tr(lang, `已另存为新试卷：${j.saved} 道题`, `Saved as a new paper: ${j.saved} questions`) + renamed + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join(tr(lang, '；', '; '))}` : ''))
     setDirty(false)
     await loadPapers(courseId)
     await openPaper(j.paperId, title, duration)
@@ -718,18 +720,18 @@ function MockAdminContent() {
       })
       const j = await res.json().catch(() => ({}))
       if (res.status === 409 && j.hasSessions) {
-        if (confirm(`${j.error}\n\n改成「另存为新试卷」吗？原来那张保持不动，学生的成绩也不受影响。`)) {
+        if (confirm(`${j.error}\n\n` + tr(lang, '改成「另存为新试卷」吗？原来那张保持不动，学生的成绩也不受影响。', 'Save it as a new paper instead? The original stays unchanged and student results are unaffected.'))) {
           await saveAsNewPaper(payload)
         }
         return
       }
-      if (!res.ok || j.error) { alert('保存失败：' + (j.error || res.status)); return }
-      alert(`已保存到本试卷：${j.saved} 道题` + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join('；')}` : ''))
+      if (!res.ok || j.error) { alert(tr(lang, '保存失败：', 'Save failed: ') + (j.error || res.status)); return }
+      alert(tr(lang, `已保存到本试卷：${j.saved} 道题`, `Saved to this paper: ${j.saved} questions`) + (j.imageWarnings?.length ? `\n⚠️ ${j.imageWarnings.join(tr(lang, '；', '; '))}` : ''))
       setDirty(false)
       await loadPapers(courseId)
       await openPaper(paperId, title, duration)
     } catch (e: any) {
-      alert('保存出错：' + (e?.message || e))
+      alert(tr(lang, '保存出错：', 'Save error: ') + (e?.message || e))
     } finally { setBusy('') }
   }
 
@@ -739,15 +741,15 @@ function MockAdminContent() {
     if (!payload) return
     setBusy('save')
     try { await saveAsNewPaper(payload) }
-    catch (e: any) { alert('保存出错：' + (e?.message || e)) }
+    catch (e: any) { alert(tr(lang, '保存出错：', 'Save error: ') + (e?.message || e)) }
     finally { setBusy('') }
   }
 
   const deletePaper = async (id: string, t: string) => {
-    if (!confirm(`删除试卷「${t}」？里面的题目和学生的作答记录都会一并删除。`)) return
+    if (!confirm(tr(lang, `删除试卷「${t}」？里面的题目和学生的作答记录都会一并删除。`, `Delete the paper "${t}"? Its questions and student answers will also be deleted.`))) return
     const r = await fetch(`/api/mock/papers/${id}`, { method: 'DELETE' })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok || j.error) return alert('删除失败：' + (j.error || r.status))
+    if (!r.ok || j.error) return alert(tr(lang, '删除失败：', 'Delete failed: ') + (j.error || r.status))
     if (paperId === id) startNewPaper()
     loadPapers(courseId)
   }
@@ -758,7 +760,7 @@ function MockAdminContent() {
     setResultsFor(id); setResults(null); setResultsTab('students')
     try {
       const j = await fetch(`/api/teacher/mock-results?paperId=${id}&classId=${cls}`).then(r => r.json())
-      if (j.error) { alert('读取失败：' + j.error); setResultsFor(null); return }
+      if (j.error) { alert(tr(lang, '读取失败：', 'Could not load: ') + j.error); setResultsFor(null); return }
       setResults(j)
     } catch { setResultsFor(null) }
   }
@@ -769,7 +771,7 @@ function MockAdminContent() {
     setShowOverview(true); setOverview(null); setOverviewCourse(cid); setOverviewClass(cls)
     try {
       const j = await fetch(`/api/teacher/mock-overview?courseId=${cid}&classId=${cls}`).then(r => r.json())
-      if (j.error) { alert('读取失败：' + j.error); setShowOverview(false); return }
+      if (j.error) { alert(tr(lang, '读取失败：', 'Could not load: ') + j.error); setShowOverview(false); return }
       setOverview(j)
     } catch { setShowOverview(false) }
   }
@@ -778,7 +780,7 @@ function MockAdminContent() {
     setDetailFor(sessionId); setDetail(null)
     try {
       const j = await fetch(`/api/teacher/mock-session-detail?sessionId=${sessionId}`).then(r => r.json())
-      if (j.error) { alert('读取失败：' + j.error); setDetailFor(null); return }
+      if (j.error) { alert(tr(lang, '读取失败：', 'Could not load: ') + j.error); setDetailFor(null); return }
       setDetail(j)
     } catch { setDetailFor(null) }
   }
@@ -786,17 +788,17 @@ function MockAdminContent() {
   // can never disagree about what still needs a human.
   const reasonsFor = (q: DraftQuestion): string[] => {
     const out: string[] = []
-    if (q.disputed) out.push(`AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`)
+    if (q.disputed) out.push(tr(lang, `AI 独立解答选 ${q.independentAnswer}，官方答案是 ${q.officialAnswer} —— 可能答案印错，也可能是道有坑的题`, `AI independently answered ${q.independentAnswer}, but the official answer is ${q.officialAnswer} — the printed answer may be wrong, or the question may be a trap`))
     // Read off a page image: the figure is part of the page, not something we
     // could carve out — the teacher pastes it on.
     if (q.needsFigure) out.push(q.images.length > 0
-      ? '配图是 AI 从页面上自动裁的，请核对裁得完整不完整'
-      : '这题有配图，但没能自动裁出来，请手工截图贴到题干下面')
-    if (!q.lessonId) out.push('没能自动对应章节课时，请手动选')
+      ? tr(lang, '配图是 AI 从页面上自动裁的，请核对裁得完整不完整', 'The figure was cropped automatically from the page; check that the crop is complete')
+      : tr(lang, '这题有配图，但没能自动裁出来，请手工截图贴到题干下面', 'This question has a figure that could not be cropped automatically; screenshot it and paste it under the stem'))
+    if (!q.lessonId) out.push(tr(lang, '没能自动对应章节课时，请手动选', 'Could not match a chapter/lesson automatically; please choose one'))
     if (q.answerType === 'short') {
-      if (!q.answerText.trim()) out.push('简答题还没有参考答案 —— 没有它，AI 判不了分')
-    } else if (q.options.length < 2) out.push('选项没拆出来，需要手工补')
-    else if (q.options.filter(o => o.isCorrect).length !== 1) out.push('正确答案不是恰好 1 个，AI 解错了或漏标')
+      if (!q.answerText.trim()) out.push(tr(lang, '简答题还没有参考答案 —— 没有它，AI 判不了分', 'This short-answer question has no reference answer — AI cannot grade it without one'))
+    } else if (q.options.length < 2) out.push(tr(lang, '选项没拆出来，需要手工补', 'Options were not parsed; please add them manually'))
+    else if (q.options.filter(o => o.isCorrect).length !== 1) out.push(tr(lang, '正确答案不是恰好 1 个，AI 解错了或漏标', 'There is not exactly one correct answer; AI may have solved it wrong or missed a marking'))
     return out
   }
   const flaggedCount = questions.filter(q => reasonsFor(q).length > 0).length
@@ -813,9 +815,9 @@ function MockAdminContent() {
     answer: questions.filter(q => q.answerType === 'choice' && q.options.length >= 2 && q.options.filter(o => o.isCorrect).length !== 1).length,
   }), [questions])
   const refLabel = (q: DraftQuestion) => {
-    if (!q.lessonId) return { text: '未指定课时', cls: 'bg-rose-50 text-rose-700 border-rose-200' }
+    if (!q.lessonId) return { text: tr(lang, '未指定课时', 'No lesson set'), cls: 'bg-rose-50 text-rose-700 border-rose-200' }
     const hit = lessonOptions.find(l => l.id === q.lessonId)
-    return { text: hit ? `${hit.chapter} › ${hit.ref} ${hit.title}` : '课时无效', cls: 'bg-violet-50 text-violet-700 border-violet-200' }
+    return { text: hit ? `${hit.chapter} › ${hit.ref} ${hit.title}` : tr(lang, '课时无效', 'Invalid lesson'), cls: 'bg-violet-50 text-violet-700 border-violet-200' }
   }
 
   // Three ways in, and they are peers: paste text (via MinerU), drop screenshots,
@@ -826,9 +828,9 @@ function MockAdminContent() {
     <>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
         {([
-          ['text', '📄 粘贴文本'],
-          ['pdf', '📕 上传 PDF'],
-          ['images', '📷 上传图片'],
+          ['text', tr(lang, '📄 粘贴文本', '📄 Paste text')],
+          ['pdf', tr(lang, '📕 上传 PDF', '📕 Upload PDF')],
+          ['images', tr(lang, '📷 上传图片', '📷 Upload images')],
         ] as const).map(([k, label]) => (
           <button key={k} onClick={() => setImportMode(k)}
             className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${importMode === k ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
@@ -836,7 +838,9 @@ function MockAdminContent() {
           </button>
         ))}
         <span className="text-xs text-muted-foreground ml-1">
-          {importMode === 'text' ? '' : importMode === 'pdf' ? 'MinerU 读真实文字层，配图自动提取' : 'AI 直接看图，版面不会错位'}
+          {importMode === 'text' ? '' : importMode === 'pdf'
+            ? tr(lang, 'MinerU 读真实文字层，配图自动提取', 'MinerU reads the real text layer and extracts figures automatically')
+            : tr(lang, 'AI 直接看图，版面不会错位', 'AI reads the images directly, so layouts will not shift')}
         </span>
       </div>
 
@@ -851,15 +855,15 @@ function MockAdminContent() {
           <label className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-6 transition-colors ${mineruBusy ? 'border-violet-400 bg-violet-50/40 opacity-70 cursor-default' : 'border-violet-400 bg-violet-50/40 cursor-pointer hover:border-violet-500'}`}>
             <CloudUpload className="w-7 h-7 text-violet-500" />
             <span className="text-sm font-medium">
-              {mineruBusy ? (mineruStage || '处理中…') : '上传 PDF 到 MinerU 解析（更准）'}
+              {mineruBusy ? (mineruStage || tr(lang, '处理中…', 'Processing…')) : tr(lang, '上传 PDF 到 MinerU 解析（更准）', 'Upload a PDF to MinerU (more accurate)')}
             </span>
-            <span className="text-xs text-muted-foreground">读 PDF 的真实文字层和配图 —— 扫描版、手写版也能认</span>
+            <span className="text-xs text-muted-foreground">{tr(lang, '读 PDF 的真实文字层和配图 —— 扫描版、手写版也能认', 'Reads the PDF\'s real text layer and figures — scanned and handwritten papers work too')}</span>
             <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={mineruBusy}
               onChange={e => { const f = e.target.files?.[0]; if (f) handleMineruPdf(f); e.currentTarget.value = '' }} />
           </label>
           <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy || mineruBusy ? 'opacity-60 pointer-events-none' : ''}`}>
             <FileText className="w-3.5 h-3.5" />
-            {pdfBusy ? `正在本地转成图片… ${pdfProgress}` : '或：本地转成图片（备用，走截图识别）'}
+            {pdfBusy ? tr(lang, `正在本地转成图片… ${pdfProgress}`, `Converting locally to images… ${pdfProgress}`) : tr(lang, '或：本地转成图片（备用，走截图识别）', 'Or: convert locally to images (fallback, uses image recognition)')}
             <input type="file" accept="application/pdf,.pdf" multiple className="hidden"
               onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) handlePdfFiles(fs); e.currentTarget.value = '' }} />
           </label>
@@ -870,11 +874,11 @@ function MockAdminContent() {
         <div className="space-y-2">
           <div onPaste={handlePagePaste} tabIndex={0}
             className="rounded-xl border-2 border-dashed border-gray-300 p-5 text-center outline-none focus:border-violet-400 cursor-text">
-            <div className="text-sm font-medium mb-1">在这一块里点一下，然后 Ctrl+V 粘贴截图</div>
-            <div className="text-xs text-muted-foreground">一页一张图。按页的顺序贴 —— <b>顺序就是试卷顺序</b>。</div>
+            <div className="text-sm font-medium mb-1">{tr(lang, '在这一块里点一下，然后 Ctrl+V 粘贴截图', 'Click in this box, then press Ctrl+V to paste a screenshot')}</div>
+            <div className="text-xs text-muted-foreground">{tr(lang, '一页一张图。按页的顺序贴 —— ', 'One image per page. Paste in page order — ')}<b>{tr(lang, '顺序就是试卷顺序', 'the order is the paper order')}</b>{tr(lang, '。', '.')}</div>
           </div>
           <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs cursor-pointer hover:bg-accent ${pdfBusy ? 'opacity-60 pointer-events-none' : ''}`}>
-            <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? '上传中…' : '或者选图片文件（可多选）'}
+            <ImageIcon className="w-3.5 h-3.5" /> {uploadingIdx === -1 ? tr(lang, '上传中…', 'Uploading…') : tr(lang, '或者选图片文件（可多选）', 'Or choose image files (multiple allowed)')}
             <input type="file" accept="image/*" multiple className="hidden"
               onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadPageImages(fs); e.currentTarget.value = '' }} />
           </label>
@@ -884,15 +888,15 @@ function MockAdminContent() {
       {/* The page list belongs to both page modes, so it sits outside them. */}
       {importMode !== 'text' && pageImages.length > 0 && (
         <div className="mt-3">
-          <div className="text-xs text-muted-foreground mb-1.5">已加入 {pageImages.length} 页（点图放大，右下角可删）</div>
+          <div className="text-xs text-muted-foreground mb-1.5">{tr(lang, `已加入 ${pageImages.length} 页（点图放大，右下角可删）`, `${pageImages.length} pages added (click to enlarge; delete at the bottom-right)`)}</div>
           <div className="flex flex-wrap gap-2">
             {pageImages.map((src, i) => (
               <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
-                <button onClick={() => setZoom(src)} title="放大看">
+                <button onClick={() => setZoom(src)} title={tr(lang, '放大看', 'Enlarge')}>
                   <img src={src} alt="" className="h-16 w-12 object-cover" />
                 </button>
                 <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
-                <button onClick={() => setPageImages(p => p.filter((_, k) => k !== i))} title="删掉这一页"
+                <button onClick={() => setPageImages(p => p.filter((_, k) => k !== i))} title={tr(lang, '删掉这一页', 'Delete this page')}
                   className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
                   <X className="w-3 h-3" />
                 </button>
@@ -917,12 +921,14 @@ function MockAdminContent() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <Link href="/teacher/courses" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-2 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> {lang === 'zh' ? '返回课程管理' : 'Back to courses'}
+              <ArrowLeft className="w-4 h-4" /> {tr(lang, '返回课程管理', 'Back to courses')}
             </Link>
-            <h1 className="text-2xl font-bold flex items-center gap-2">{theme.emoji} {lang === 'zh' ? '模拟考 · 试卷管理' : 'Mock exams'}</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2">{theme.emoji} {tr(lang, '模拟考 · 试卷管理', 'Mock exams')}</h1>
             {sourceName && (
               <p className="text-sm text-muted-foreground mt-1">
-                {lang === 'zh' ? <>题目对应到绑定课程 <span className="font-medium text-violet-700">{sourceName}</span> 的章节和课时</> : <>Questions map to chapters/lessons of <span className="font-medium">{sourceName}</span></>}
+                {tr(lang, '题目对应到绑定课程 ', 'Questions map to chapters/lessons of ')}
+                <span className={lang === 'zh' ? 'font-medium text-violet-700' : 'font-medium'}>{sourceName}</span>
+                {tr(lang, ' 的章节和课时', '')}
               </p>
             )}
           </div>
@@ -931,22 +937,22 @@ function MockAdminContent() {
         {courses.length === 0 && !loading ? (
           <div className="bg-card border rounded-2xl p-10 text-center">
             <div className="text-5xl mb-3">📝</div>
-            <p className="text-muted-foreground mb-4">{lang === 'zh' ? '还没有模拟考课程。先在课程管理里新建一门（类型选「模拟考课程」，并绑定一门过关课程）。' : 'No mock course yet.'}</p>
-            <Link href="/teacher/courses" className={`inline-block px-4 py-2 rounded-lg text-white font-medium ${theme.solid}`}>{lang === 'zh' ? '去新建课程' : 'New course'}</Link>
+            <p className="text-muted-foreground mb-4">{tr(lang, '还没有模拟考课程。先在课程管理里新建一门（类型选「模拟考课程」，并绑定一门过关课程）。', 'No mock course yet. Create one in Courses first (choose "Mock exam course" and bind a gate course).')}</p>
+            <Link href="/teacher/courses" className={`inline-block px-4 py-2 rounded-lg text-white font-medium ${theme.solid}`}>{tr(lang, '去新建课程', 'New course')}</Link>
           </div>
         ) : (
           <>
             <div className="bg-card border rounded-2xl p-4 mb-5 flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium">{lang === 'zh' ? '课程' : 'Course'}</span>
+              <span className="text-sm font-medium">{tr(lang, '课程', 'Course')}</span>
               <select value={courseId} onChange={e => setCourseId(e.target.value)} className="px-3 py-2 border rounded-lg bg-background text-sm">
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button onClick={() => openOverview('')} className={`ml-auto flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors`}>
-                <BarChart3 className="w-4 h-4" /> {lang === 'zh' ? '总成绩（跨套卷）' : 'Overview'}
+                <BarChart3 className="w-4 h-4" /> {tr(lang, '总成绩（跨套卷）', 'Overview')}
               </button>
 
               <button onClick={startNewPaper} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>
-                <Plus className="w-4 h-4" /> {lang === 'zh' ? '新建试卷' : 'New paper'}
+                <Plus className="w-4 h-4" /> {tr(lang, '新建试卷', 'New paper')}
               </button>
             </div>
 
@@ -963,26 +969,26 @@ function MockAdminContent() {
               if (coursePublished && (anyPublished || papers.length === 0)) return null
               return (
                 <div className="mb-5 px-4 py-3 rounded-xl border border-violet-200 bg-violet-50 text-sm text-violet-900 flex flex-wrap items-center gap-2">
-                  <span className="font-medium">发布说明</span>
+                  <span className="font-medium">{tr(lang, '发布说明', 'Publishing')}</span>
                   <span className="text-violet-800">
                     {anyPublished
-                      ? '已经有卷子发布了，学生看得到、能参加。'
-                      : '还没有卷子发布——学生看不到任何卷子。审核完点卷子上的「发布」即可。'}
+                      ? tr(lang, '已经有卷子发布了，学生看得到、能参加。', 'At least one paper is published, so students can see and take it.')
+                      : tr(lang, '还没有卷子发布——学生看不到任何卷子。审核完点卷子上的「发布」即可。', 'No papers are published — students cannot see any papers. After reviewing, click "Publish" on a paper.')}
                   </span>
                   {!coursePublished && (
                     <>
-                      <span className="text-violet-800">课程本身未发布（这个不影响模拟考）。</span>
+                      <span className="text-violet-800">{tr(lang, '课程本身未发布（这个不影响模拟考）。', 'The course itself is unpublished (this does not affect mock exams).')}</span>
                       <button onClick={async () => {
                         const r = await fetch(`/api/courses/${courseId}`, {
                           method: 'PUT', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ is_published: true }),
                         })
                         const j = await r.json().catch(() => ({}))
-                        if (!r.ok || j.error) return alert('发布失败：' + (j.error || r.status))
+                        if (!r.ok || j.error) return alert(tr(lang, '发布失败：', 'Publish failed: ') + (j.error || r.status))
                         const res = await fetch('/api/courses').then(x => x.json())
                         setCourses(((res.courses || []) as Course[]).filter(x => x.kind === 'mock'))
                       }} className="px-2 py-0.5 rounded-md bg-violet-500 text-white text-xs font-medium hover:bg-violet-600">
-                        顺便发布课程
+                        {tr(lang, '顺便发布课程', 'Publish course too')}
                       </button>
                     </>
                   )}
@@ -991,37 +997,37 @@ function MockAdminContent() {
             })()}
 
             <div className="bg-card border rounded-2xl divide-y mb-6">
-              {papers.length === 0 && <div className="p-6 text-sm text-muted-foreground">{lang === 'zh' ? '这门课还没有试卷。点「新建试卷」，粘一份试卷文本让 AI 拆题。' : 'No papers yet.'}</div>}
+              {papers.length === 0 && <div className="p-6 text-sm text-muted-foreground">{tr(lang, '这门课还没有试卷。点「新建试卷」，粘一份试卷文本让 AI 拆题。', 'No papers yet. Click "New paper" and paste a paper for AI to split into questions.')}</div>}
               {papers.map(p => (
                 <div key={p.id} className={`p-4 flex items-center gap-3 flex-wrap ${paperId === p.id ? 'bg-violet-50' : ''}`}>
-                  <span className="text-xl shrink-0" title={PAPER_MODE[p.mode].label}>{PAPER_MODE[p.mode].emoji}</span>
+                  <span className="text-xl shrink-0" title={tr(lang, PAPER_MODE[p.mode].label, PAPER_MODE[p.mode].labelEn)}>{PAPER_MODE[p.mode].emoji}</span>
                   <div className="min-w-0">
                     <div className="font-medium truncate flex items-center gap-2">
                       {p.title}
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${PAPER_MODE[p.mode].pill}`}>
-                        {PAPER_MODE[p.mode].label}
+                        {tr(lang, PAPER_MODE[p.mode].label, PAPER_MODE[p.mode].labelEn)}
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${p.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {p.isPublished ? '已发布' : '未发布'}
+                        {p.isPublished ? tr(lang, '已发布', 'Published') : tr(lang, '未发布', 'Unpublished')}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground">{p.durationMinutes} 分钟 · {p.questionCount} 题 · {p.attemptCount} 人次考过</div>
+                    <div className="text-xs text-muted-foreground">{tr(lang, `${p.durationMinutes} 分钟 · ${p.questionCount} 题 · ${p.attemptCount} 人次考过`, `${p.durationMinutes} min · ${p.questionCount} questions · ${p.attemptCount} attempts`)}</div>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     <button onClick={() => togglePublish(p.id, !p.isPublished, p.mode)}
                       className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
                         p.isPublished ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
-                      {p.isPublished ? '取消发布' : '发布'}
+                      {p.isPublished ? tr(lang, '取消发布', 'Unpublish') : tr(lang, '发布', 'Publish')}
                     </button>
                     <Link href={`/teacher/mock/${p.id}/preview`}
                       className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
-                      <Eye className="w-3 h-3 inline" /> {lang === 'zh' ? '预览' : 'Preview'}
+                      <Eye className="w-3 h-3 inline" /> {tr(lang, '预览', 'Preview')}
                     </Link>
                     <button onClick={() => openResults(p.id)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
-                      <BarChart3 className="w-3 h-3 inline" /> {lang === 'zh' ? '成绩' : 'Results'}
+                      <BarChart3 className="w-3 h-3 inline" /> {tr(lang, '成绩', 'Results')}
                     </button>
                     <button onClick={() => openPaper(p.id, p.title, p.durationMinutes)} className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-medium ${theme.button}`}>
-                      {lang === 'zh' ? '编辑' : 'Edit'}
+                      {tr(lang, '编辑', 'Edit')}
                     </button>
                     <button onClick={() => deletePaper(p.id, p.title)} className="shrink-0 p-1.5 text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -1036,14 +1042,14 @@ function MockAdminContent() {
                 <div className="bg-card border rounded-2xl p-5">
                   <div className="flex flex-wrap items-center gap-3">
                     <input value={title} onChange={e => { setTitle(e.target.value); setDirty(true) }}
-                      placeholder={lang === 'zh' ? '试卷标题（如 AP Chem 2012 模拟一）' : 'Paper title'}
+                      placeholder={tr(lang, '试卷标题（如 AP Chem 2012 模拟一）', 'Paper title')}
                       className="flex-1 min-w-[240px] px-3 py-2 border rounded-lg bg-background" />
                     <label className="text-sm flex items-center gap-2">
-                      {lang === 'zh' ? '时长' : 'Minutes'}
+                      {tr(lang, '时长', 'Minutes')}
                       <input type="number" min={1} max={600} value={duration}
                         onChange={e => { setDuration(Number(e.target.value)); setDirty(true) }}
                         className="w-20 px-3 py-2 border rounded-lg bg-background" />
-                      {lang === 'zh' ? '分钟' : 'min'}
+                      {tr(lang, '分钟', 'min')}
                     </label>
 
                     {/* Decided in the 新建试卷 dialog, then frozen. The whole paper
@@ -1051,25 +1057,25 @@ function MockAdminContent() {
                         branch on it — so switching later would strand or clear
                         the questions already written. */}
                     <span className={`text-sm px-3 py-2 rounded-lg border font-semibold ${PAPER_MODE[mode].box}`}
-                      title="卷子类型在新建时定好，之后不能改">
-                      {PAPER_MODE[mode].emoji} {PAPER_MODE[mode].label}
+                      title={tr(lang, '卷子类型在新建时定好，之后不能改', 'The paper type is set when the paper is created and cannot be changed')}>
+                      {PAPER_MODE[mode].emoji} {tr(lang, PAPER_MODE[mode].label, PAPER_MODE[mode].labelEn)}
                     </span>
 
                     <button onClick={handleSave} disabled={busy !== '' || (!!paperId && sessionsHeld > 0)}
-                      title={paperId && sessionsHeld > 0 ? '这份试卷已有学生作答，只能另存为新试卷' : ''}
+                      title={paperId && sessionsHeld > 0 ? tr(lang, '这份试卷已有学生作答，只能另存为新试卷', 'Students have already taken this paper; save it as a new paper instead') : ''}
                       className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${theme.solid}`}>
                       {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      {paperId ? (lang === 'zh' ? '保存（更新本卷）' : 'Save') : (lang === 'zh' ? '保存试卷' : 'Save paper')}
+                      {paperId ? tr(lang, '保存（更新本卷）', 'Save') : tr(lang, '保存试卷', 'Save paper')}
                     </button>
                     {paperId && (
                       <button onClick={handleSaveAsNew} disabled={busy !== ''}
                         className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border hover:bg-accent disabled:opacity-50 transition-colors">
-                        {lang === 'zh' ? '另存为新试卷' : 'Save as new'}
+                        {tr(lang, '另存为新试卷', 'Save as new')}
                       </button>
                     )}
-                    <button onClick={() => { if (!dirty || confirm('有未保存的改动，确定关闭？')) setOpen(false) }}
+                    <button onClick={() => { if (!dirty || confirm(tr(lang, '有未保存的改动，确定关闭？', 'There are unsaved changes. Close anyway?'))) setOpen(false) }}
                       className="px-3 py-2 border rounded-lg text-sm hover:bg-accent transition-colors">
-                      {lang === 'zh' ? '关闭' : 'Close'}
+                      {tr(lang, '关闭', 'Close')}
                     </button>
                   </div>
                   <div className="text-xs mt-2 space-y-1">
@@ -1077,28 +1083,29 @@ function MockAdminContent() {
                       <>
                         <p className={`flex items-center gap-2 ${published ? 'text-emerald-700' : 'text-gray-600'}`}>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${published ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {published ? '已发布' : '未发布'}
+                            {published ? tr(lang, '已发布', 'Published') : tr(lang, '未发布', 'Unpublished')}
                           </span>
-                          {published ? '学生现在看得到这套卷子。' : '学生看不到这套卷子——审完确认无误再发布。'}
+                          {published ? tr(lang, '学生现在看得到这套卷子。', 'Students can see this paper now.') : tr(lang, '学生看不到这套卷子——审完确认无误再发布。', 'Students cannot see this paper — review it and publish when ready.')}
                           <button onClick={() => togglePublish(paperId, !published, mode)}
                             className={`px-2 py-0.5 rounded-md font-medium ${published ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
-                            {published ? '取消发布' : '立即发布'}
+                            {published ? tr(lang, '取消发布', 'Unpublish') : tr(lang, '立即发布', 'Publish now')}
                           </button>
                         </p>
                         {sessionsHeld > 0 ? (
                           <p className="text-amber-700">
-                            ⚠️ 本试卷已有 <b>{sessionsHeld}</b> 名学生作答过，改动题目会让他们的成绩和题目对不上，
-                            所以「保存（更新本卷）」不可用。要改就点「另存为新试卷」，改好后再发布新那份。
+                            {tr(lang,
+                              `⚠️ 本试卷已有 ${sessionsHeld} 名学生作答过，改动题目会让他们的成绩和题目对不上，所以「保存（更新本卷）」不可用。要改就点「另存为新试卷」，改好后再发布新那份。`,
+                              `⚠️ ${sessionsHeld} students have already taken this paper. Changing questions would break the link between their results and the questions, so "Save" is unavailable. Use "Save as new", then publish the new paper.`)}
                           </p>
                         ) : (
                           <p className="text-gray-600">
-                            「保存」会直接更新这份试卷，不会另建一份。
+                            {tr(lang, '「保存」会直接更新这份试卷，不会另建一份。', '"Save" updates this paper directly and does not create a copy.')}
                           </p>
                         )}
                       </>
                     ) : (
                       <p className="text-gray-600">
-                        新卷子保存后默认是**未发布**的，学生看不到；审核确认无误后在上面的列表里点「发布」。
+                        {tr(lang, '新卷子保存后默认是未发布的，学生看不到；审核确认无误后在上面的列表里点「发布」。', 'A new paper is unpublished after saving, so students cannot see it. Review it, then click "Publish" in the list above.')}
                       </p>
                     )}
                   </div>
@@ -1110,18 +1117,22 @@ function MockAdminContent() {
                 {mode === 'short' ? (
                   <div className="bg-card border rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-2">
-                      <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆简答题' : 'Paste paper text'}</h2>
+                      <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {tr(lang, '粘贴试卷文本 → AI 拆简答题', 'Paste paper text → AI splits short-answer questions')}</h2>
                     </div>
 
                     {importMode === 'text' && <MineruHelp lang={lang} />}
-                    {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。' : 'Paste the whole paper…')}
+                    {importSource(tr(lang, '把整套试卷的文本粘进来。', 'Paste the whole paper…'))}
 
                     {/* Where the answers are. Guessing this wrong would misplace
                         every answer in the paper, so it is asked, not inferred. */}
                     <div className="mt-3">
-                      <div className="text-xs font-medium mb-1.5">答案在哪里？</div>
+                      <div className="text-xs font-medium mb-1.5">{tr(lang, '答案在哪里？', 'Where are the answers?')}</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {([['inline', '紧跟每道题后面'], ['end', '集中放在末尾'], ['none', '没有答案']] as const).map(([k, label]) => (
+                        {([
+                          ['inline', tr(lang, '紧跟每道题后面', 'After each question')],
+                          ['end', tr(lang, '集中放在末尾', 'Together at the end')],
+                          ['none', tr(lang, '没有答案', 'No answers')],
+                        ] as const).map(([k, label]) => (
                           <button key={k} onClick={() => setAnswerPosition(k)}
                             className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${answerPosition === k ? 'bg-violet-600 border-violet-600 text-white' : 'hover:bg-accent'}`}>
                             {label}
@@ -1129,15 +1140,15 @@ function MockAdminContent() {
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1.5">
-                        {answerPosition === 'inline' && '答案和题目混在一起 —— AI 会把答案剥出来单独存，题干只留问题本身。'}
-                        {answerPosition === 'end' && '把试卷末尾的答案区粘到下面那个框里。'}
-                        {answerPosition === 'none' && '⚠️ AI 会自己解题当参考答案。这份答案就是判分标准，你必须逐题核对后才能发布。'}
+                        {answerPosition === 'inline' && tr(lang, '答案和题目混在一起 —— AI 会把答案剥出来单独存，题干只留问题本身。', 'Answers are mixed into the questions — AI extracts them and keeps only the question itself in the stem.')}
+                        {answerPosition === 'end' && tr(lang, '把试卷末尾的答案区粘到下面那个框里。', 'Paste the answer section from the end of the paper into the box below.')}
+                        {answerPosition === 'none' && tr(lang, '⚠️ AI 会自己解题当参考答案。这份答案就是判分标准，你必须逐题核对后才能发布。', '⚠️ AI will solve the questions itself. Those answers are the marking scheme, so you must check every one before publishing.')}
                       </p>
                     </div>
 
                     {answerPosition === 'end' && (
                       <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={4}
-                        placeholder="把试卷末尾的答案区原样粘进来（按题号即可，如「1. ... 2. ...」）"
+                        placeholder={tr(lang, '把试卷末尾的答案区原样粘进来（按题号即可，如「1. ... 2. ...」）', 'Paste the answer section from the end of the paper as-is (by question number, e.g. "1. ... 2. ...")')}
                         className="mt-2 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     )}
 
@@ -1146,8 +1157,8 @@ function MockAdminContent() {
                         className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
                         {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         {busy === 'parse'
-                          ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
-                          : (lang === 'zh' ? 'AI 解析' : 'Parse')}
+                          ? (progress ? tr(lang, `解析中… 第 ${progress.done}/${progress.total} 批`, `Parsing… batch ${progress.done}/${progress.total}`) : tr(lang, 'AI 解析中…', 'AI parsing…'))
+                          : tr(lang, 'AI 解析', 'Parse')}
                       </button>
                     </div>
                     {progress && (
@@ -1160,11 +1171,11 @@ function MockAdminContent() {
                 ) : (
                 <div className="bg-card border rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {lang === 'zh' ? '粘贴试卷文本 → AI 拆题' : 'Paste paper text'}</h2>
+                    <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> {tr(lang, '粘贴试卷文本 → AI 拆题', 'Paste paper text → AI splits questions')}</h2>
                   </div>
 
                   {importMode === 'text' && <MineruHelp lang={lang} />}
-                  {importSource(lang === 'zh' ? '把整套试卷的文本粘进来。' : 'Paste the whole paper…')}
+                  {importSource(tr(lang, '把整套试卷的文本粘进来。', 'Paste the whole paper…'))}
 
                   {/* The key sits in its own box on purpose: inside the paper text its
                       answer lines look exactly like question numbers. It can be typed,
@@ -1173,24 +1184,24 @@ function MockAdminContent() {
                   <div className="mt-3">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <label className="text-xs font-medium">
-                        {lang === 'zh' ? '试卷自带答案（可选）' : 'Answer key (optional)'}
+                        {tr(lang, '试卷自带答案（可选）', 'Answer key (optional)')}
                       </label>
                       <label className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
                         uploadingIdx === -1 ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:bg-accent'}`}>
-                        {uploadingIdx === -1 ? '上传中…' : '🖼 选答案截图'}
+                        {uploadingIdx === -1 ? tr(lang, '上传中…', 'Uploading…') : tr(lang, '🖼 选答案截图', '🖼 Choose answer screenshots')}
                         <input type="file" accept="image/*" multiple className="hidden"
                           disabled={uploadingIdx === -1}
                           onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) uploadAnswerFiles(fs); e.currentTarget.value = '' }} />
                       </label>
                       <label className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
                         answerPdfBusy ? 'opacity-70 cursor-wait border-violet-300 bg-violet-50' : 'cursor-pointer hover:bg-accent'}`}>
-                        {answerPdfBusy ? `正在转成图片… ${answerPdfProgress}` : '📕 选答案 PDF'}
+                        {answerPdfBusy ? tr(lang, `正在转成图片… ${answerPdfProgress}`, `Converting to images… ${answerPdfProgress}`) : tr(lang, '📕 选答案 PDF', '📕 Choose answer PDF')}
                         <input type="file" accept="application/pdf,.pdf" multiple className="hidden"
                           disabled={answerPdfBusy}
                           onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) handleAnswerPdf(fs); e.currentTarget.value = '' }} />
                       </label>
                       {answerImages.length > 0 && (
-                        <span className="text-xs text-emerald-700">已加 {answerImages.length} 张，将按图片读答案</span>
+                        <span className="text-xs text-emerald-700">{tr(lang, `已加 ${answerImages.length} 张，将按图片读答案`, `${answerImages.length} added; answers will be read from the images`)}</span>
                       )}
                     </div>
 
@@ -1198,9 +1209,9 @@ function MockAdminContent() {
                       <div className="flex flex-wrap gap-2 mb-2">
                         {answerImages.map((src, i) => (
                           <div key={src + i} className="relative rounded-lg border p-0.5 bg-white">
-                            <button onClick={() => setZoom(src)} title="放大看"><img src={src} alt="" className="h-16 w-24 object-cover" /></button>
+                            <button onClick={() => setZoom(src)} title={tr(lang, '放大看', 'Enlarge')}><img src={src} alt="" className="h-16 w-24 object-cover" /></button>
                             <span className="absolute bottom-0.5 left-0.5 text-[10px] leading-none bg-black/65 text-white rounded px-1 py-0.5">{i + 1}</span>
-                            <button onClick={() => setAnswerImages(p => p.filter((_, k) => k !== i))} title="删掉"
+                            <button onClick={() => setAnswerImages(p => p.filter((_, k) => k !== i))} title={tr(lang, '删掉', 'Delete')}
                               className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
                               <X className="w-3 h-3" />
                             </button>
@@ -1212,13 +1223,13 @@ function MockAdminContent() {
                     <textarea value={answerText} onChange={e => setAnswerText(e.target.value)} rows={2}
                       onPaste={handleAnswerPaste}
                       placeholder={answerImages.length > 0
-                        ? '（已经用图片了，这里可以不填）'
-                        : (lang === 'zh' ? '答案文字粘这里，如「1. B 2. C」或「1-5 BCDAB」；截图直接 Ctrl+V 也行。' : 'Paste the key as text, or Ctrl+V a screenshot.')}
+                        ? tr(lang, '（已经用图片了，这里可以不填）', '(Images are already added; this can be left empty)')
+                        : tr(lang, '答案文字粘这里，如「1. B 2. C」或「1-5 BCDAB」；截图直接 Ctrl+V 也行。', 'Paste the key as text, e.g. "1. B 2. C" or "1-5 BCDAB"; you can also Ctrl+V a screenshot.')}
                       className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {lang === 'zh'
-                        ? '答案区是扫描页/照片的话，截图后直接在这个框里 Ctrl+V。'
-                        : 'For a scanned key, screenshot it and Ctrl+V into the box.'}
+                      {tr(lang,
+                        '答案区是扫描页/照片的话，截图后直接在这个框里 Ctrl+V。',
+                        'For a scanned key, screenshot it and Ctrl+V into the box.')}
                     </p>
                   </div>
 
@@ -1227,8 +1238,8 @@ function MockAdminContent() {
                       className="flex items-center gap-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
                       {busy === 'parse' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {busy === 'parse'
-                        ? (progress ? `解析中… 第 ${progress.done}/${progress.total} 批` : 'AI 解析中…')
-                        : (lang === 'zh' ? 'AI 解析' : 'Parse')}
+                        ? (progress ? tr(lang, `解析中… 第 ${progress.done}/${progress.total} 批`, `Parsing… batch ${progress.done}/${progress.total}`) : tr(lang, 'AI 解析中…', 'AI parsing…'))
+                        : tr(lang, 'AI 解析', 'Parse')}
                     </button>
                   </div>
                   {progress && (
@@ -1246,14 +1257,14 @@ function MockAdminContent() {
                     but still needs these. */}
                 {(qWarn.disputed || qWarn.lesson || qWarn.noRef || qWarn.options || qWarn.answer) > 0 && (
                   <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-0.5">
-                    {qWarn.disputed > 0 && <div>⚠️ {qWarn.disputed} 题的 AI 独立解答与官方答案不一致，请重点核对</div>}
-                    {qWarn.noRef > 0 && <div>⚠️ {qWarn.noRef} 道简答题还没有参考答案，AI 判不了分</div>}
-                    {qWarn.lesson > 0 && <div>⚠️ {qWarn.lesson} 题没能自动对应章节课时，请手动选</div>}
-                    {qWarn.options > 0 && <div>⚠️ {qWarn.options} 题的选项没拆出来，需要手工补（在列表里，别漏掉）</div>}
-                    {qWarn.answer > 0 && <div>⚠️ {qWarn.answer} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查</div>}
+                    {qWarn.disputed > 0 && <div>⚠️ {tr(lang, `${qWarn.disputed} 题的 AI 独立解答与官方答案不一致，请重点核对`, `${qWarn.disputed} questions: AI's own answer differs from the official one — check these carefully`)}</div>}
+                    {qWarn.noRef > 0 && <div>⚠️ {tr(lang, `${qWarn.noRef} 道简答题还没有参考答案，AI 判不了分`, `${qWarn.noRef} short-answer questions have no reference answer; AI cannot grade them`)}</div>}
+                    {qWarn.lesson > 0 && <div>⚠️ {tr(lang, `${qWarn.lesson} 题没能自动对应章节课时，请手动选`, `${qWarn.lesson} questions could not be matched to a chapter/lesson; please choose one`)}</div>}
+                    {qWarn.options > 0 && <div>⚠️ {tr(lang, `${qWarn.options} 题的选项没拆出来，需要手工补（在列表里，别漏掉）`, `${qWarn.options} questions have no parsed options; add them manually (do not miss them below)`)}</div>}
+                    {qWarn.answer > 0 && <div>⚠️ {tr(lang, `${qWarn.answer} 题的正确答案不是恰好 1 个（AI 解错了或漏标），请检查`, `${qWarn.answer} questions do not have exactly one correct answer (AI mis-solved or missed one); please check`)}</div>}
                     <button onClick={() => setReviewOnly(v => !v)}
                       className="mt-1 font-semibold underline underline-offset-2 hover:text-amber-950">
-                      {reviewOnly ? `显示全部 ${questions.length} 题` : `只看这 ${flaggedCount} 道有问题的题 →`}
+                      {reviewOnly ? tr(lang, `显示全部 ${questions.length} 题`, `Show all ${questions.length} questions`) : tr(lang, `只看这 ${flaggedCount} 道有问题的题 →`, `Show only these ${flaggedCount} questions →`)}
                     </button>
                   </div>
                 )}
@@ -1263,13 +1274,13 @@ function MockAdminContent() {
                 {failedPages.length > 0 && (
                   <div className="px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-900 flex flex-wrap items-center gap-2">
                     <span>
-                      ⚠️ 第 <b>{failedPages.map(i => i + 1).join('、')}</b> 页没解析出来，这几页的题目不在下面。
+                      ⚠️ {tr(lang, '第 ', 'Page ')}<b>{failedPages.map(i => i + 1).join(tr(lang, '、', ', '))}</b>{tr(lang, ' 页没解析出来，这几页的题目不在下面。', ' failed to parse; questions from these pages are missing below.')}
                     </span>
                     <button onClick={() => runPages(failedPages)} disabled={busy !== ''}
                       className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-medium disabled:opacity-50">
-                      重跑这几页
+                      {tr(lang, '重跑这几页', 'Retry these pages')}
                     </button>
-                    <button onClick={() => setFailedPages([])} className="text-rose-700 hover:underline">忽略</button>
+                    <button onClick={() => setFailedPages([])} className="text-rose-700 hover:underline">{tr(lang, '忽略', 'Ignore')}</button>
                   </div>
                 )}
 
@@ -1279,10 +1290,10 @@ function MockAdminContent() {
                 {parseCheck && (
                   <div className={`px-3 py-2 rounded-lg border text-xs ${parseCheck.issues.length ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
                     {parseCheck.issues.length === 0 ? (
-                      <span>✅ 卷面共 <b>{parseCheck.expected}</b> 个题号，解析出 <b>{parseCheck.parsed}</b> 道题，题号对得上。</span>
+                      <span>✅ {tr(lang, '卷面共 ', 'The paper has ')}<b>{parseCheck.expected}</b>{tr(lang, ' 个题号，解析出 ', ' printed question numbers; ')}<b>{parseCheck.parsed}</b>{tr(lang, ' 道题，题号对得上。', ' questions were parsed, and the numbers match.')}</span>
                     ) : (
                       <div className="space-y-0.5">
-                        <div>⚠️ 卷面共 <b>{parseCheck.expected}</b> 个题号，解析出 <b>{parseCheck.parsed}</b> 道题 —— 下面几处对不上，请对照原卷核对：</div>
+                        <div>⚠️ {tr(lang, '卷面共 ', 'The paper has ')}<b>{parseCheck.expected}</b>{tr(lang, ' 个题号，解析出 ', ' printed question numbers; ')}<b>{parseCheck.parsed}</b>{tr(lang, ' 道题 —— 下面几处对不上，请对照原卷核对：', ' were parsed — these do not match; check them against the original paper:')}</div>
                         {parseCheck.issues.map((s, k) => <div key={k} className="pl-3">· {s}</div>)}
                       </div>
                     )}
@@ -1294,24 +1305,24 @@ function MockAdminContent() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-muted-foreground">
-                        {reviewOnly ? `需人工审核 ${flaggedCount} / 共 ${questions.length} 题` : `共 ${questions.length} 题`}
+                        {reviewOnly ? tr(lang, `需人工审核 ${flaggedCount} / 共 ${questions.length} 题`, `Needs review: ${flaggedCount} / ${questions.length}`) : tr(lang, `共 ${questions.length} 题`, `${questions.length} questions`)}
                       </span>
                       <button onClick={() => setReviewOnly(false)}
                         className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${reviewOnly ? 'hover:bg-accent' : 'bg-violet-100 border-violet-300 text-violet-800'}`}>
-                        全部
+                        {tr(lang, '全部', 'All')}
                       </button>
                       <button onClick={() => setReviewOnly(true)} disabled={flaggedCount === 0}
                         className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-40 ${reviewOnly ? 'bg-red-600 border-red-600 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}`}>
-                        只看有问题的{flaggedCount > 0 ? ` (${flaggedCount})` : ''}
+                        {tr(lang, `只看有问题的${flaggedCount > 0 ? ` (${flaggedCount})` : ''}`, `Only flagged${flaggedCount > 0 ? ` (${flaggedCount})` : ''}`)}
                       </button>
                       <div className="ml-auto flex items-center gap-1.5">
                         <button onClick={addQuestion}
-                          className="text-xs px-2.5 py-1 rounded-lg border font-medium hover:bg-accent transition-colors">+ 加一道题</button>
+                          className="text-xs px-2.5 py-1 rounded-lg border font-medium hover:bg-accent transition-colors">{tr(lang, '+ 加一道题', '+ Add question')}</button>
                       </div>
                     </div>
                     {questions.length === 0 && (
                       <p className="py-8 text-center text-sm text-muted-foreground">
-                        还没有题目 —— 上面粘贴试卷让 AI 拆，或点右上角「+ 加一道题」自己写一道。
+                        {tr(lang, '还没有题目 —— 上面粘贴试卷让 AI 拆，或点右上角「+ 加一道题」自己写一道。', 'No questions yet — paste a paper above for AI to split, or click "+ Add question" to write one yourself.')}
                       </p>
                     )}
                     {questions.map((q, i) => ({ q, i }))
@@ -1332,20 +1343,20 @@ function MockAdminContent() {
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${ref.cls}`}>{ref.text}</span>
                             {q.num != null && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">卷面第 {q.num} 题</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">{tr(lang, `卷面第 ${q.num} 题`, `Paper Q${q.num}`)}</span>
                             )}
                             {reasons.length > 0 && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">需人工审核</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-medium">{tr(lang, '需人工审核', 'Needs review')}</span>
                             )}
-                            <span className="text-xs text-muted-foreground">难度 {q.difficulty}</span>
+                            <span className="text-xs text-muted-foreground">{tr(lang, `难度 ${q.difficulty}`, `Difficulty ${q.difficulty}`)}</span>
                             <div className="ml-auto flex items-center gap-1">
                               <button onClick={() => setEditQ(i)}
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-accent transition-colors">
-                                <Edit3 className="w-3.5 h-3.5" /> 编辑
+                                <Edit3 className="w-3.5 h-3.5" /> {tr(lang, '编辑', 'Edit')}
                               </button>
-                              <button onClick={() => moveQ(i, -1)} disabled={i === 0} title="上移" className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => moveQ(i, 1)} disabled={i === questions.length - 1} title="下移" className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => removeQ(i)} title="删除这道题" className="p-1.5 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => moveQ(i, -1)} disabled={i === 0} title={tr(lang, '上移', 'Move up')} className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => moveQ(i, 1)} disabled={i === questions.length - 1} title={tr(lang, '下移', 'Move down')} className="p-1.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => removeQ(i)} title={tr(lang, '删除这道题', 'Delete this question')} className="p-1.5 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
 
@@ -1371,18 +1382,18 @@ function MockAdminContent() {
                                     <span className="flex-1">
                                       {cleanOption(o.content) !== LETTERS[oi] && <KatexHtml text={cleanOption(o.content)} />}
                                     </span>
-                                    {o.isCorrect && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
+                                    {o.isCorrect && <span className="text-xs text-emerald-700 shrink-0">{tr(lang, '正确答案', 'Correct answer')}</span>}
                                   </div>
                                 ))}
-                                {q.options.length === 0 && <p className="text-sm text-rose-600">还没有选项</p>}
+                                {q.options.length === 0 && <p className="text-sm text-rose-600">{tr(lang, '还没有选项', 'No options yet')}</p>}
                               </div>
                             ) : (
                               <div className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50/60 text-sm">
-                                <div className="text-xs text-muted-foreground mb-1">参考答案（判分依据）</div>
+                                <div className="text-xs text-muted-foreground mb-1">{tr(lang, '参考答案（判分依据）', 'Reference answer (marking basis)')}</div>
                                 <div className="whitespace-pre-wrap">
                                   {q.answerText.trim()
                                     ? <KatexHtml text={wrapBareLatex(q.answerText)} />
-                                    : <span className="text-rose-600">还没填</span>}
+                                    : <span className="text-rose-600">{tr(lang, '还没填', 'Not filled in')}</span>}
                                 </div>
                               </div>
                             )}
@@ -1409,43 +1420,43 @@ function MockAdminContent() {
       {newOpen && (
         <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">新建试卷</h2>
+            <h2 className="text-lg font-semibold mb-4">{tr(lang, '新建试卷', 'New paper')}</h2>
 
             <div className="space-y-4">
               <div>
-                <div className="text-xs font-medium mb-1">试卷标题</div>
+                <div className="text-xs font-medium mb-1">{tr(lang, '试卷标题', 'Paper title')}</div>
                 <input value={title} onChange={e => setTitle(e.target.value)} autoFocus
-                  placeholder="如 AP Chem 2012"
+                  placeholder={tr(lang, '如 AP Chem 2012', 'e.g. AP Chem 2012')}
                   className="w-full px-3 py-2 border rounded-lg bg-background outline-none focus:ring-2 focus:ring-violet-400" />
               </div>
 
               <div>
-                <div className="text-xs font-medium mb-1">考试时长</div>
+                <div className="text-xs font-medium mb-1">{tr(lang, '考试时长', 'Exam duration')}</div>
                 <div className="flex items-center gap-2">
                   <input type="number" min={1} max={600} value={duration}
                     onChange={e => setDuration(Math.min(600, Math.max(1, Number(e.target.value) || 60)))}
                     className="w-24 px-3 py-2 border rounded-lg bg-background" />
-                  <span className="text-sm text-muted-foreground">分钟</span>
+                  <span className="text-sm text-muted-foreground">{tr(lang, '分钟', 'minutes')}</span>
                 </div>
               </div>
 
               <div>
-                <div className="text-xs font-medium mb-2">卷子类型</div>
+                <div className="text-xs font-medium mb-2">{tr(lang, '卷子类型', 'Paper type')}</div>
                 <div className="grid grid-cols-2 gap-2">
                   {(['choice', 'short'] as const).map(m => (
                     <button key={m} onClick={() => setMode(m)}
                       className={`rounded-xl border-2 p-4 text-left transition-all ${
                         mode === m ? PAPER_MODE[m].solid : 'hover:bg-accent'}`}>
                       <div className="text-2xl mb-1">{PAPER_MODE[m].emoji}</div>
-                      <div className="font-semibold text-sm">{PAPER_MODE[m].label}</div>
+                      <div className="font-semibold text-sm">{tr(lang, PAPER_MODE[m].label, PAPER_MODE[m].labelEn)}</div>
                       <div className={`text-[11px] mt-0.5 ${mode === m ? 'text-white/80' : 'text-muted-foreground'}`}>
-                        {m === 'choice' ? '每题 A/B/C/D 选项' : '每题写文字，AI 判分'}
+                        {m === 'choice' ? tr(lang, '每题 A/B/C/D 选项', 'A/B/C/D options per question') : tr(lang, '每题写文字，AI 判分', 'Written answers, graded by AI')}
                       </div>
                     </button>
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1.5">
-                  一份卷子只有一种题型。建好之后不能改 —— 要换类型就新建一份卷子。
+                  {tr(lang, '一份卷子只有一种题型。建好之后不能改 —— 要换类型就新建一份卷子。', 'A paper has only one question type, and it cannot be changed after creation — create a new paper to use another type.')}
                 </p>
               </div>
             </div>
@@ -1453,9 +1464,9 @@ function MockAdminContent() {
             <div className="flex gap-3 mt-6">
               <button onClick={confirmNewPaper}
                 className={`flex-1 py-2.5 rounded-lg font-medium text-white ${PAPER_MODE[mode].solid}`}>
-                确认，开始建卷
+                {tr(lang, '确认，开始建卷', 'Create paper')}
               </button>
-              <button onClick={() => setNewOpen(false)} className="px-5 py-2.5 bg-accent rounded-lg font-medium">取消</button>
+              <button onClick={() => setNewOpen(false)} className="px-5 py-2.5 bg-accent rounded-lg font-medium">{tr(lang, '取消', 'Cancel')}</button>
             </div>
           </div>
         </div>
@@ -1472,16 +1483,16 @@ function MockAdminContent() {
             <div className="bg-card rounded-2xl w-full max-w-4xl my-8">
               <div className="flex items-center justify-between px-5 py-4 border-b">
                 <h2 className="font-semibold flex items-center gap-2 flex-wrap">
-                  编辑第 {draftLabel.get(i) ?? i + 1} 题
+                  {tr(lang, `编辑第 ${draftLabel.get(i) ?? i + 1} 题`, `Edit question ${draftLabel.get(i) ?? i + 1}`)}
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-normal ${ref.cls}`}>{ref.text}</span>
                 </h2>
-                <button onClick={() => setEditQ(null)} title="关闭"
+                <button onClick={() => setEditQ(null)} title={tr(lang, '关闭', 'Close')}
                   className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
               </div>
 
               <div className="p-5 space-y-4 max-h-[76vh] overflow-y-auto">
                 <div>
-                  <div className="text-xs font-medium mb-1">题干（支持 LaTeX；可直接 Ctrl+V 贴图）</div>
+                  <div className="text-xs font-medium mb-1">{tr(lang, '题干（支持 LaTeX；可直接 Ctrl+V 贴图）', 'Question stem (LaTeX supported; Ctrl+V to paste an image)')}</div>
                   <textarea value={q.stem} onChange={e => patchQ(i, { stem: e.target.value })} rows={9}
                     onPaste={handlePaste(i)}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
@@ -1489,22 +1500,22 @@ function MockAdminContent() {
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium mb-1">配图（可多张，学生会按顺序看到全部）</div>
+                  <div className="text-xs font-medium mb-1">{tr(lang, '配图（可多张，学生会按顺序看到全部）', 'Figures (multiple allowed; students see them all in order)')}</div>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border cursor-pointer ${theme.button}`}>
                       <ImageIcon className="w-3.5 h-3.5" />
-                      {uploadingIdx === i ? '上传中…' : '选一张图'}
+                      {uploadingIdx === i ? tr(lang, '上传中…', 'Uploading…') : tr(lang, '选一张图', 'Choose an image')}
                       <input type="file" accept="image/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(i, f); e.currentTarget.value = '' }} />
                     </label>
-                    <span className="text-xs text-muted-foreground">也可以直接 Ctrl+V 粘到上面的题干框里</span>
+                    <span className="text-xs text-muted-foreground">{tr(lang, '也可以直接 Ctrl+V 粘到上面的题干框里', 'You can also Ctrl+V directly into the stem box above')}</span>
                   </div>
                   {q.images.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {q.images.map((src, k) => (
                         <span key={k} className="relative border rounded-lg p-0.5 bg-white">
-                          <button onClick={() => setZoom(src)} title="放大看"><img src={src} alt="" className="h-16 w-24 object-contain" /></button>
-                          <button onClick={() => patchQ(i, { images: q.images.filter((_, n) => n !== k) })} title="删掉这张图"
+                          <button onClick={() => setZoom(src)} title={tr(lang, '放大看', 'Enlarge')}><img src={src} alt="" className="h-16 w-24 object-contain" /></button>
+                          <button onClick={() => patchQ(i, { images: q.images.filter((_, n) => n !== k) })} title={tr(lang, '删掉这张图', 'Delete this image')}
                             className="absolute -top-1.5 -right-1.5 bg-white border rounded-full p-0.5 text-red-500 hover:text-red-700">
                             <X className="w-3 h-3" />
                           </button>
@@ -1516,11 +1527,11 @@ function MockAdminContent() {
 
                 {q.answerType === 'choice' ? (
                   <div>
-                    <div className="text-xs font-medium mb-1">选项（点左边的字母圈设为正确答案）</div>
+                    <div className="text-xs font-medium mb-1">{tr(lang, '选项（点左边的字母圈设为正确答案）', 'Options (click a letter on the left to mark it correct)')}</div>
                     <div className="space-y-1.5">
                       {q.options.map((o, oi) => (
                         <div key={oi} className="flex items-center gap-2">
-                          <button onClick={() => setCorrect(i, oi)} title="设为正确答案"
+                          <button onClick={() => setCorrect(i, oi)} title={tr(lang, '设为正确答案', 'Mark as correct')}
                             className={`w-6 h-6 rounded-full border text-xs font-semibold shrink-0 ${o.isCorrect ? 'bg-emerald-500 border-emerald-500 text-white' : 'hover:bg-accent text-muted-foreground'}`}>
                             {LETTERS[oi]}
                           </button>
@@ -1532,27 +1543,27 @@ function MockAdminContent() {
                       ))}
                     </div>
                     <div className="flex flex-wrap items-center gap-3 mt-2">
-                      <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">+ 加一个选项</button>
-                      <button onClick={() => shuffleOptions(i)} title="把选项循环挪一位（对付两栏排版被读串的情况）"
+                      <button onClick={() => addOption(i)} className="text-xs text-muted-foreground hover:text-foreground">{tr(lang, '+ 加一个选项', '+ Add option')}</button>
+                      <button onClick={() => shuffleOptions(i)} title={tr(lang, '把选项循环挪一位（对付两栏排版被读串的情况）', 'Rotate the options by one (for when two-column layouts were read out of order)')}
                         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                        <Shuffle className="w-3.5 h-3.5" /> 选项挪一位
+                        <Shuffle className="w-3.5 h-3.5" /> {tr(lang, '选项挪一位', 'Rotate options')}
                       </button>
                       <button onClick={() => fillOptionLetters(i)}
-                        title="选项本身就是图片/复杂公式时用这个：题干里贴一张含所有选项的图，各选项只留 A B C D 当占位"
-                        className="text-xs text-muted-foreground hover:text-foreground">选项用字母代替（A B C D）</button>
+                        title={tr(lang, '选项本身就是图片/复杂公式时用这个：题干里贴一张含所有选项的图，各选项只留 A B C D 当占位', 'Use this when the options are images or complex formulas: paste one image with all options into the stem and keep only A B C D as placeholders')}
+                        className="text-xs text-muted-foreground hover:text-foreground">{tr(lang, '选项用字母代替（A B C D）', 'Use letters only (A B C D)')}</button>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div className="text-xs font-medium mb-1">参考答案（必填）—— 学生的答案由 AI 对照它判分，写错则全班这道题都判错</div>
+                    <div className="text-xs font-medium mb-1">{tr(lang, '参考答案（必填）—— 学生的答案由 AI 对照它判分，写错则全班这道题都判错', 'Reference answer (required) — AI grades student answers against it; a mistake marks the whole class wrong on this question')}</div>
                     <ChemToolbar value={q.answerText} onChange={next => patchQ(i, { answerText: next })} textareaRef={focusedAnswer} />
                     <textarea value={q.answerText} onChange={e => patchQ(i, { answerText: e.target.value })} rows={7}
                       onFocus={e => { focusedAnswer.current = e.currentTarget }}
-                      placeholder="可以直接写 CH3NH2、10^-4 这种普通写法；下标/上标点上面的按钮。公式要用 $…$ 包起来。"
+                      placeholder={tr(lang, '可以直接写 CH3NH2、10^-4 这种普通写法；下标/上标点上面的按钮。公式要用 $…$ 包起来。', 'Plain text like CH3NH2 or 10^-4 works; use the buttons above for sub/superscripts. Wrap formulas in $…$.')}
                       className="mt-1 w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                     {q.answerText.trim() && (
                       <div className="mt-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm">
-                        <div className="text-xs text-muted-foreground mb-1">预览（学生看到的样子）</div>
+                        <div className="text-xs text-muted-foreground mb-1">{tr(lang, '预览（学生看到的样子）', 'Preview (what students see)')}</div>
                         <KatexHtml text={wrapBareLatex(q.answerText)} />
                       </div>
                     )}
@@ -1560,25 +1571,25 @@ function MockAdminContent() {
                 )}
 
                 <div>
-                  <div className="text-xs font-medium mb-1">解析（AI 草稿，请核对）</div>
+                  <div className="text-xs font-medium mb-1">{tr(lang, '解析（AI 草稿，请核对）', 'Explanation (AI draft — please check)')}</div>
                   <textarea value={q.explanation} onChange={e => patchQ(i, { explanation: e.target.value })} rows={5}
                     className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-xs" />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="text-xs text-muted-foreground flex items-center gap-1">
-                    难度
+                    {tr(lang, '难度', 'Difficulty')}
                     <input type="number" min={1} max={5} value={q.difficulty}
                       onChange={e => patchQ(i, { difficulty: Math.min(5, Math.max(1, Number(e.target.value) || 3)) })}
                       className="w-14 px-2 py-1 border rounded bg-background text-xs" />
                   </label>
                   <div className="flex-1 min-w-[220px] flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground shrink-0">所属章节课时</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{tr(lang, '所属章节课时', 'Chapter / lesson')}</span>
                     <select value={q.lessonId} onChange={e => {
                       const hit = lessonOptions.find(l => l.id === e.target.value)
                       patchQ(i, { lessonId: e.target.value, lessonRef: hit?.ref ?? null, chapterTitle: hit?.chapter ?? null, lessonTitle: hit?.title ?? null })
                     }} className="flex-1 px-2 py-1.5 border rounded-lg bg-background text-xs">
-                      <option value="">— 请选择 —</option>
+                      <option value="">{tr(lang, '— 请选择 —', '— Select —')}</option>
                       {outline.map(c => (
                         <optgroup key={c.id} label={c.title}>
                           {c.lessons.map(l => <option key={l.id} value={l.id}>{l.ref} {l.title}</option>)}
@@ -1590,18 +1601,18 @@ function MockAdminContent() {
 
                 {q.officialAnswer && (
                   <p className="text-xs text-muted-foreground">
-                    官方答案：<b className="text-foreground">{q.officialAnswer}</b>
+                    {tr(lang, '官方答案：', 'Official answer: ')}<b className="text-foreground">{q.officialAnswer}</b>
                     {q.independentAnswer && (
-                      <> · AI 独立解答：<b className={q.disputed ? 'text-red-600' : 'text-foreground'}>{q.independentAnswer}</b>{q.disputed ? '（不一致）' : '（一致）'}</>
+                      <> · {tr(lang, 'AI 独立解答：', 'AI answer: ')}<b className={q.disputed ? 'text-red-600' : 'text-foreground'}>{q.independentAnswer}</b>{q.disputed ? tr(lang, '（不一致）', ' (mismatch)') : tr(lang, '（一致）', ' (match)')}</>
                     )}
                   </p>
                 )}
               </div>
 
               <div className="flex items-center justify-between px-5 py-4 border-t">
-                <button onClick={() => { removeQ(i); setEditQ(null) }} className="text-xs text-red-500 hover:underline">删除这道题</button>
+                <button onClick={() => { removeQ(i); setEditQ(null) }} className="text-xs text-red-500 hover:underline">{tr(lang, '删除这道题', 'Delete this question')}</button>
                 <button onClick={() => setEditQ(null)}
-                  className={`px-5 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>完成</button>
+                  className={`px-5 py-2 rounded-lg text-sm font-medium text-white ${theme.solid}`}>{tr(lang, '完成', 'Done')}</button>
               </div>
             </div>
           </div>
@@ -1615,10 +1626,10 @@ function MockAdminContent() {
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
-                {results?.paper?.title || '成绩'}
+                {results?.paper?.title || tr(lang, '成绩', 'Results')}
                 {results?.paper && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${results.paper.isPublished ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {results.paper.isPublished ? '已发布' : '未发布'}
+                    {results.paper.isPublished ? tr(lang, '已发布', 'Published') : tr(lang, '未发布', 'Unpublished')}
                   </span>
                 )}
               </h2>
@@ -1630,25 +1641,25 @@ function MockAdminContent() {
             ) : (
               <>
                 <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b">
-                  <div><div className="text-xs text-muted-foreground">已考学生</div><div className="text-xl font-semibold">{results.submittedCount}</div></div>
-                  <div><div className="text-xs text-muted-foreground">平均分</div><div className="text-xl font-semibold text-violet-700">{results.average ?? '—'}</div></div>
-                  <div><div className="text-xs text-muted-foreground">最高 / 最低</div><div className="text-xl font-semibold">{results.highest ?? '—'} / {results.lowest ?? '—'}</div></div>
-                  <div><div className="text-xs text-muted-foreground">进行中</div><div className="text-xl font-semibold">{results.inProgressCount}</div></div>
+                  <div><div className="text-xs text-muted-foreground">{tr(lang, '已考学生', 'Submitted')}</div><div className="text-xl font-semibold">{results.submittedCount}</div></div>
+                  <div><div className="text-xs text-muted-foreground">{tr(lang, '平均分', 'Average')}</div><div className="text-xl font-semibold text-violet-700">{results.average ?? '—'}</div></div>
+                  <div><div className="text-xs text-muted-foreground">{tr(lang, '最高 / 最低', 'High / Low')}</div><div className="text-xl font-semibold">{results.highest ?? '—'} / {results.lowest ?? '—'}</div></div>
+                  <div><div className="text-xs text-muted-foreground">{tr(lang, '进行中', 'In progress')}</div><div className="text-xl font-semibold">{results.inProgressCount}</div></div>
                 </div>
 
                 {/* A published mock course is sat by several classes at once, so
                     the raw list mixes them — narrow to one class here. */}
                 {results.classes?.length > 0 && (
                   <div className="flex items-center gap-2 px-5 pt-4">
-                    <span className="text-xs text-muted-foreground">班级</span>
+                    <span className="text-xs text-muted-foreground">{tr(lang, '班级', 'Class')}</span>
                     <select value={results.classId || ''}
                       onChange={e => { setResultsClass(e.target.value); openResults(resultsFor!, e.target.value) }}
                       className="px-2 py-1.5 border rounded-lg bg-background text-xs">
-                      <option value="">全部班级</option>
+                      <option value="">{tr(lang, '全部班级', 'All classes')}</option>
                       {results.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     {results.classId === '' && results.classes.length > 1 && (
-                      <span className="text-xs text-amber-700">当前是全部学生的合并成绩，选一个班级可以只看本班</span>
+                      <span className="text-xs text-amber-700">{tr(lang, '当前是全部学生的合并成绩，选一个班级可以只看本班', 'These are combined results for all students; choose a class to see only that class')}</span>
                     )}
                   </div>
                 )}
@@ -1656,28 +1667,28 @@ function MockAdminContent() {
                 <div className="flex gap-1 px-5 pt-4">
                   <button onClick={() => setResultsTab('students')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${resultsTab === 'students' ? 'bg-violet-500 text-white font-medium' : 'hover:bg-accent'}`}>
-                    按学生 ({results.rows.length})
+                    {tr(lang, `按学生 (${results.rows.length})`, `By student (${results.rows.length})`)}
                   </button>
                   <button onClick={() => setResultsTab('questions')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${resultsTab === 'questions' ? 'bg-violet-500 text-white font-medium' : 'hover:bg-accent'}`}>
-                    按题目（薄弱优先）
+                    {tr(lang, '按题目（薄弱优先）', 'By question (weakest first)')}
                   </button>
                 </div>
 
                 <div className="p-5">
                   {resultsTab === 'students' ? (
                     results.rows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-6 text-center">还没有人交卷。</p>
+                      <p className="text-sm text-muted-foreground py-6 text-center">{tr(lang, '还没有人交卷。', 'No one has submitted yet.')}</p>
                     ) : (
                       <table className="w-full text-sm">
                         <thead className="text-muted-foreground">
                           <tr className="text-left">
-                            <th className="py-2 pr-3 font-medium">学生</th>
+                            <th className="py-2 pr-3 font-medium">{tr(lang, '学生', 'Student')}</th>
                             {/* One column per attempt, so 第一次 → 第二次 → 重测
                                 reads as progress rather than three separate rows. */}
-                            <th className="py-2 font-medium">各次正确率</th>
-                            <th className="py-2 px-2 font-medium text-center">至今没答对</th>
-                            <th className="py-2 px-2 font-medium text-center">最近用时</th>
+                            <th className="py-2 font-medium">{tr(lang, '各次正确率', 'Score by attempt')}</th>
+                            <th className="py-2 px-2 font-medium text-center">{tr(lang, '至今没答对', 'Still wrong')}</th>
+                            <th className="py-2 px-2 font-medium text-center">{tr(lang, '最近用时', 'Last time')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1686,10 +1697,10 @@ function MockAdminContent() {
                               <td className="py-2 pr-3">
                                 <button onClick={() => r.latestSessionId && openDetail(r.latestSessionId)}
                                   className={`font-medium hover:underline ${r.neverCorrect === 0 ? 'text-emerald-700' : ''}`}
-                                  title="点开看逐题情况">
+                                  title={tr(lang, '点开看逐题情况', 'Click to see each question')}>
                                   {r.studentName} ↗
                                 </button>
-                                {r.neverCorrect === 0 && <span className="ml-1 text-xs text-emerald-600">全对</span>}
+                                {r.neverCorrect === 0 && <span className="ml-1 text-xs text-emerald-600">{tr(lang, '全对', 'All correct')}</span>}
                               </td>
                               <td className="py-2">
                                 <div className="flex flex-wrap items-center gap-1">
@@ -1697,10 +1708,10 @@ function MockAdminContent() {
                                     <span key={a.sessionId} className="flex items-center gap-1">
                                       {i > 0 && <span className="text-gray-300">→</span>}
                                       <button onClick={() => openDetail(a.sessionId)}
-                                        title={`第 ${a.n} 次${a.mode === 'retry' ? '（错题重测）' : ''}：本场 ${a.correctInAttempt}/${a.totalInAttempt}，全卷累计 ${a.cumulativeCorrect}/${r.paperTotal}${a.submitReason === 'timeout' ? ' · 超时交卷' : ''}`}
+                                        title={tr(lang, `第 ${a.n} 次${a.mode === 'retry' ? '（错题重测）' : ''}：本场 ${a.correctInAttempt}/${a.totalInAttempt}，全卷累计 ${a.cumulativeCorrect}/${r.paperTotal}${a.submitReason === 'timeout' ? ' · 超时交卷' : ''}`, `Attempt ${a.n}${a.mode === 'retry' ? ' (wrong-answer retest)' : ''}: ${a.correctInAttempt}/${a.totalInAttempt} this attempt, ${a.cumulativeCorrect}/${r.paperTotal} overall${a.submitReason === 'timeout' ? ' · auto-submitted at timeout' : ''}`)}
                                         className={`px-1.5 py-0.5 rounded tabular-nums hover:bg-accent transition-colors ${
                                           a.cumulativePercentage >= 60 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                        <span className="text-[10px] text-muted-foreground">{a.mode === 'retry' ? '测' : a.n}</span> {a.cumulativePercentage}%
+                                        <span className="text-[10px] text-muted-foreground">{a.mode === 'retry' ? tr(lang, '测', 'R') : a.n}</span> {a.cumulativePercentage}%
                                       </button>
                                     </span>
                                   ))}
@@ -1722,7 +1733,7 @@ function MockAdminContent() {
                   ) : (
                     <div className="space-y-1.5">
                       <p className="text-xs text-muted-foreground mb-2">
-                        正确率从低到高排；每题标出它对应的章节课时。全班错得多的题，就是该回去讲的课时。
+                        {tr(lang, '正确率从低到高排；每题标出它对应的章节课时。全班错得多的题，就是该回去讲的课时。', 'Sorted by correct rate, lowest first; each question is tagged with its chapter/lesson. Questions the class missed most point to lessons worth revisiting.')}
                       </p>
                       {[...results.questions].sort((a: any, b: any) => a.rate - b.rate).map((q: any) => (
                         <div key={q.questionId} className="flex items-center gap-3 py-1.5 border-b last:border-0">
@@ -1753,7 +1764,7 @@ function MockAdminContent() {
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
-                总成绩 · 每人在各套卷上的表现
+                {tr(lang, '总成绩 · 每人在各套卷上的表现', 'Overview · each student across papers')}
                 {overview?.courseName && <span className="text-xs font-normal text-muted-foreground">{overview.courseName}</span>}
               </h2>
               <button onClick={() => setShowOverview(false)} className="p-1.5 rounded-lg hover:bg-accent transition-colors"><X className="w-5 h-5" /></button>
@@ -1764,38 +1775,38 @@ function MockAdminContent() {
             ) : (
               <div className="p-5">
                 <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <span className="text-xs text-muted-foreground">课程</span>
+                  <span className="text-xs text-muted-foreground">{tr(lang, '课程', 'Course')}</span>
                   <select value={overviewCourse}
                     onChange={e => openOverview(e.target.value, '')}
                     className="px-2 py-1.5 border rounded-lg bg-background text-xs">
                     {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <span className="text-xs text-muted-foreground ml-2">班级</span>
+                  <span className="text-xs text-muted-foreground ml-2">{tr(lang, '班级', 'Class')}</span>
                   <select value={overviewClass}
                     onChange={e => openOverview(overviewCourse, e.target.value)}
                     className="px-2 py-1.5 border rounded-lg bg-background text-xs">
-                    <option value="">全部班级</option>
+                    <option value="">{tr(lang, '全部班级', 'All classes')}</option>
                     {(overview.classes || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <span className="text-xs text-muted-foreground">同一套卷多次考取最好的一次；点分数看该生这一场的逐题对错</span>
+                  <span className="text-xs text-muted-foreground">{tr(lang, '同一套卷多次考取最好的一次；点分数看该生这一场的逐题对错', 'For multiple attempts on a paper, the best score is used; click a score to see that attempt question by question')}</span>
                 </div>
 
                 {overview.students.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">还没有交卷记录。</p>
+                  <p className="text-sm text-muted-foreground py-8 text-center">{tr(lang, '还没有交卷记录。', 'No submissions yet.')}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="text-muted-foreground">
                         <tr className="text-left">
-                          <th className="py-2 pr-3 font-medium sticky left-0 bg-card">学生</th>
+                          <th className="py-2 pr-3 font-medium sticky left-0 bg-card">{tr(lang, '学生', 'Student')}</th>
                           {overview.papers.map((p: any) => (
                             <th key={p.id} className="py-2 px-2 font-medium text-center whitespace-nowrap">
                               {p.title.replace(/^【.*?】/, '').slice(0, 12)}
-                              {!p.isPublished && <span className="ml-1 text-[10px] text-gray-400">未发布</span>}
+                              {!p.isPublished && <span className="ml-1 text-[10px] text-gray-400">{tr(lang, '未发布', 'Unpublished')}</span>}
                             </th>
                           ))}
-                          <th className="py-2 px-2 font-medium text-center">平均</th>
-                          <th className="py-2 px-2 font-medium text-center">趋势</th>
+                          <th className="py-2 px-2 font-medium text-center">{tr(lang, '平均', 'Avg')}</th>
+                          <th className="py-2 px-2 font-medium text-center">{tr(lang, '趋势', 'Trend')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1803,7 +1814,7 @@ function MockAdminContent() {
                           <tr key={s.studentId} className="border-t">
                             <td className="py-2 pr-3 sticky left-0 bg-card">
                               <div className="whitespace-nowrap">{s.studentName}</div>
-                              {s.classNames?.length > 0 && <div className="text-[10px] text-muted-foreground">{s.classNames.join('、')}</div>}
+                              {s.classNames?.length > 0 && <div className="text-[10px] text-muted-foreground">{s.classNames.join(tr(lang, '、', ', '))}</div>}
                             </td>
                             {overview.papers.map((p: any) => {
                               const v = s.scores[p.id]
@@ -1833,7 +1844,7 @@ function MockAdminContent() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mt-4">
-                  趋势 = 最近一次成绩 − 第一次成绩（同一套卷取最好一次）。点每套卷旁边的「成绩」可以看那一场的逐题情况。
+                  {tr(lang, '趋势 = 最近一次成绩 − 第一次成绩（同一套卷取最好一次）。点每套卷旁边的「成绩」可以看那一场的逐题情况。', 'Trend = latest score − first score (best attempt per paper). Click "Results" next to a paper to see that attempt question by question.')}
                 </p>
               </div>
             )}
@@ -1862,16 +1873,16 @@ function MockAdminContent() {
             ) : (
               <div className="p-5 space-y-3">
                 <div className="text-xs text-muted-foreground">
-                  全卷 {detail.review.score.total} 题，累计答对 {detail.review.score.correct} 题
-                  {detail.review.score.unanswered > 0 && ` · 还没答对 ${detail.review.score.unanswered} 题`}
-                  {detail.review.submitReason === 'timeout' && ' · 超时自动交卷'}
+                  {tr(lang, `全卷 ${detail.review.score.total} 题，累计答对 ${detail.review.score.correct} 题`, `${detail.review.score.total} questions in total, ${detail.review.score.correct} answered correctly so far`)}
+                  {detail.review.score.unanswered > 0 && tr(lang, ` · 还没答对 ${detail.review.score.unanswered} 题`, ` · ${detail.review.score.unanswered} still not correct`)}
+                  {detail.review.submitReason === 'timeout' && tr(lang, ' · 超时自动交卷', ' · auto-submitted at timeout')}
                 </div>
                 {detail.review.attempts?.length > 1 && (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>历次：</span>
+                    <span>{tr(lang, '历次：', 'Attempts:')}</span>
                     {detail.review.attempts.map((a: any) => (
                       <span key={a.sessionId} className={a.sessionId === detail.review.sessionId ? 'font-medium text-violet-700' : ''}>
-                        第{a.n}次 {a.correctInAttempt}/{a.totalInAttempt} → 累计 {a.cumulativeCorrect}/{detail.review.score.total}（{a.cumulativePercentage}%）
+                        {tr(lang, `第${a.n}次 ${a.correctInAttempt}/${a.totalInAttempt} → 累计 ${a.cumulativeCorrect}/${detail.review.score.total}（${a.cumulativePercentage}%）`, `Attempt ${a.n}: ${a.correctInAttempt}/${a.totalInAttempt} → ${a.cumulativeCorrect}/${detail.review.score.total} overall (${a.cumulativePercentage}%)`)}
                       </span>
                     ))}
                   </div>
@@ -1880,22 +1891,22 @@ function MockAdminContent() {
                   <div key={q.questionId} className="border rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <span className={`w-6 h-6 rounded-md text-xs font-semibold flex items-center justify-center ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i + 1}</span>
-                      {!q.isCorrect && q.selectedOptionId == null && <span className="text-xs text-gray-500">未作答</span>}
-                      {q.flagged && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">考试时标记过</span>}
+                      {!q.isCorrect && q.selectedOptionId == null && <span className="text-xs text-gray-500">{tr(lang, '未作答', 'Unanswered')}</span>}
+                      {q.flagged && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">{tr(lang, '考试时标记过', 'Flagged during exam')}</span>}
                       {/* Which attempt finally got it right — the whole point of
                           tracking retests. */}
                       {q.firstCorrectAttempt == null ? (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                          至今没答对（错 {q.wrongTimes} 次）
+                          {tr(lang, `至今没答对（错 ${q.wrongTimes} 次）`, `Never correct (${q.wrongTimes} wrong)`)}
                         </span>
                       ) : (
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                           q.firstCorrectAttempt === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
-                          {q.firstCorrectAttempt === 1 ? '第一次就答对' : `第 ${q.firstCorrectAttempt} 次才答对`}
+                          {q.firstCorrectAttempt === 1 ? tr(lang, '第一次就答对', 'Correct on first try') : tr(lang, `第 ${q.firstCorrectAttempt} 次才答对`, `Correct on attempt ${q.firstCorrectAttempt}`)}
                         </span>
                       )}
                       {q.lessonId && (q.chapterTitle || q.lessonTitle) && (
-                        <Link href={`/play/${q.lessonId}`} title="去这一课看知识点"
+                        <Link href={`/play/${q.lessonId}`} title={tr(lang, '去这一课看知识点', 'Open this lesson\'s knowledge points')}
                           className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-800 underline decoration-dotted underline-offset-2 transition-colors">
                           {q.lessonRef ? `${q.lessonRef} ` : ''}{q.lessonTitle || q.chapterTitle} ↗
                         </Link>
@@ -1910,8 +1921,8 @@ function MockAdminContent() {
                           <div key={o.id} className={`flex items-start gap-2 px-2 py-1 rounded text-sm ${right ? 'bg-emerald-50' : picked ? 'bg-rose-50' : ''}`}>
                             <span className="font-medium text-muted-foreground shrink-0">{'ABCDEFGH'[oi]}.</span>
                             <span className="flex-1"><KatexHtml text={cleanOption(o.content)} /></span>
-                            {right && <span className="text-xs text-emerald-700 shrink-0">正确答案</span>}
-                            {picked && !right && <span className="text-xs text-rose-700 shrink-0">他选的</span>}
+                            {right && <span className="text-xs text-emerald-700 shrink-0">{tr(lang, '正确答案', 'Correct answer')}</span>}
+                            {picked && !right && <span className="text-xs text-rose-700 shrink-0">{tr(lang, '他选的', 'Their choice')}</span>}
                           </div>
                         )
                       })}
@@ -1926,7 +1937,7 @@ function MockAdminContent() {
 
       {zoom && (
         <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-3">
-          <button onClick={() => setZoom(null)} title="关闭"
+          <button onClick={() => setZoom(null)} title={tr(lang, '关闭', 'Close')}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white transition-colors">
             <X className="w-6 h-6" />
           </button>
