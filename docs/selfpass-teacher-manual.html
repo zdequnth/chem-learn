@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SelfPass 教师使用说明书 / Teacher Manual</title>
+<style>
+  :root {
+    --emerald: #10b981;
+    --emerald-dark: #047857;
+    --violet: #8b5cf6;
+    --violet-dark: #6d28d9;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --tip: #ecfdf5;
+    --warn: #fffbeb;
+    --note: #eff6ff;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+  }
+  body[data-lang="zh"] .en { display: none !important; }
+  body[data-lang="en"] .zh { display: none !important; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 28px;
+    background: rgba(255,255,255,.92);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; font-weight: 800; font-size: 19px; }
+  .brand .dot { color: var(--emerald); }
+  .brand .sub { font-weight: 500; font-size: 13px; color: var(--muted); }
+  .topbar .spacer { flex: 1; }
+  .lang-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: .15s;
+  }
+  .lang-btn:hover { border-color: var(--emerald); color: var(--emerald-dark); }
+  .top-link { font-size: 14px; color: var(--muted); text-decoration: none; }
+  .top-link:hover { color: var(--emerald-dark); }
+
+  .layout { display: flex; gap: 36px; max-width: 1280px; margin: 0 auto; padding: 32px 28px 80px; }
+  nav.toc {
+    width: 245px; flex: 0 0 245px; align-self: flex-start;
+    position: sticky; top: 82px; max-height: calc(100vh - 100px); overflow-y: auto;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 14px;
+  }
+  nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px 8px; }
+  nav.toc a { display: block; padding: 6px 8px; border-radius: 8px; color: #374151; text-decoration: none; font-size: 14px; }
+  nav.toc a:hover { background: #f0fdf4; color: var(--emerald-dark); }
+  main { min-width: 0; flex: 1; }
+
+  .hero {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f5f3ff 100%);
+    border: 1px solid #d1fae5; border-radius: 20px; padding: 30px 32px; margin-bottom: 28px;
+  }
+  .hero h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.3; }
+  .hero p { margin: 6px 0; color: #374151; }
+  .hero .meta { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 26px 30px; margin-bottom: 26px;
+  }
+  h2.sec { margin: 0 0 6px; font-size: 24px; line-height: 1.35; scroll-margin-top: 90px; }
+  h2.sec .num { color: var(--emerald-dark); margin-right: 8px; }
+  h3 { margin: 26px 0 8px; font-size: 18px; color: #111827; scroll-margin-top: 90px; }
+  h4 { margin: 18px 0 6px; font-size: 16px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0 8px 22px; padding: 0; }
+  li { margin: 5px 0; }
+  strong { color: #111827; }
+  .lead { color: var(--muted); margin-bottom: 14px; }
+  .btn-ref {
+    display: inline-block; padding: 1px 7px; margin: 0 2px; border-radius: 6px;
+    background: #f3f4f6; border: 1px solid #e5e7eb; font-size: 14px; font-weight: 600; white-space: nowrap;
+  }
+  .path { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 6px; font-size: 14px; }
+
+  figure { margin: 18px 0 8px; }
+  figure img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 7px; }
+
+  .callout { border-radius: 12px; padding: 13px 16px; margin: 14px 0; border: 1px solid; font-size: 15px; }
+  .callout .label { font-weight: 700; margin-right: 6px; }
+  .tip { background: var(--tip); border-color: #a7f3d0; }
+  .tip .label { color: var(--emerald-dark); }
+  .warn { background: var(--warn); border-color: #fde68a; }
+  .warn .label { color: #b45309; }
+  .note { background: var(--note); border-color: #bfdbfe; }
+  .note .label { color: #1d4ed8; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f9fafb; }
+
+  code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 5px; font-size: 14px; }
+  pre {
+    background: #0f172a; color: #e2e8f0; padding: 14px 16px; border-radius: 10px;
+    overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .mini { background: #f9fafb; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .mini h4 { margin-top: 0; }
+  .steps { counter-reset: step; list-style: none; margin-left: 0; }
+  .steps > li { position: relative; padding-left: 38px; margin: 11px 0; }
+  .steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 1px;
+    width: 25px; height: 25px; border-radius: 50%;
+    background: var(--emerald); color: #fff; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kbd { border: 1px solid #d1d5db; border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 13px; background: #fff; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 10px 0 40px; }
+
+  @media (max-width: 980px) {
+    .layout { flex-direction: column; padding: 20px 16px 60px; }
+    nav.toc { position: static; width: 100%; flex: auto; max-height: none; }
+    section.card { padding: 20px 18px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .hero { padding: 22px 20px; }
+    .hero h1 { font-size: 24px; }
+  }
+  @media print {
+    .topbar, nav.toc { display: none; }
+    body { background: #fff; }
+    .layout { display: block; padding: 0; }
+    section.card { border: none; padding: 0; margin: 0 0 24px; break-inside: avoid; }
+    figure img { border: none; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body data-lang="zh">
+
+<header class="topbar">
+  <div class="brand">SelfPass<span class="dot">.</span><span class="sub"><span class="zh">教师使用说明书</span><span class="en">Teacher Manual</span></span></div>
+  <div class="spacer"></div>
+  <a class="top-link" href="https://chem-learn-seven.vercel.app" target="_blank" rel="noopener">chem-learn-seven.vercel.app</a>
+  <button class="lang-btn" id="langBtn" type="button">EN</button>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <h2><span class="zh">目录</span><span class="en">Contents</span></h2>
+    <a href="#quick"><span class="zh">快速开始</span><span class="en">Quick start</span></a>
+    <a href="#account"><span class="zh">1. 登录与账户</span><span class="en">1. Sign in &amp; account</span></a>
+    <a href="#dashboard"><span class="zh">2. 教师工作台</span><span class="en">2. Teacher workspace</span></a>
+    <a href="#courses"><span class="zh">3. 课程管理</span><span class="en">3. Course management</span></a>
+    <a href="#questions"><span class="zh">4. 题库与 AI 出题</span><span class="en">4. Question bank &amp; AI</span></a>
+    <a href="#import"><span class="zh">5. 导入题目</span><span class="en">5. Import questions</span></a>
+    <a href="#mock"><span class="zh">6. 模拟考</span><span class="en">6. Mock exams</span></a>
+    <a href="#classes"><span class="zh">7. 班级管理</span><span class="en">7. Classes</span></a>
+    <a href="#analytics"><span class="zh">8. 学情分析</span><span class="en">8. Analytics</span></a>
+    <a href="#vocab"><span class="zh">9. 词汇管理</span><span class="en">9. Vocabulary</span></a>
+    <a href="#schedule"><span class="zh">10. 计划表</span><span class="en">10. Schedule</span></a>
+    <a href="#tools"><span class="zh">11. 公式表与计算器</span><span class="en">11. Study tools</span></a>
+    <a href="#settings"><span class="zh">12. 设置与语言</span><span class="en">12. Settings &amp; language</span></a>
+    <a href="#admin"><span class="zh">13. 管理员功能</span><span class="en">13. Admin features</span></a>
+    <a href="#faq"><span class="zh">14. 常见问题</span><span class="en">14. FAQ</span></a>
+    <a href="#workflow"><span class="zh">附：推荐工作流</span><span class="en">Appendix: recommended workflow</span></a>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <h1>
+        <span class="zh">SelfPass 教师使用说明书</span>
+        <span class="en">SelfPass Teacher Manual</span>
+      </h1>
+      <p class="zh">从建课、出题、模拟考到班级管理、学情分析与工作计划，一份覆盖全部教师功能的操作手册。</p>
+      <p class="en">A complete, step-by-step guide to every teacher feature: courses, questions, mock exams, classes, analytics, vocabulary, and your weekly work schedule.</p>
+      <p class="meta zh">版本 2026-11 · 截图使用演示数据 · 建议使用最新版 Chrome 或 Edge</p>
+      <p class="meta en">Version 2026-11 · Screenshots use demo data · Use the latest Chrome or Edge</p>
+    </div>
+
+    <!-- QUICK START -->
+    <section class="card" id="quick">
+      <h2 class="sec"><span class="num">★</span><span class="zh">快速开始</span><span class="en">Quick start</span></h2>
+      <p class="lead zh">第一次使用？按下面五步走，就能让学生开始学习。</p>
+      <p class="lead en">First time? These five steps are enough to get students learning.</p>
+      <ol class="steps">
+        <li>
+          <span class="zh"><strong>登录</strong>教师账户，右上角可切换中文 / English。</span>
+          <span class="en"><strong>Sign in</strong> with your teacher account; switch 中文 / English at the top right.</span>
+        </li>
+        <li>
+          <span class="zh"><strong>建一门「过关课程」</strong>，添加章节和课时。</span>
+          <span class="en"><strong>Create a Gate Course</strong> and add chapters and lessons.</span>
+        </li>
+        <li>
+          <span class="zh">在每个课时里<strong>建题</strong>：手动添加、AI 生成或粘贴导入。</span>
+          <span class="en"><strong>Add questions</strong> to each lesson: manually, with AI, or by pasting Markdown.</span>
+        </li>
+        <li>
+          <span class="zh"><strong>建班级</strong>，绑定课程，把邀请码发给学生。</span>
+          <span class="en"><strong>Create a class</strong>, bind the course, and share the invite code.</span>
+        </li>
+        <li>
+          <span class="zh">学生在课程里自学 + 通关测试；你在<strong>学情分析</strong>里看结果。</span>
+          <span class="en">Students study and take gate tests; you review the results in <strong>Analytics</strong>.</span>
+        </li>
+      </ol>
+      <div class="callout tip">
+        <span class="label zh">提示</span><span class="label en">Tip</span>
+        <span class="zh">课程建好后必须点「发布」，学生才看得到；班级也要绑定这门课程。</span>
+        <span class="en">A course must be published before students can see it, and the class must be bound to that course.</span>
+      </div>
+    </section>
+
+    <!-- 1 ACCOUNT -->
+    <section class="card" id="account">
+      <h2 class="sec"><span class="num">1</span><span class="zh">登录与账户</span><span class="en">Sign in &amp; account</span></h2>
+      <p class="lead zh">网站地址：<span class="path">https://chem-learn-seven.vercel.app</span></p>
+      <p class="lead en">Site address: <span class="path">https://chem-learn-seven.vercel.app</span></p>
+
+      <figure>
+        <img src="manual-assets/00-login.jpg" alt="Login page">
+        <figcaption>
+          <span class="zh">登录页。顶部有「登录 / 注册」两个标签；右上角可切换语言。</span>
+          <span class="en">The sign-in page. Use the Login / Register tabs; the language switch is at the top right.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">1.1 角色</span><span class="en">1.1 Roles</span></h3>
+      <table>
+        <tr>
+          <th><span class="zh">角色</span><span class="en">Role</span></th>
+          <th><span class="zh">能做什么</span><span class="en">What they can do</span></th>
+        </tr>
+        <tr>
+          <td><span class="zh">学生 Student</span><span class="en">Student</span></td>
+          <td><span class="zh">加入班级、学习课时、做通关测试、背单词、参加模拟考、查看错题本。</span><span class="en">Join classes, study lessons, take gate tests, learn vocabulary, sit mock exams, and review the wrong-question book.</span></td>
+        </tr>
+        <tr>
+          <td><span class="zh">教师 Teacher</span><span class="en">Teacher</span></td>
+          <td><span class="zh">建课、出题、建班、看学情、管理词汇、使用计划表。所有数据按教师隔离。</span><span class="en">Create courses and questions, manage classes, view analytics, manage vocabulary, and use the schedule. Each teacher's data is separate.</span></td>
+        </tr>
+        <tr>
+          <td><span class="zh">管理员 Admin</span><span class="en">Admin</span></td>
+          <td><span class="zh">教师权限 + 用户管理（改角色、删用户）。</span><span class="en">Everything a teacher can do, plus user management (change roles, delete users).</span></td>
+        </tr>
+      </table>
+
+      <h3><span class="zh">1.2 注册</span><span class="en">1.2 Register</span></h3>
+      <ol class="steps">
+        <li>
+          <span class="zh">打开登录页，点「注册」。</span>
+          <span class="en">Open the login page and click <strong>Register</strong>.</span>
+        </li>
+        <li>
+          <span class="zh">选择身份：<strong>教师</strong>或<strong>学生</strong>。</span>
+          <span class="en">Choose <strong>Teacher</strong> or <strong>Student</strong>.</span>
+        </li>
+        <li>
+          <span class="zh">教师需要填写<strong>教师邀请码</strong>（向学校管理员索取）；学生建议填写<strong>班级邀请码</strong>，注册后自动加入班级。</span>
+          <span class="en">Teachers must enter the <strong>teacher invite code</strong> (ask your administrator). Students should enter a <strong>class invite code</strong> to join a class automatically.</span>
+        </li>
+        <li>
+          <span class="zh">填写姓名、邮箱、密码，提交后即可使用。</span>
+          <span class="en">Enter your name, email, and password, then submit.</span>
+        </li>
+      </ol>
+      <div class="callout note">
+        <span class="label zh">注意</span><span class="label en">Note</span>
+        <span class="zh">班级邀请码可以在「班级管理」里复制；如果学生注册时没有邀请码，之后也可以让老师手动添加。</span>
+        <span class="en">Class invite codes are on the Classes page. If a student registers without one, the teacher can add them manually later.</span>
+      </div>
+
+      <h3><span class="zh">1.3 忘记密码</span><span class="en">1.3 Forgot password</span></h3>
+      <p class="zh">在登录页点「忘记密码？」，输入邮箱后会收到重置邮件，点邮件里的链接即可设置新密码。</p>
+      <p class="en">Click <strong>Forgot password?</strong>, enter your email, and follow the reset link in the email to set a new password.</p>
+    </section>
+
+    <!-- 2 DASHBOARD -->
+    <section class="card" id="dashboard">
+      <h2 class="sec"><span class="num">2</span><span class="zh">教师工作台</span><span class="en">Teacher workspace</span></h2>
+      <p class="lead zh">登录后默认进入工作台：上方是课程数、班级数、学生数；中间是三个常用入口；下方按课程速览。</p>
+      <p class="lead en">After signing in you land on the workspace: course/class/student counts at the top, three shortcuts in the middle, and a per-course overview below.</p>
+
+      <figure>
+        <img src="manual-assets/01-dashboard.jpg" alt="Teacher dashboard">
+        <figcaption>
+          <span class="zh">教师工作台。顶部导航依次是课程管理、通关题库、学情分析、背单词、模拟考、计划表、班级、用户管理。</span>
+          <span class="en">Teacher workspace. The top navigation lists Courses, Gate Bank, Analytics, Vocabulary, Mock Exams, Schedule, Classes, and Users.</span>
+        </figcaption>
+      </figure>
+
+      <ul>
+        <li><span class="zh"><span class="btn-ref">课程管理</span>：建课、改章节课时、看题库。</span><span class="en"><span class="btn-ref">Courses</span>: create courses, edit chapters/lessons, open the question bank.</span></li>
+        <li><span class="zh"><span class="btn-ref">学情分析</span>：看薄弱知识点、易错题、学生尝试与用时。</span><span class="en"><span class="btn-ref">Analytics</span>: weak knowledge points, hard questions, attempts and time.</span></li>
+        <li><span class="zh"><span class="btn-ref">班级管理</span>：学生进度与邀请码。</span><span class="en"><span class="btn-ref">Classes</span>: student progress and invite codes.</span></li>
+        <li><span class="zh">右下角常驻<strong>公式表</strong>和<strong>计算器</strong>，任何页面都能用（见第 11 节）。</span><span class="en">The floating <strong>Formula Sheet</strong> and <strong>Calculator</strong> at the bottom right are available on every page (see section 11).</span></li>
+      </ul>
+    </section>
+
+    <!-- 3 COURSES -->
+    <section class="card" id="courses">
+      <h2 class="sec"><span class="num">3</span><span class="zh">课程管理</span><span class="en">Course management</span></h2>
+      <p class="lead zh">平台有三类课程，创建时选定后不能更改类型：</p>
+      <p class="lead en">There are three course types. The type is fixed once the course is created:</p>
+
+      <div class="grid2">
+        <div class="mini">
+          <h4><span class="zh">🧪 过关课程 Gate Course</span><span class="en">🧪 Gate Course</span></h4>
+          <p class="zh">常规教学主线：课程 → 章节 → 课时 → 知识点/题库 → 通关测试。学生必须通过当前课时，才能解锁下一课时。</p>
+          <p class="en">The main teaching ladder: course → chapter → lesson → knowledge points/questions → gate test. A student must pass the current lesson before the next one unlocks.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">📖 背单词课程 Vocabulary Course</span><span class="en">📖 Vocabulary Course</span></h4>
+          <p class="zh">按课时维护专业词汇，学生用卡片、列表学习，再做拼写/选择/释义测验。</p>
+          <p class="en">Maintain key terms per lesson; students study with cards or lists and take spelling, choice, or meaning quizzes.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">📝 模拟考课程 Mock Course</span><span class="en">📝 Mock Course</span></h4>
+          <p class="zh">限时套题训练。必须绑定一门过关课程，试卷题目的“所属章节课时”直接来自那门课。</p>
+          <p class="en">Timed practice papers. It must bind to a Gate Course; each paper question inherits its chapter/lesson from that course.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">共享规则 Sharing</span><span class="en">Sharing</span></h4>
+          <p class="zh">课程默认只有创建者可见。可以添加<strong>协作者</strong>，让其他教师一起编辑。</p>
+          <p class="en">By default only the owner can see a course. Add <strong>collaborators</strong> so other teachers can edit it too.</p>
+        </div>
+      </div>
+
+      <figure>
+        <img src="manual-assets/02-courses.jpg" alt="Course list">
+        <figcaption>
+          <span class="zh">课程管理列表：每门课都能发布/取消发布、编辑或删除；背单词课程有「词库」入口，模拟考课程有「试卷」入口。</span>
+          <span class="en">The course list. Each course can be published/unpublished, edited, or deleted; vocabulary courses have a Word Bank entry and mock courses have a Papers entry.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">3.1 新建课程</span><span class="en">3.1 Create a course</span></h3>
+      <ol class="steps">
+        <li><span class="zh">进入「课程管理」，点右上角<strong>新建课程</strong>。</span><span class="en">Open <strong>Courses</strong> and click <strong>New Course</strong>.</span></li>
+        <li><span class="zh">填写课程名称、学科（语文/数学/英语/二外/物理/化学/生物/人文）、年级、说明和图标。</span><span class="en">Enter the course name, subject, grade, description, and icon.</span></li>
+        <li><span class="zh">选择类型。若选<strong>模拟考课程</strong>，必须同时选择要绑定的过关课程。</span><span class="en">Choose the type. For a <strong>Mock Course</strong>, also choose the Gate Course to bind.</span></li>
+        <li><span class="zh">创建后进入课程详情，点<strong>发布</strong>，学生才能看到。</span><span class="en">Open the course and click <strong>Publish</strong> so students can see it.</span></li>
+      </ol>
+
+      <h3><span class="zh">3.2 章节与课时</span><span class="en">3.2 Chapters and lessons</span></h3>
+      <figure>
+        <img src="manual-assets/03-course-detail.jpg" alt="Course detail">
+        <figcaption>
+          <span class="zh">课程详情：上方是基本信息与协作教师，下方是章节/课时。每个课时有知识点、题目、图片、改名、排序和删除按钮。</span>
+          <span class="en">Course detail: basic information and collaborators at the top; chapters and lessons below. Each lesson has knowledge points, questions, image, rename, reorder, and delete controls.</span>
+        </figcaption>
+      </figure>
+      <ul>
+        <li><span class="zh"><strong>添加章节</strong>：在输入框写章节名，点「+ 添加」。</span><span class="en"><strong>Add chapter</strong>: type a name and click + Add.</span></li>
+        <li><span class="zh"><strong>添加课时</strong>：展开章节，在底部输入课时名，点「+ 课时」。</span><span class="en"><strong>Add lesson</strong>: expand a chapter, type the name at the bottom, and click + Lesson.</span></li>
+        <li><span class="zh"><strong>排序</strong>：用章节/课时右侧的 ↑ ↓ 箭头调整顺序。</span><span class="en"><strong>Reorder</strong>: use the ↑ ↓ arrows.</span></li>
+        <li><span class="zh"><strong>改名/删除</strong>：用铅笔和垃圾桶图标。</span><span class="en"><strong>Rename/delete</strong>: use the pencil and trash icons.</span></li>
+        <li><span class="zh"><strong>批量导入</strong>：用 Markdown 粘贴 <code># 章节名</code> 和 <code>## 课时名</code>，一次生成整门课的结构。</span><span class="en"><strong>Batch import</strong>: paste Markdown with <code># Chapter</code> and <code>## Lesson</code> lines to create the whole structure at once.</span></li>
+        <li><span class="zh"><strong>导入章节/课时</strong>：从你的其他课程复制现成内容，再改改即可。</span><span class="en"><strong>Import chapter/lesson</strong>: copy existing content from another course and adjust it.</span></li>
+      </ul>
+
+      <h3><span class="zh">3.3 知识点</span><span class="en">3.3 Knowledge points</span></h3>
+      <p class="zh">点课时右侧的「知识点 ▸」添加。每个知识点可以写 Markdown 说明、粘贴图片、添加 PDF 和视频链接；编辑窗口右侧会实时预览学生看到的样子。</p>
+      <p class="en">Click <strong>Knowledge points</strong> on a lesson to add them. Each point supports a Markdown description, pasted images, a PDF, and video links; the editor previews the student view live.</p>
+
+      <div class="callout warn">
+        <span class="label zh">删除前注意</span><span class="label en">Before deleting</span>
+        <span class="zh">删除课程会永久删除其章节、课时和题目。若删除的是被模拟考课程绑定的过关课程，那些模拟考的题目也会一起消失、试卷变空。删除模拟考课程不会删除绑定的过关课程。</span>
+        <span class="en">Deleting a course permanently removes its chapters, lessons, and questions. Deleting a Gate Course that a Mock Course is bound to also removes those mock questions and empties the papers. Deleting a Mock Course does not delete the bound Gate Course.</span>
+      </div>
+    </section>
+
+    <!-- 4 QUESTIONS -->
+    <section class="card" id="questions">
+      <h2 class="sec"><span class="num">4</span><span class="zh">题库与 AI 出题</span><span class="en">Question bank &amp; AI generation</span></h2>
+      <p class="lead zh">「通关题库」按课程 → 章节 → 课时浏览和编辑题目。每道题显示难度、正确率和作答次数。</p>
+      <p class="lead en"><strong>Gate Bank</strong> browses and edits questions by course → chapter → lesson. Each question shows difficulty, correct rate, and attempt count.</p>
+
+      <figure>
+        <img src="manual-assets/05-questions.jpg" alt="Question bank">
+        <figcaption>
+          <span class="zh">选择题库课时后的界面：可手动添加、清空该课时题目，也能跳转 AI 生成或导入。</span>
+          <span class="en">A lesson in the question bank. You can add manually, clear the lesson, or jump to AI generation or import.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">4.1 手动添加题目</span><span class="en">4.1 Add a question manually</span></h3>
+      <ol class="steps">
+        <li><span class="zh">选好课程、章节、课时，点<strong>✏️ 手动添加</strong>。</span><span class="en">Select the course, chapter, and lesson, then click <strong>Add Manually</strong>.</span></li>
+        <li><span class="zh">填写题干、4 个选项、正确答案、解析和难度。题干里的化学式可用 LaTeX（如 <code>$H_2O$</code>）。</span><span class="en">Fill in the stem, four options, the correct answer, explanation, and difficulty. LaTeX is supported, e.g. <code>$H_2O$</code>.</span></li>
+        <li><span class="zh">图片可以直接在题干框里 <span class="kbd">Ctrl</span>+<span class="kbd">V</span> 粘贴，系统会自动压缩到 1MB 以下。</span><span class="en">Paste images directly into the stem box with <span class="kbd">Ctrl</span>+<span class="kbd">V</span>; they are compressed below 1MB automatically.</span></li>
+        <li><span class="zh">保存后可在列表里编辑或删除。</span><span class="en">Save, then edit or delete it from the list.</span></li>
+      </ol>
+
+      <h3><span class="zh">4.2 AI 智能出题</span><span class="en">4.2 AI question generation</span></h3>
+      <figure>
+        <img src="manual-assets/04-ai-generate.jpg" alt="AI generate">
+        <figcaption>
+          <span class="zh">AI 出题：选课程、章节、目标课时、题型、数量和知识点主题，然后生成。</span>
+          <span class="en">AI generation: choose the course, chapter, target lesson, question type, count, and topic.</span>
+        </figcaption>
+      </figure>
+      <ol class="steps">
+        <li><span class="zh">进入「通关题库」→ <strong>🤖 AI 生成题目</strong>（或顶部导航的「AI 生成」入口）。</span><span class="en">Open <strong>Gate Bank</strong> → <strong>AI Generate</strong>.</span></li>
+        <li><span class="zh">依次选择课程、章节、目标课时。</span><span class="en">Select the course, chapter, and target lesson.</span></li>
+        <li><span class="zh">设置题型、题目数量和主题（可选）。主题越具体，题目越贴合。</span><span class="en">Set the question type, count, and optional topic. A specific topic produces better questions.</span></li>
+        <li><span class="zh">点<strong>开始生成</strong>。生成结果显示在页面上，确认后保存到题库。</span><span class="en">Click <strong>Generate</strong>, review the result, then save it to the question bank.</span></li>
+      </ol>
+      <div class="callout tip">
+        <span class="label zh">提示</span><span class="label en">Tip</span>
+        <span class="zh">AI 生成的内容会跟随界面语言：英文界面生成英文题目，中文界面生成中文题目。无论哪种语言，发布前都要人工检查答案和解析。</span>
+        <span class="en">AI output follows the interface language: English UI gives English questions, Chinese UI gives Chinese questions. Always review answers and explanations before publishing.</span>
+      </div>
+
+      <h3><span class="zh">4.3 清空课时题目</span><span class="en">4.3 Clear a lesson</span></h3>
+      <p class="zh">课时右上角的「🗑 清空」会删除该课时的全部题目和历史作答记录，且不可恢复。只想删一道题时，用该题右侧的删除按钮。</p>
+      <p class="en"><strong>Clear</strong> deletes every question in the lesson plus its answer history, and cannot be undone. To remove one question, use the delete button on that row.</p>
+    </section>
+
+    <!-- 5 IMPORT -->
+    <section class="card" id="import">
+      <h2 class="sec"><span class="num">5</span><span class="zh">导入题目</span><span class="en">Import questions</span></h2>
+      <p class="lead zh">适合把现成的练习、试卷题或 AI 生成的文本一次性变成结构化题目。</p>
+      <p class="lead en">Turn existing exercises, paper questions, or AI-generated text into structured questions in one go.</p>
+      <figure>
+        <img src="manual-assets/06-import-questions.jpg" alt="Import questions">
+        <figcaption>
+          <span class="zh">导入页面：先选目标课时，再粘贴 Markdown；可选「快速解析」或「AI 解析」。</span>
+          <span class="en">Import page: choose the target lesson, paste Markdown, then choose Quick Parse or AI Parse.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">5.1 推荐的文本格式</span><span class="en">5.1 Recommended format</span></h3>
+<pre><code>1. Which substance is an electrolyte?
+A. Sucrose
+B. Sodium chloride
+C. Ethanol
+D. Glucose
+Answer: B
+Explanation: Sodium chloride fully dissociates in water.
+
+---
+
+2. What is the equation for preparing Cl₂ in the lab?
+...</code></pre>
+      <ul>
+        <li><span class="zh">题目之间用 <code>---</code> 或空行分隔。</span><span class="en">Separate questions with <code>---</code> or a blank line.</span></li>
+        <li><span class="zh">选项以 <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code> 开头。</span><span class="en">Start options with <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code></span></li>
+        <li><span class="zh">答案写 <code>Answer: B</code> 或 <code>答案：B</code>；解析写在后面。</span><span class="en">Write <code>Answer: B</code> (or Chinese <code>答案：B</code>) followed by the explanation.</span></li>
+        <li><span class="zh">公式用 LaTeX；图片可直接粘贴。</span><span class="en">Use LaTeX for formulas; images can be pasted.</span></li>
+      </ul>
+
+      <h3><span class="zh">5.2 两种解析方式</span><span class="en">5.2 Two parsing modes</span></h3>
+      <table>
+        <tr><th><span class="zh">模式</span><span class="en">Mode</span></th><th><span class="zh">特点</span><span class="en">Best for</span></th></tr>
+        <tr>
+          <td><span class="zh">⚡ 快速解析（规则）</span><span class="en">⚡ Quick Parse (rules)</span></td>
+          <td><span class="zh">不消耗 AI，速度快、数量准；要求格式比较规整。</span><span class="en">No AI cost, fast and exact; requires fairly regular formatting.</span></td>
+        </tr>
+        <tr>
+          <td><span class="zh">🤖 AI 解析</span><span class="en">🤖 AI Parse</span></td>
+          <td><span class="zh">适合格式不规整、选项排版混乱的文本；耗时略长，偶尔需要重试。</span><span class="en">Handles messy formatting and irregular options; slower and occasionally needs a retry.</span></td>
+        </tr>
+      </table>
+      <ol class="steps">
+        <li><span class="zh">选择目标课程、章节和课时。</span><span class="en">Select the target course, chapter, and lesson.</span></li>
+        <li><span class="zh">粘贴文本，选择解析方式，点解析。</span><span class="en">Paste the text, choose a mode, and parse.</span></li>
+        <li><span class="zh">逐题检查结果（答案、选项、解析），确认后保存。</span><span class="en">Check each question (answer, options, explanation) and save.</span></li>
+      </ol>
+      <div class="callout warn">
+        <span class="label zh">注意</span><span class="label en">Note</span>
+        <span class="zh">若提示部分题目未能解析，可把出错段落前后的内容删掉或改写后重试；题目特别多时建议分两批导入。</span>
+        <span class="en">If some blocks fail, delete or edit the text around them and retry. For very large sets, import in two batches.</span>
+      </div>
+    </section>
+
+    <!-- 6 MOCK -->
+    <section class="card" id="mock">
+      <h2 class="sec"><span class="num">6</span><span class="zh">模拟考</span><span class="en">Mock exams</span></h2>
+      <p class="lead zh">限时完整套题：学生开考后倒计时，交卷或超时自动判分。适合期中/期末/AP 等考前训练。</p>
+      <p class="lead en">Full timed papers: students get a countdown and are graded on submission or when time runs out. Ideal for midterm/final/AP practice.</p>
+
+      <h3><span class="zh">6.1 准备</span><span class="en">6.1 Setup</span></h3>
+      <ul>
+        <li><span class="zh">先有一门<strong>过关课程</strong>，并至少建好章节和课时。</span><span class="en">You need a <strong>Gate Course</strong> with at least one chapter and lesson.</span></li>
+        <li><span class="zh">新建一门<strong>模拟考课程</strong>，绑定这门过关课程。</span><span class="en">Create a <strong>Mock Course</strong> and bind it to that Gate Course.</span></li>
+        <li><span class="zh">进入「模拟考」或课程列表里的「试卷」。</span><span class="en">Open <strong>Mock Exams</strong> or the course's <strong>Papers</strong> entry.</span></li>
+      </ul>
+      <figure>
+        <img src="manual-assets/07-mock.jpg" alt="Mock paper list">
+        <figcaption>
+          <span class="zh">试卷管理：每套卷显示类型、时长、题量、考过人次和发布状态；右侧可预览、看成绩、编辑或删除。</span>
+          <span class="en">Paper management: each paper shows type, duration, question count, attempts, and publish status; preview, results, edit, and delete are on the right.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">6.2 新建试卷</span><span class="en">6.2 Create a paper</span></h3>
+      <ol class="steps">
+        <li><span class="zh">点<strong>+ 新建试卷</strong>，填写标题和时长（分钟）。</span><span class="en">Click <strong>New Paper</strong>, enter a title and duration in minutes.</span></li>
+        <li><span class="zh">选择卷子类型：<strong>选择题卷</strong>或<strong>简答题卷</strong>。一份卷子只能有一种题型，建好后不能改。</span><span class="en">Choose <strong>Multiple choice</strong> or <strong>Short answer</strong>. A paper has one type only, fixed after creation.</span></li>
+        <li><span class="zh">创建后进入编辑页，录入题目。</span><span class="en">Open the editor and add questions.</span></li>
+      </ol>
+
+      <h3><span class="zh">6.3 录入题目：四种方式</span><span class="en">6.3 Four ways to add questions</span></h3>
+      <div class="grid2">
+        <div class="mini">
+          <h4><span class="zh">📋 粘贴试卷文本</span><span class="en">📋 Paste paper text</span></h4>
+          <p class="zh">把整份卷子的文字粘进去，AI 自动拆题、标章节课时。</p>
+          <p class="en">Paste the whole paper; AI splits questions and maps them to chapters/lessons.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">☁️ 上传 PDF（MinerU）</span><span class="en">☁️ Upload PDF (MinerU)</span></h4>
+          <p class="zh">读取 PDF 真实文字层，配图自动提取，准确率最高。免费额度约 1000 页/天。</p>
+          <p class="en">Reads the real text layer and extracts figures; most accurate. Free quota is about 1,000 pages/day.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">🖼️ 上传页面图片</span><span class="en">🖼️ Upload page images</span></h4>
+          <p class="zh">按页粘贴截图，适合扫描版、拍照版或公式很多的卷子。</p>
+          <p class="en">Paste page screenshots; best for scanned, photographed, or formula-heavy papers.</p>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">✏️ 手动添加</span><span class="en">✏️ Add manually</span></h4>
+          <p class="zh">逐题录入，适合补题、改题或少量自编题。</p>
+          <p class="en">Enter questions one by one, ideal for fixes or a few original questions.</p>
+        </div>
+      </div>
+
+      <h4><span class="zh">PDF 与图片的注意事项</span><span class="en">PDF and image notes</span></h4>
+      <ul>
+        <li><span class="zh">PDF 建议优先用「上传 PDF 到 MinerU 解析（更准）」；失败或额度用完时，用「本地转成图片」备用。</span><span class="en">Prefer <strong>Upload PDF to MinerU</strong>; if it fails or quota is used up, fall back to <strong>Convert locally to images</strong>.</span></li>
+        <li><span class="zh">图片按页顺序上传，一页一张。</span><span class="en">Upload one image per page, in page order.</span></li>
+        <li><span class="zh">答案和解析可以在答案框里粘贴文字，也可以截图后 <span class="kbd">Ctrl</span>+<span class="kbd">V</span> 粘贴答案图片。</span><span class="en">Paste answers as text, or screenshot the answer key and <span class="kbd">Ctrl</span>+<span class="kbd">V</span> it into the answer box.</span></li>
+        <li><span class="zh">简答题必须给参考答案：它是 AI 判分的依据；答案写错会导致整题判错。</span><span class="en">Short-answer questions need a reference answer: AI uses it for grading. A wrong reference answer makes the whole class wrong.</span></li>
+      </ul>
+
+      <h3><span class="zh">6.4 审题、预览与发布</span><span class="en">6.4 Review, preview, and publish</span></h3>
+      <ol class="steps">
+        <li><span class="zh">AI 拆题后，逐题检查题干、选项、答案、解析和所标章节课时；不对的直接编辑或删除。</span><span class="en">After parsing, check each stem, option, answer, explanation, and chapter/lesson mapping; edit or delete anything wrong.</span></li>
+        <li><span class="zh">点<strong>预览</strong>看学生端的排版与题号。</span><span class="en">Click <strong>Preview</strong> to see the student layout and numbering.</span></li>
+        <li><span class="zh">确认无误后点<strong>发布</strong>。未发布的卷子学生完全看不到。</span><span class="en">Click <strong>Publish</strong> when ready. Students cannot see an unpublished paper.</span></li>
+      </ol>
+      <figure>
+        <img src="manual-assets/08-mock-preview.jpg" alt="Mock paper preview">
+        <figcaption>
+          <span class="zh">教师预览：显示答案和解析，不会产生考试记录；学生端不显示答案，倒计时结束自动交卷。</span>
+          <span class="en">Teacher preview shows answers and explanations and creates no exam record; the student view hides answers and auto-submits when time ends.</span>
+        </figcaption>
+      </figure>
+      <div class="callout warn">
+        <span class="label zh">已有学生作答后</span><span class="label en">After students have sat it</span>
+        <span class="zh">已有作答记录时，「保存（更新本卷）」会不可用，避免成绩与题目对不上。需要改题就点「另存为新试卷」，改好后发布新那份。</span>
+        <span class="en">Once anyone has attempted the paper, <strong>Save (update this paper)</strong> is disabled so results stay aligned with the questions. Use <strong>Save as new paper</strong>, edit, and publish the new one.</span>
+      </div>
+
+      <h3><span class="zh">6.5 成绩</span><span class="en">6.5 Results</span></h3>
+      <p class="zh">点试卷右侧的<strong>成绩</strong>查看：跨套卷总分、每套卷各次正确率、按班级筛选、学生逐场成绩。同一套卷多次考取最好的一次；点分数能看到该场逐题对错。</p>
+      <p class="en">Click <strong>Results</strong> to see cross-paper totals, per-attempt accuracy, class filters, and each student's sessions. For repeat attempts, the best score counts; click a score to see question-by-question results.</p>
+    </section>
+
+    <!-- 7 CLASSES -->
+    <section class="card" id="classes">
+      <h2 class="sec"><span class="num">7</span><span class="zh">班级管理</span><span class="en">Classes</span></h2>
+      <p class="lead zh">班级把学生和课程连起来：学生加入班级后，才能看到班级绑定的课程。</p>
+      <p class="lead en">A class links students to courses: students only see courses bound to a class they belong to.</p>
+      <figure>
+        <img src="manual-assets/09-classes.jpg" alt="Classes list">
+        <figcaption>
+          <span class="zh">班级列表：显示绑定的主课程、学生人数和邀请码；「绑定课程」可再绑背单词和模拟考课程。</span>
+          <span class="en">Class list: main course, student count, and invite code; <strong>Bind courses</strong> adds vocabulary and mock courses.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">7.1 新建班级</span><span class="en">7.1 Create a class</span></h3>
+      <ol class="steps">
+        <li><span class="zh">进入「班级」，点<strong>新建班级</strong>。</span><span class="en">Open <strong>Classes</strong> and click <strong>New Class</strong>.</span></li>
+        <li><span class="zh">填写班级名称，建议格式：年份 + 年级 + 课程 + 班号，如 <code>2026 G9 化学A-3班</code>。名称越规范，课表照片自动匹配越准。</span><span class="en">Use a clear name such as <code>2026 G9 Chemistry A-3</code>. Clear names improve automatic matching when importing a timetable photo.</span></li>
+        <li><span class="zh">选择<strong>主课程</strong>（通常是过关课程），点创建。</span><span class="en">Choose the <strong>main course</strong> (usually the Gate Course) and create.</span></li>
+        <li><span class="zh">点<strong>绑定课程</strong>，可再绑一门背单词课程和一门模拟考课程。每类最多一门。</span><span class="en">Click <strong>Bind courses</strong> to add one vocabulary course and one mock course. At most one per type.</span></li>
+        <li><span class="zh">复制邀请码发给学生；学生注册时填写，或之后在班级里手动添加。</span><span class="en">Share the invite code with students (at registration) or add them manually later.</span></li>
+      </ol>
+
+      <h3><span class="zh">7.2 学生进度</span><span class="en">7.2 Student progress</span></h3>
+      <figure>
+        <img src="manual-assets/10-class-detail.jpg" alt="Class detail">
+        <figcaption>
+          <span class="zh">班级详情：邀请码、学生名单和每个学生的通关进度百分比；可添加/移除学生，并发布班级留言。</span>
+          <span class="en">Class detail: invite code, student list, and each student's completion percentage; add/remove students and post class messages.</span>
+        </figcaption>
+      </figure>
+      <ul>
+        <li><span class="zh"><strong>添加学生</strong>：输入学生姓名（需已有账户）。</span><span class="en"><strong>Add student</strong>: enter the name of an existing account.</span></li>
+        <li><span class="zh"><strong>移除学生</strong>：点学生右侧的 ✕，会二次确认。</span><span class="en"><strong>Remove</strong>: click ✕ next to a student; you will be asked to confirm.</span></li>
+        <li><span class="zh"><strong>班级留言/公告</strong>：学生能看到班级公告。</span><span class="en"><strong>Class message</strong>: announcements are visible to students.</span></li>
+        <li><span class="zh"><strong>排序</strong>：点“姓名”或“进度”表头可切换排序。</span><span class="en"><strong>Sort</strong>: click the Name or Progress header.</span></li>
+      </ul>
+      <div class="callout tip">
+        <span class="label zh">提示</span><span class="label en">Tip</span>
+        <span class="zh">学生看不到课程时，依次检查：课程是否已发布、班级是否绑定了这门课、学生是否在这个班级里。</span>
+        <span class="en">If a student cannot see a course, check in order: is the course published, is it bound to the class, and is the student in that class?</span>
+      </div>
+    </section>
+
+    <!-- 8 ANALYTICS -->
+    <section class="card" id="analytics">
+      <h2 class="sec"><span class="num">8</span><span class="zh">学情分析</span><span class="en">Analytics</span></h2>
+      <p class="lead zh">看清“哪里薄弱、哪道题最难、谁需要帮助”。可按课程或按班级查看。</p>
+      <p class="lead en">See what is weak, which questions are hardest, and who needs help. View by course or by class.</p>
+      <figure>
+        <img src="manual-assets/11-analytics.jpg" alt="Analytics">
+        <figcaption>
+          <span class="zh">学情分析：薄弱知识点、高错题（教师版错题本）、学生尝试次数与通关用时，可导出 PDF。</span>
+          <span class="en">Analytics: weak knowledge points, hard questions (teacher wrong-book), attempts and completion time, with PDF export.</span>
+        </figcaption>
+      </figure>
+      <ul>
+        <li><span class="zh"><strong>按课程 / 按班级</strong>切换统计范围；班级视图可再选具体班级。</span><span class="en">Switch between <strong>By course</strong> and <strong>By class</strong>; class view has a class selector.</span></li>
+        <li><span class="zh"><strong>薄弱知识点</strong>按正确率从低到高排列。</span><span class="en"><strong>Weak knowledge points</strong> are ordered from lowest to highest accuracy.</span></li>
+        <li><span class="zh"><strong>高错题</strong>是教师版错题本，按章节汇总，可导出 PDF 用于讲评。</span><span class="en"><strong>Hard questions</strong> is the teacher wrong-book, grouped by chapter; export to PDF for review lessons.</span></li>
+        <li><span class="zh"><strong>学生明细</strong>：点学生可看其逐题作答；点某场测试可看逐题对错。</span><span class="en"><strong>Student detail</strong>: click a student for their answers, or a session for question-level results.</span></li>
+      </ul>
+      <div class="callout note">
+        <span class="label zh">数据门槛</span><span class="label en">Data threshold</span>
+        <span class="zh">正确率统计要求每题至少有 5 次作答；低于这个数量会显示“暂无足够数据”，避免小样本误判。学生还没做通关测试时，分析页也会是空的。</span>
+        <span class="en">A correct rate is shown only after at least 5 answers per question; below that you see “not enough data”. Analytics also stays empty until students take gate tests.</span>
+      </div>
+    </section>
+
+    <!-- 9 VOCAB -->
+    <section class="card" id="vocab">
+      <h2 class="sec"><span class="num">9</span><span class="zh">词汇管理</span><span class="en">Vocabulary management</span></h2>
+      <p class="lead zh">按课时维护专业词汇；学生端用卡片、列表学习，再做拼写 / 选择 / 释义测验。</p>
+      <p class="lead en">Maintain key terms per lesson; students study with cards or lists and take spelling, choice, or meaning quizzes.</p>
+      <figure>
+        <img src="manual-assets/12-vocab.jpg" alt="Vocabulary management">
+        <figcaption>
+          <span class="zh">词汇管理：选择课程、章节、课时后显示词表；可粘贴 JSON 批量导入、手动新增、排序和编辑。</span>
+          <span class="en">Vocabulary management: choose a course, chapter, and lesson to see the word list; import JSON, add words manually, reorder, and edit.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">9.1 单个新增与编辑</span><span class="en">9.1 Add or edit a word</span></h3>
+      <p class="zh">点<strong>手动新增</strong>或词条右侧的编辑按钮。必填：英文词条、中文释义；可选：音标、词性、英文释义、例句、易错点、配图。</p>
+      <p class="en">Click <strong>Add word</strong> or the edit button on a row. Required: term and Chinese meaning. Optional: IPA, part of speech, English definition, examples, notes, and an image.</p>
+
+      <h3><span class="zh">9.2 批量导入 JSON</span><span class="en">9.2 Import JSON</span></h3>
+      <p class="zh">点<strong>粘贴 JSON 导入</strong>，支持数组或 <code>{ "words": [...] }</code>；<code>```json</code> 围栏会自动去掉。</p>
+      <p class="en">Click <strong>Import JSON</strong>. The top level may be an array or <code>{ "words": [...] }</code>; Markdown fences are stripped automatically.</p>
+<pre><code>[
+  {
+    "term": "isotope",
+    "ipa": "/ˈaɪsətəʊp/",
+    "pos": "n.",
+    "zh": "同位素",
+    "en_def": "Atoms of the same element with different numbers of neutrons.",
+    "example_en": "Carbon-12 and carbon-14 are isotopes.",
+    "note": "注意与 ion 区分",
+    "difficulty": "重要理解"
+  }
+]</code></pre>
+      <p class="zh">只有 <code>term</code> 和 <code>zh</code> 必填。<code>difficulty</code> 可填「核心必背 / 重要理解 / 拓展阅读」，也接受 1/2/3；不填按「重要理解」。</p>
+      <p class="en">Only <code>term</code> and <code>zh</code> are required. <code>difficulty</code> accepts Core / Important / Extension (or 1/2/3); default is Important.</p>
+
+      <h3><span class="zh">9.3 顺序与难度</span><span class="en">9.3 Order and difficulty</span></h3>
+      <ul>
+        <li><span class="zh">用 <strong>↑ ↓</strong> 调整顺序，把同类词放在一起；进入测试模式时单词和选项都会打乱。</span><span class="en">Use <strong>↑ ↓</strong> to group related words; test modes shuffle both words and options.</span></li>
+        <li><span class="zh">难度三档：<strong>核心必背</strong>（必须会拼会解释）、<strong>重要理解</strong>（认得并理解）、<strong>拓展阅读</strong>（见过即可）。</span><span class="en">Three levels: <strong>Core</strong> (spell and explain), <strong>Important</strong> (recognise and understand), <strong>Extension</strong> (recognise only).</span></li>
+        <li><span class="zh"><strong>掌握情况</strong>标签页看班级/学生的掌握度与测验数据。</span><span class="en">The <strong>Mastery</strong> tab shows class/student mastery and quiz data.</span></li>
+      </ul>
+    </section>
+
+    <!-- 10 SCHEDULE -->
+    <section class="card" id="schedule">
+      <h2 class="sec"><span class="num">10</span><span class="zh">计划表</span><span class="en">Schedule</span></h2>
+      <p class="lead zh">类似日历的教师工作周计划：周一至周日 × 13 节，支持每周重复和仅这一次的安排、完成勾选与目标规划。</p>
+      <p class="lead en">A calendar-like weekly work plan: Mon–Sun × 13 periods, with weekly and one-off entries, done ticks, and goal planning.</p>
+      <figure>
+        <img src="manual-assets/13-schedule.jpg" alt="Schedule grid">
+        <figcaption>
+          <span class="zh">计划表：拖动可选连续几节，点空白新建，点事件编辑，右上角勾选即完成；第 6 节固定为午饭午休。</span>
+          <span class="en">Schedule: drag to select contiguous periods, click empty space to create, click an event to edit, tick to mark done; period 6 is lunch.</span>
+        </figcaption>
+      </figure>
+
+      <h3><span class="zh">10.1 新建与编辑安排</span><span class="en">10.1 Create and edit entries</span></h3>
+      <ol class="steps">
+        <li><span class="zh">在空白格上<strong>拖动</strong>选择连续节次，或点<strong>+ 新建</strong>。</span><span class="en"><strong>Drag</strong> across empty cells or click <strong>New</strong>.</span></li>
+        <li><span class="zh">填写标题、类型（课程 / 任务 / 会议 / 其他）、周期（每周重复 / 仅这一次）、星期或日期、起止节次和备注。</span><span class="en">Enter the title, type (class / task / meeting / other), repeat (weekly / one-off), weekday or date, periods, and notes.</span></li>
+        <li><span class="zh">可绑定班级。课程类安排会显示班级名，并链接到班级页面。</span><span class="en">Optionally bind a class. Class entries show the class name and link to the class page.</span></li>
+        <li><span class="zh">保存。删除每周重复的安排时，可选择只删这一次或删除整个系列。</span><span class="en">Save. For a weekly entry you can delete one occurrence or the whole series.</span></li>
+      </ol>
+      <ul>
+        <li><span class="zh"><strong>勾选完成</strong>：只影响这一次，下周同一节不会自动划掉。</span><span class="en"><strong>Tick done</strong>: affects this occurrence only; next week's is unaffected.</span></li>
+        <li><span class="zh"><strong>颜色</strong>：课程、任务、会议、其他各有独立色池，一眼可辨。</span><span class="en"><strong>Colours</strong>: classes, tasks, meetings, and other have separate palettes.</span></li>
+        <li><span class="zh"><strong>过去时段</strong>会自动变灰。</span><span class="en"><strong>Past periods</strong> are greyed out automatically.</span></li>
+        <li><span class="zh"><strong>上一周 / 下一周 / 回到本周</strong>切换周次。</span><span class="en"><strong>Previous / Next / This week</strong> navigate weeks.</span></li>
+      </ul>
+
+      <h3><span class="zh">10.2 从课表照片导入</span><span class="en">10.2 Import a timetable photo</span></h3>
+      <ol class="steps">
+        <li><span class="zh">点<strong>课表导入</strong>，选择一张课表照片或截图。</span><span class="en">Click <strong>Import timetable</strong> and choose a photo or screenshot.</span></li>
+        <li><span class="zh">AI 识别通常需要 10–30 秒，并按名称自动匹配你的班级。</span><span class="en">AI recognition takes about 10–30 seconds and auto-matches your classes by name.</span></li>
+        <li><span class="zh">识别结果会<strong>直接写入</strong>计划表。请逐格核对课程名称、星期和节次；有错可直接点开修改或删除。</span><span class="en">Results are written <strong>directly</strong> into the schedule. Check every cell's name, weekday, and periods; edit or delete mistakes.</span></li>
+        <li><span class="zh">如果整份都不对，点<strong>撤销本次导入</strong>。</span><span class="en">If the whole import is wrong, click <strong>Undo this import</strong>.</span></li>
+      </ol>
+      <div class="callout warn">
+        <span class="label zh">必须核对</span><span class="label en">Always check</span>
+        <span class="zh">AI 识别可能有错漏，尤其是节次跨行、单双周、调休等信息。导入后请按提示逐格检查再使用。</span>
+        <span class="en">AI recognition can miss or misplace entries, especially merged cells, alternating weeks, and holidays. Check each cell after import.</span>
+      </div>
+
+      <h3><span class="zh">10.3 目标规划</span><span class="en">10.3 Goal planning</span></h3>
+      <ol class="steps">
+        <li><span class="zh">点<strong>目标规划</strong> → <strong>新建目标</strong>。</span><span class="en">Click <strong>Goals</strong> → <strong>New goal</strong>.</span></li>
+        <li><span class="zh">填写目标、周期（本周 / 本月 / 本学期）、截止日期和补充说明（如“只安排工作日”）。</span><span class="en">Enter the goal, horizon (week / month / term), due date, and notes (e.g. “weekdays only”).</span></li>
+        <li><span class="zh">点<strong>AI 拆解</strong>。AI 会避开已有课程和午饭节次，给出 3–16 个步骤及建议日期。</span><span class="en">Click <strong>AI breakdown</strong>. AI avoids existing classes and lunch, and proposes 3–16 steps with dates.</span></li>
+        <li><span class="zh">勾选要采纳的步骤，点<strong>加入计划表</strong>；也可全部取消，只保留目标。</span><span class="en">Tick the steps to accept and click <strong>Add to schedule</strong>; or keep only the goal.</span></li>
+      </ol>
+      <p class="zh">目标卡片会显示已完成步骤比例。删除目标不会删除已排进日历的步骤，避免误删已做的工作。</p>
+      <p class="en">Goal cards show the completed-step ratio. Deleting a goal does not delete steps already placed on the calendar.</p>
+
+      <h3><span class="zh">10.4 节次时间与学期</span><span class="en">10.4 Period times and term</span></h3>
+      <p class="zh">点<strong>节次时间</strong>设置学期第一周周一、学期周数和 13 节的起止时间。默认值为 08:00–21:30，第 6 节为午饭午休。修改后整张表按新时间显示。</p>
+      <p class="en">Click <strong>Period times</strong> to set the first Monday, term length, and the start/end time of all 13 periods. Defaults run 08:00–21:30 with period 6 as lunch.</p>
+      <figure>
+        <img src="manual-assets/19-schedule-en.jpg" alt="Schedule in English">
+        <figcaption>
+          <span class="zh">英文界面下的计划表：所有按钮、日期格式和弹出提示都会切换成英文。</span>
+          <span class="en">The schedule in English: buttons, date formats, and dialogs all switch to English.</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- 11 TOOLS -->
+    <section class="card" id="tools">
+      <h2 class="sec"><span class="num">11</span><span class="zh">公式表与计算器</span><span class="en">Formula sheet &amp; calculator</span></h2>
+      <p class="lead zh">右下角常驻两个悬浮按钮，所有登录用户都能用，考试期间也始终可用。</p>
+      <p class="lead en">Two floating buttons at the bottom right are available to every signed-in user, including during exams.</p>
+
+      <div class="grid2">
+        <div class="mini">
+          <h4><span class="zh">📋 公式表</span><span class="en">📋 Formula sheet</span></h4>
+          <ul>
+            <li><span class="zh">元素周期表：悬停/点击查看元素名称、相对原子质量、类别。</span><span class="en">Periodic table: view element names, relative atomic mass, and category.</span></li>
+            <li><span class="zh">常量：气体常数、阿伏伽德罗常数等。</span><span class="en">Constants: gas constant, Avogadro constant, and more.</span></li>
+            <li><span class="zh">常用公式与常见离子。</span><span class="en">Common equations and ions.</span></li>
+            <li><span class="zh">不限于化学，其他学科也可打开使用。</span><span class="en">Not limited to chemistry; usable in other subjects too.</span></li>
+          </ul>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">🧮 计算器</span><span class="en">🧮 Calculator</span></h4>
+          <ul>
+            <li><span class="zh">支持 + − × ÷、括号、sin/cos/tan、log/ln、√、x²、xʸ、π、e、± 和百分比。</span><span class="en">Supports + − × ÷, parentheses, sin/cos/tan, log/ln, √, x², xʸ, π, e, ±, and percent.</span></li>
+            <li><span class="zh">内置安全解析器，不使用 eval，可放心在考试中使用。</span><span class="en">Built-in safe parser (no eval), safe to use during exams.</span></li>
+            <li><span class="zh">点 ✕ 或再次点悬浮按钮关闭。</span><span class="en">Close with ✕ or by clicking the floating button again.</span></li>
+          </ul>
+        </div>
+      </div>
+      <figure>
+        <img src="manual-assets/16-formula.jpg" alt="Formula sheet">
+        <figcaption><span class="zh">公式表面板：周期表、常量、常用公式、常见离子四个标签页。</span><span class="en">Formula sheet: periodic table, constants, equations, and common ions tabs.</span></figcaption>
+      </figure>
+      <figure>
+        <img src="manual-assets/17-calculator.jpg" alt="Calculator">
+        <figcaption><span class="zh">科学计算器面板，可在任何页面打开。</span><span class="en">The scientific calculator, available on any page.</span></figcaption>
+      </figure>
+    </section>
+
+    <!-- 12 SETTINGS -->
+    <section class="card" id="settings">
+      <h2 class="sec"><span class="num">12</span><span class="zh">设置与语言</span><span class="en">Settings &amp; language</span></h2>
+      <figure>
+        <img src="manual-assets/14-settings.jpg" alt="Settings">
+        <figcaption>
+          <span class="zh">个人设置：修改显示名称并保存；邮箱和角色只读。</span>
+          <span class="en">Personal settings: edit and save your display name; email and role are read-only.</span>
+        </figcaption>
+      </figure>
+      <ul>
+        <li><span class="zh"><strong>显示名称</strong>会出现在导航栏、班级名单和成绩表中，改完点保存。</span><span class="en">The <strong>display name</strong> appears in the navbar, class lists, and results; save after editing.</span></li>
+        <li><span class="zh"><strong>语言切换</strong>：导航栏右上角的地球按钮。中文界面显示“EN”，英文界面显示“中文”。</span><span class="en"><strong>Language</strong>: the globe button at the top right. It shows “EN” in Chinese and “中文” in English.</span></li>
+        <li><span class="zh">切换后所有页面、按钮、提示和 AI 生成内容都会跟随语言，刷新后仍保持。</span><span class="en">All pages, buttons, messages, and AI output follow the selected language and persist after reload.</span></li>
+        <li><span class="zh"><strong>修改密码</strong>：退出登录后，在登录页点「忘记密码？」按邮件重置。</span><span class="en"><strong>Change password</strong>: sign out, then use <strong>Forgot password?</strong> on the login page.</span></li>
+      </ul>
+      <figure>
+        <img src="manual-assets/18-dashboard-en.jpg" alt="Dashboard in English">
+        <figcaption>
+          <span class="zh">英文界面下的工作台：英文用户可以不依赖中文完成全部教师操作。</span>
+          <span class="en">The workspace in English: English-only users can complete every teacher task.</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- 13 ADMIN -->
+    <section class="card" id="admin">
+      <h2 class="sec"><span class="num">13</span><span class="zh">管理员功能</span><span class="en">Admin features</span></h2>
+      <p class="lead zh">仅管理员账号可见，普通教师访问会提示“暂无访问权限”。</p>
+      <p class="lead en">Visible to admins only; teachers see a “No access” message.</p>
+      <p class="zh">进入顶部导航的<strong>用户管理</strong>：可以搜索/筛选全部、教师、学生、管理员；修改用户角色；删除用户。删除用户会连同其学习记录一起移除，操作前请确认。</p>
+      <p class="en">Open <strong>Users</strong> in the top navigation to search and filter all/teacher/student/admin accounts, change roles, and delete users. Deleting a user also removes their learning records, so confirm first.</p>
+      <div class="callout warn">
+        <span class="label zh">谨慎</span><span class="label en">Caution</span>
+        <span class="zh">把学生改成教师或管理员会立即扩大其权限；删除账户不可恢复。建议只在学期结束或账号确实作废时使用。</span>
+        <span class="en">Promoting a student to teacher/admin immediately grants more access, and deleting an account cannot be undone. Use these only at term end or for genuinely obsolete accounts.</span>
+      </div>
+    </section>
+
+    <!-- 14 FAQ -->
+    <section class="card" id="faq">
+      <h2 class="sec"><span class="num">14</span><span class="zh">常见问题</span><span class="en">FAQ</span></h2>
+
+      <h3><span class="zh">学生看不到课程怎么办？</span><span class="en">A student cannot see a course</span></h3>
+      <p class="zh">依次检查：① 课程是否已发布；② 班级是否绑定了这门课程；③ 学生是否已加入该班级。三者缺一不可。</p>
+      <p class="en">Check in order: (1) is the course published, (2) is the course bound to the class, (3) is the student in that class. All three are required.</p>
+
+      <h3><span class="zh">学生看不到模拟考卷子？</span><span class="en">Students cannot see a mock paper</span></h3>
+      <p class="zh">试卷默认未发布。在「模拟考」里点卷子上的<strong>发布</strong>；同时确认班级已绑定这门模拟考课程。</p>
+      <p class="en">Papers start unpublished. Click <strong>Publish</strong> on the paper, and make sure the class is bound to the mock course.</p>
+
+      <h3><span class="zh">想改一份已经有人考过的卷子？</span><span class="en">Editing a paper students have already taken</span></h3>
+      <p class="zh">已有作答记录时不能直接更新原卷。用<strong>另存为新试卷</strong>，修改后发布新卷；旧成绩仍对应旧卷。</p>
+      <p class="en">A paper with attempts cannot be updated in place. Use <strong>Save as new paper</strong>, edit, and publish the new one; old results stay with the old paper.</p>
+
+      <h3><span class="zh">AI 生成或解析失败？</span><span class="en">AI generation or parsing fails</span></h3>
+      <p class="zh">多为临时超时或调用失败，直接重试即可；解析长文本时建议分批。若持续失败，联系管理员检查 DeepSeek 额度与密钥。</p>
+      <p class="en">Most failures are transient timeouts; retry. Split long texts into batches. If it keeps failing, ask the administrator to check the DeepSeek key and quota.</p>
+
+      <h3><span class="zh">上传图片提示太大？</span><span class="en">Image is too large</span></h3>
+      <p class="zh">系统会自动压缩到 1MB 以下。若仍失败，先把图片裁小或转成 JPEG 再上传。</p>
+      <p class="en">Images are compressed below 1MB automatically. If it still fails, crop or convert to JPEG first.</p>
+
+      <h3><span class="zh">MinerU（PDF 解析）报错？</span><span class="en">MinerU (PDF parsing) errors</span></h3>
+      <p class="zh">常见原因：免费额度用完（约 1000 页/天）、token 过期（90 天）、文件过大或页数过多、网络取不到文件。可改用「本地转成图片」备用；token 问题请联系管理员更新环境变量。</p>
+      <p class="en">Common causes: daily quota used up (~1,000 pages/day), expired token (90 days), file too large/too many pages, or the file cannot be fetched. Use “Convert locally to images” as a fallback; contact the administrator for token issues.</p>
+
+      <h3><span class="zh">学情分析显示“暂无数据”？</span><span class="en">Analytics shows “no data”</span></h3>
+      <p class="zh">需要学生实际做过通关测试；正确率统计还要求每题至少 5 次作答。</p>
+      <p class="en">Students must actually take gate tests; correct rates additionally require at least 5 answers per question.</p>
+
+      <h3><span class="zh">课表照片识别不准？</span><span class="en">Timetable photo is inaccurate</span></h3>
+      <p class="zh">导入后逐格检查并直接修改；整份错误可点「撤销本次导入」。使用清晰、正向、无遮挡的照片效果最好。</p>
+      <p class="en">Check each cell after import and edit mistakes; use <strong>Undo this import</strong> if the whole result is wrong. Clear, upright, unobstructed photos work best.</p>
+
+      <h3><span class="zh">数据会丢吗？</span><span class="en">Can data be lost?</span></h3>
+      <p class="zh">数据保存在云端数据库。删除课程、题目、用户等操作不可恢复；重要资料建议定期备份（例如导出 PDF 或保存原始文件）。</p>
+      <p class="en">Data lives in the cloud database. Deleting courses, questions, or users cannot be undone; keep backups of important material (PDF exports or original files).</p>
+
+      <h3><span class="zh">推荐用什么浏览器？</span><span class="en">Which browser should I use?</span></h3>
+      <p class="zh">最新版 Chrome 或 Edge。平板和手机也能用，但建课、导入试卷等复杂操作建议在电脑上完成。</p>
+      <p class="en">The latest Chrome or Edge. Tablets and phones work, but complex tasks such as course building and paper import are best on a computer.</p>
+    </section>
+
+    <!-- WORKFLOW -->
+    <section class="card" id="workflow">
+      <h2 class="sec"><span class="num">★</span><span class="zh">附：推荐工作流</span><span class="en">Appendix: recommended workflow</span></h2>
+      <div class="grid2">
+        <div class="mini">
+          <h4><span class="zh">开学前</span><span class="en">Before term</span></h4>
+          <ol>
+            <li><span class="zh">建好过关课程的结构（章节 → 课时）。</span><span class="en">Build the Gate Course structure (chapters → lessons).</span></li>
+            <li><span class="zh">导入或生成每个课时的题目与词汇。</span><span class="en">Import or generate questions and vocabulary per lesson.</span></li>
+            <li><span class="zh">建班、绑定课程、准备邀请码。</span><span class="en">Create classes, bind courses, prepare invite codes.</span></li>
+            <li><span class="zh">在计划表里录入课表并设置学期。</span><span class="en">Enter the timetable and term settings.</span></li>
+          </ol>
+        </div>
+        <div class="mini">
+          <h4><span class="zh">每周</span><span class="en">Each week</span></h4>
+          <ol>
+            <li><span class="zh">看学情分析的薄弱点和高错题。</span><span class="en">Review weak points and hard questions in Analytics.</span></li>
+            <li><span class="zh">针对错题补讲或补题。</span><span class="en">Reteach or add questions for the hard items.</span></li>
+            <li><span class="zh">计划表勾选完成，调整下周安排。</span><span class="en">Tick off the schedule and plan next week.</span></li>
+            <li><span class="zh">需要检测时，建模拟卷 → 审题 → 发布。</span><span class="en">For assessment: create a mock paper → review → publish.</span></li>
+          </ol>
+        </div>
+      </div>
+
+      <h3><span class="zh">术语对照</span><span class="en">Glossary</span></h3>
+      <table>
+        <tr><th><span class="zh">中文</span><span class="en">Chinese</span></th><th><span class="zh">English</span><span class="en">English</span></th><th><span class="zh">说明</span><span class="en">Meaning</span></th></tr>
+        <tr><td>过关课程</td><td>Gate Course</td><td><span class="zh">带通关测试的常规课程</span><span class="en">A normal course with gate tests</span></td></tr>
+        <tr><td>课时</td><td>Lesson</td><td><span class="zh">章节下最小的学习单元</span><span class="en">The smallest learning unit under a chapter</span></td></tr>
+        <tr><td>知识点</td><td>Knowledge point</td><td><span class="zh">课时内的讲解、图片、PDF 和视频</span><span class="en">Explanations, images, PDFs, and videos inside a lesson</span></td></tr>
+        <tr><td>通关测试</td><td>Gate test</td><td><span class="zh">通过后才解锁下一课时</span><span class="en">Passing unlocks the next lesson</span></td></tr>
+        <tr><td>模拟考课程</td><td>Mock course</td><td><span class="zh">绑定过关课程、存放限时套题</span><span class="en">Binds a Gate Course and holds timed papers</span></td></tr>
+        <tr><td>背单词课程</td><td>Vocabulary course</td><td><span class="zh">按课时管理专业词汇</span><span class="en">Key terms managed per lesson</span></td></tr>
+      </table>
+    </section>
+
+    <footer>
+      <span class="zh">SelfPass 教师使用说明书 · 2026-11</span>
+      <span class="en">SelfPass Teacher Manual · 2026-11</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var btn = document.getElementById('langBtn');
+  function apply(lang) {
+    body.dataset.lang = lang;
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    btn.textContent = lang === 'zh' ? 'EN' : '中文';
+    try { localStorage.setItem('selfpass-manual-lang', lang); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('selfpass-manual-lang'); } catch (e) {}
+  apply(saved === 'en' ? 'en' : 'zh');
+  btn.addEventListener('click', function () {
+    apply(body.dataset.lang === 'zh' ? 'en' : 'zh');
+  });
+})();
+</script>
+</body>
+</html>

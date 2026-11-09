@@ -80,6 +80,15 @@ export default function SettingsPage() {
             className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-50 transition-colors">
             {saving ? tr(lang, '保存中...', 'Saving...') : tr(lang, '保存设置', 'Save Settings')}
           </button>
+
+          {(profile?.role === 'teacher' || profile?.role === 'admin') && (
+            <div className="pt-4 border-t">
+              <a href="/manual/selfpass-teacher-manual.html" target="_blank" rel="noopener"
+                className="text-sm font-medium text-emerald-600 hover:underline">
+                {tr(lang, '📘 教师使用说明书（中英双语）', '📘 Teacher Manual (bilingual)')}
+              </a>
+            </div>
+          )}
         </div>
       </main>
     </div>
